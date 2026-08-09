@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#16161a"/>
-  <path d="M9 22 L16 9 L23 22" stroke="#ffb300" stroke-width="3.2" fill="none"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M12.2 17.6 H19.8" stroke="#ffb300" stroke-width="3.2" stroke-linecap="round"/>
+  <!-- Same mark as src/assets/logo.svg. Kept as its own file so the browser can
+       fetch it before the site's assets are resolved. -->
+  <path d="M16 3 24.55 20.1 17.62 20.1 16 16.86 14.38 20.1 7.45 20.1Z" fill="#00add8" />
+  <path d="M6.55 21.9 13.48 21.9 9.93 29 3 29ZM18.52 21.9 25.45 21.9 29 29 22.07 29Z" fill="#007d9c" />
 </svg>

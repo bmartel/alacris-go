@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="alacris-go">
+  <!--
+    The alacris mark in Go's palette. Same geometry as the alacris logo — an A
+    cut from stock and fractured where its crossbar belongs. The gap is the
+    point: an update in Alacris moves one piece, not the whole shape.
+
+    One angle system throughout — the counter's edges run parallel to the outer
+    edges, so the stroke holds a constant weight and the feet cut flat. Flat
+    fills and sharp corners on purpose: no gradient, no rounded joins. The
+    facets stay crisp down to 16 px, where softened edges turn to mush.
+
+    Colours are Go's: Gopher Blue for the body, the darker go.dev blue for the
+    feet, holding the same light/shadow relationship as the amber original.
+  -->
+  <path d="M16 3 24.55 20.1 17.62 20.1 16 16.86 14.38 20.1 7.45 20.1Z" fill="#00add8" />
+  <path d="M6.55 21.9 13.48 21.9 9.93 29 3 29ZM18.52 21.9 25.45 21.9 29 29 22.07 29Z" fill="#007d9c" />
+</svg>

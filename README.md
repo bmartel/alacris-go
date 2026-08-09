@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/bmartel/alacris-go/main/docs/public/logo.png" alt="" width="88" height="88">
+
 # alacris-go
 
 **Build [alacris](https://github.com/bmartel/alacris) web components from Go and [templ](https://templ.guide).**

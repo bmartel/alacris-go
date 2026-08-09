@@ -17,6 +17,7 @@ export default defineConfig({
       title: 'alacris-go',
       description:
         'Build alacris web components from Go and templ: typed wrappers generated from your define() calls, the runtime served from Go, and server-driven props with no HTML on the wire.',
+      logo: { src: './src/assets/logo.svg', replacesTitle: false },
       favicon: '/favicon.svg',
       social: [
         { icon: 'github', label: 'GitHub', href: REPO },
