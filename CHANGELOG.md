@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.1.2](https://github.com/bmartel/alacris-go/compare/v0.1.1...v0.1.2) (2026-08-09)
+
+### Bug Fixes
+
+* **alacris:** format named float32 props at 32 bits ([4d76a62](https://github.com/bmartel/alacris-go/commit/4d76a62ce0517dcebcc95cf5c012dcf11dc162a5))
+* **alacris:** validate prop and slot-wrapper names before they reach the tag ([3198b58](https://github.com/bmartel/alacris-go/commit/3198b582cd33f61a8dbff99a0d496bb9cb125078))
+* **gen:** reduce a source path to a base name inside fileBase ([2ebda66](https://github.com/bmartel/alacris-go/commit/2ebda662b1ef44baba1e88596b651bfd01c53735))
+* **live:** resync a slow subscriber and bound how many sessions are held ([c8926f6](https://github.com/bmartel/alacris-go/commit/c8926f6e8e0da90a942f5b2fee464e42da7bd836))
+
 ## [0.1.1](https://github.com/bmartel/alacris-go/compare/v0.1.0...v0.1.1) (2026-08-09)
 
 ### Bug Fixes
