@@ -1,249 +1,230 @@
-# AGENTS.md — building Go applications with alacris-go
+# AGENTS.md — working on alacris-go
 
-You are working in a Go project that uses **alacris-go** to render
-[alacris](https://github.com/bmartel/alacris) web components from Go and
-[templ](https://templ.guide). Docs: https://bmartel.github.io/alacris-go/
+This file is about developing **this module**. It is not the file to give a
+project that *uses* the library — that one is [`docs/public/AGENTS.md`][drop-in],
+published at <https://bmartel.github.io/alacris-go/AGENTS.md>. The two have
+different audiences and different rules, and the fastest way to do damage here
+is to follow the wrong one. If you were asked to "add a component" or "wire up
+the live layer", you are almost certainly in the wrong repository.
 
-Follow this file exactly unless the project's own conventions visibly differ.
+Docs: <https://bmartel.github.io/alacris-go/> · Sibling runtime:
+<https://github.com/bmartel/alacris>
 
-## The mental model (read this first)
+[drop-in]: docs/public/AGENTS.md
 
-1. **A component's shadow content is rendered in the browser, never on the
-   server.** `setup()` runs on `connectedCallback`. What Go renders is the
-   element, its attributes, and its light-DOM slot children. There is no SSR of
-   component internals and no declarative shadow DOM. Do not try to add one.
-2. **Every prop crosses as an attribute — objects and arrays included.** alacris
-   coerces using the type of the prop's default in `define()`, and object
-   defaults are parsed with `JSON.parse`. So no post-load property assignment is
-   ever needed, and the page is complete before JavaScript runs.
-3. **A prop is a signal.** A server-side change is one property write, one
-   binding, one DOM node. This is why the `live` layer has no HTML on the wire
-   and nothing to diff.
-4. **JavaScript owns component internals; Go owns composition and state.** Do
-   not invent a Go DSL for templates or signals. Write `setup()` in JavaScript.
+## What this module is, and what that forbids
 
-## Project layout
+1. **It renders alacris custom elements from Go, and nothing more.** A
+   component's shadow content is built in the browser by `setup()`. There is no
+   SSR of component internals and no declarative shadow DOM. Do not add one, and
+   do not add a Go DSL for templates or signals.
+2. **It has no dependencies worth the name.** `go.mod` carries `templ` and
+   nothing else. Adding a dependency to the root package or `live/` needs a
+   reason that survives being asked twice; a dependency in `internal/` or a test
+   is ordinary.
+3. **`assets/` is someone else's build, vendored byte for byte.** It is not
+   edited, not formatted, not reformatted by git ([`.gitattributes`](.gitattributes)
+   marks it `-text`), and not "fixed". It is replaced wholesale by
+   `internal/vendorjs`.
+4. **The generator never guesses.** JavaScript it cannot read as literal data is
+   an error, not a best-effort interpretation. A wrong wrapper is worse than a
+   failed generate, because it compiles.
+5. **A name written into a start tag is structure, not content.** There is no
+   escaping that leaves an attribute name meaning the same thing, so names are
+   allowlisted and refused at render. Never relax a check in [`names.go`](names.go)
+   to make a caller work.
+6. **The live layer's two-value auth is load-bearing.** Cookie plus page id,
+   both required. Do not collapse them, and do not add a way to drive a session
+   from the page id alone.
+
+## The map
 
 ```
-web/components.js     every define() call — one module, imported once
-ui/                   GENERATED wrappers — never edit
-  components_gen.go
-  alacris_gen.go      Tags, package docs
-views/*.templ         pages that use ui.*
-main.go               routes, live wiring, //go:generate lines
+element.go     the Element builder — props, attrs, slots, rendering
+encode.go      Go value -> attribute string, and the limits that raise errors
+names.go       tag/attr/element-name validation, inline CSS sanitising
+runtime.go     RuntimeHandler, Config, Scripts, RuntimeVersion
+theme.go       VarSet — the Go side of alacris' vars()
+doc.go         package documentation
+
+assets/        VENDORED alacris runtime. Byte-pinned. Never hand-edited.
+gen/           define() -> typed Go wrappers
+  lex.go         a JS lexer that only has to know where tokens end
+  parse.go       finds define() calls, reads the props object
+  jsdoc.go       @prop/@fires/@slot/@cssprop/@goname — what define() cannot say
+  value.go       JS literal -> Go type
+  names.go       prop -> attribute, mirroring the runtime's own conversion
+  emit.go        the Go source
+  manifest.go    the escape hatch for components the scanner cannot read
+live/          server-authoritative props over SSE + POST
+  server.go      Server, Options, routing, the stream
+  session.go     Session, Handle, batching, resync
+  cookie.go      the two-value capability model — read this before touching auth
+  cors.go        cross-origin, off unless AllowOrigin says otherwise
+  patch.go       the wire format
+  action.go      Ctx, Bind, On
+  assets/live.js the client
+cmd/alacris-go/  generate | check | manifest
+internal/vendorjs/  refreshes assets/ from npm
+internal/docsgen/   renders every Go example on the docs site
+examples/todo/   the example app — also the e2e fixture and a `check` target
+e2e/             Playwright, against the real example app
+docs/            the Astro site; docs/public/AGENTS.md is the consumer drop-in
 ```
 
-- **One `define()` per component**, all reachable from one module the page loads.
-- **`ui/` is generated.** Editing it is always wrong; change the component or the
-  manifest and regenerate.
-- Generated files carry `// Code generated by alacris-go … DO NOT EDIT.`
+## The commands
 
-## Setup
+| Command | Purpose |
+| --- | --- |
+| `go build ./...` | compiles |
+| `go vet ./...` | CI runs it; so should you |
+| `go test ./...` | the suite |
+| `go test -race ./...` | **required** for any change under `live/` |
+| `gofmt -l .` | must print nothing — CI fails on any output |
+| `go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-` | the example's wrappers are current |
+| `go run ./internal/docsgen -check` | the site's examples still match the library |
+| `go run ./internal/vendorjs -check` | `assets/` still matches npm |
+| `go run ./internal/vendorjs -v X.Y.Z` | vendor a new runtime |
+| `go test -bench . -benchmem ./...` | before and after any performance claim |
+| `cd e2e && npx playwright test` | the DOM-identity claims |
 
-```go
-mux.Handle("/_alacris/", alacris.RuntimeHandler())   // no StripPrefix needed
-```
+CI runs the Go suite on **ubuntu, windows and macos**. Paths, line endings and
+temp files have to work on all three; `.gitattributes` normalises everything to
+LF on purpose.
 
-```templ
-<head>
-    @alacris.Pending{Tags: ui.Tags}
-    @alacris.Scripts(alacris.Config{
-        Modules: []string{"/web/components.js"},
-        Version: buildRevision,          // makes assets cacheable for a year
-    })
-</head>
-```
+## Invariants that look like accidents
 
-`Scripts` MUST be in `<head>` before any other module script — an import map has
-to precede the first import it applies to.
+These have comments above them explaining why. Read the comment before changing
+the code — each one is a bug that already happened.
 
-The alacris runtime is vendored in the Go module. **Do not add npm, a bundler,
-or a CDN link for it.**
+- **`assets_test.go` pins sha256 of every vendored file.** A failure means the
+  vendored runtime drifted: run `go run ./internal/vendorjs`, bump
+  `RuntimeVersion` in [runtime.go](runtime.go), update the hashes, and read
+  alacris' changelog while you are there. Do not "fix" it by pasting new hashes
+  without looking at what changed.
+- **`runtimeHandler` only ever holds the names it serves.** It used to memoise
+  every requested name, including misses, which made a few thousand bogus
+  requests into unbounded growth. [`security_test.go`](security_test.go) guards
+  this. Any caching added here must be keyed on the fixed asset set.
+- **`Options.fill` treats `CookieSameSite == 0` as unset.** `http.SameSiteDefaultMode`
+  is 1, not the zero value, and it means "send no attribute at all". The
+  attribute is doing real work, so it is always written. Do not simplify.
+- **`Element.set` scans linearly** to keep first-set order with last-set value.
+  It is `O(n²)` in prop count by design; `BenchmarkElementManyProps` is where a
+  regression would show. A map would be faster and would render attributes in a
+  different order every run.
+- **The generator's lexer is not a parser.** What it cannot interpret it skips
+  as balanced source. The parts that must be right are where a token *ends* —
+  strings, template literals with nested substitutions, comments, regex
+  literals — because getting those wrong makes it read code as data.
+  [`gen/parse_test.go`](gen/parse_test.go) is entirely adversarial source; add
+  to it when you touch [`gen/lex.go`](gen/lex.go).
+- **`gen/names.go` mirrors the runtime's own prop-to-attribute conversion.** If
+  it and `define.js` disagree, generated code renders attributes no component is
+  listening for. Change both or neither.
+- **`sameToken` compares in constant time**, and `newToken` panics rather than
+  continue without randomness. Both are deliberate.
+- **A boolean prop is always written as `"true"`/`"false"`.** Removing an
+  attribute runs `coerce(null, default)`, which yields `false` even when the
+  default is `true` — so presence can never mean a boolean. This is why a
+  default of `true` generates `*bool`.
 
-## Writing a component
+## Tests — four layers
 
-```js
-import { define, html, css, computed } from 'alacris';
+1. **Unit** (`*_test.go` beside the code) — encoding, names, parsing, emit.
+2. **`security_test.go`** — injection through prop names and slot wrapper tags,
+   and the handler's memory bound. Anything that writes into a start tag or
+   remembers what it was asked for belongs here.
+3. **`live/` with `-race`** — the layer is concurrent by nature. A change here
+   that was only run without the race detector has not been tested.
+4. **`e2e/`, Playwright against the real example app** — the claims `go test`
+   cannot reach: that an update *moves* rows rather than rebuilding them, that
+   it leaves focus and a half-typed draft alone, that the capability is a cookie
+   and never a URL. `retries: 0` and `workers: 1` are deliberate; a retry would
+   hide exactly the flake worth knowing about.
 
-/**
- * A person, at a glance.
- *
- * @prop   {string[]} tags  the labels shown under the name
- * @fires  greet {name: string} - the user said hello
- * @slot   title - replaces the heading
- * @cssprop [--card-bg=#fff] - the background
- */
-define('user-card', {
-  props: { name: 'anon', age: 0, tags: [] },
-  styles: css`:host { display: block }`,
-  setup({ name, age, tags }, host) {
-    const grown = computed(() => age() >= 18);
-    return html`
-      <h3><slot name="title">${name}</slot></h3>
-      <p>${() => (grown() ? 'adult' : 'minor')}</p>
-      <button @click=${() => host.emit('greet', { name: name() })}>hi</button>`;
-  },
-});
-```
+If a node-identity test fails, an `each` has been put inside a conditional.
 
-**Always write the JSDoc block.** `define()` cannot express element types for
-empty arrays, events, slots, or custom properties, and without the tags the
-generator produces `[]any` and no event constants.
+Two more guard the documentation: `internal/docsgen`'s `-check` (also
+`TestDocExamplesAreCurrent`) and the `check` run over `examples/todo`.
 
-In the template: **a function is a live binding, a plain value is written once.**
-`${count}` updates forever; `${count()}` is a snapshot. This is the single most
-important rule in alacris.
+## Performance claims need numbers
 
-## Generating
+`bench_test.go` and `live/bench_test.go` exist so that "faster" is a measurement.
+Run the benchmark before and after and put both in the commit body. A `perf:`
+commit with no numbers is not a `perf:` commit.
 
-```go
-//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui -strip ala-
-//go:generate go run github.com/a-h/templ/cmd/templ@latest generate
-```
+## Changing the public API
 
-Wrappers first — the templates use them. In CI use `check`:
+The root package and `live/` are a published Go module. A tag cannot be taken
+back once `proxy.golang.org` has cached it.
 
-```bash
-alacris-go check ./web -o ./ui -strip ala-
-```
+1. Change the code and its doc comment — `pkg.go.dev` is the reference.
+2. Update or add tests, including `-race` if it is under `live/`.
+3. If it changes rendered output or a rule a consumer follows, update the guide
+   under `docs/src/content/docs/` **and** [`docs/public/AGENTS.md`][drop-in].
+   The drop-in file is the thing agents actually read; leaving it stale is how a
+   whole generation of generated code goes wrong at once.
+4. If it changes an example's output, `go run ./internal/docsgen`.
+5. If it changes generated code, regenerate the example wrappers.
+6. If it is breaking, say so with `!` or a `BREAKING CHANGE:` footer.
 
-After changing any component, **run `go generate ./...` before claiming the task
-is done.**
+## Versions and sizes are never typed by hand
 
-## Rendering
+- `RuntimeVersion` in [runtime.go](runtime.go) is the single source of truth for
+  which alacris build is vendored. `internal/vendorjs` reads it; `assets_test.go`
+  pins the bytes it names.
+- The module version is a **git tag**, created by semantic-release. The
+  `version` in [package.json](package.json) is never read — that file exists
+  only to hold the release tooling, and nothing here is published to npm.
+- `CHANGELOG.md` is generated. Do not edit it.
 
-```templ
-@ui.UserCard(ui.UserCardProps{Name: "Ada", Age: 36, Tags: []string{"math"}}).
-    ID("ada") {
-    <h3 slot={ ui.UserCardSlotTitle }>Ada Lovelace</h3>
-}
-```
+## Commits decide the version
 
-- Prefer generated wrappers to `alacris.E`. Reach for `E` only for a component
-  that has no wrapper.
-- Use the generated `ui.XSlotY` and `ui.XEventY` constants; do not write the
-  strings.
-- `ID()` is required for anything the live layer will patch.
-- `Attr` follows HTML rules (a false bool disappears). `Prop` follows alacris'
-  (a bool is always written out). They are different on purpose.
+Conventional Commits drive [semantic-release](.releaserc.json). `feat` is a
+minor, `fix`/`perf`/`refactor`/`revert` a patch, and `docs`/`test`/`build`/`ci`/
+`chore` release nothing.
 
-## Prop encoding
-
-| Go | Attribute | Required default in `define()` |
-| --- | --- | --- |
-| `string`, `fmt.Stringer`, `time.Time` | text | a string |
-| `bool` | `"true"` / `"false"` | a boolean |
-| integers, floats | a number | a number |
-| slices, maps, structs | JSON | an object or array |
-| `nil` | *omitted* | anything |
-
-Rules that are not negotiable:
-
-- **Never rely on attribute presence for a boolean.** Removing an attribute runs
-  `coerce(null, default)`, which returns `false` even when the default is
-  `true`. The library always writes `"true"`/`"false"`; do not work around it.
-- **A boolean prop whose default is `true` generates `*bool`.** That is correct;
-  do not "simplify" it to `bool`.
-- **Integers past 2^53-1 are an error.** Send large ids as strings.
-- **The Go type must match the type of the prop's default.** A mismatch does not
-  error — `JSON.parse` fails silently on the client and the default is kept.
-
-## The live layer
-
-Only when the server genuinely owns what the page shows. Do not add it for state
-the browser can own.
-
-```go
-srv := live.New()
-defer srv.Close()
-live.Mount(mux, alacris.DefaultBase, srv)
-
-// per page render
-// NewSession needs w and r: it sets the cookie that authorises this browser.
-// Call it before writing anything to w.
-sess := srv.NewSession(w, r)
-sess.OnOpen(func(s *live.Session) { pushEverything(s) })   // do not skip this
-cfg := alacris.Config{Live: true, Page: sess.ID(), ...}
-w.Header().Set("Cache-Control", "no-store, private")       // the response carries a Set-Cookie
-```
-
-Down:
-
-```go
-sess.Batch(func() {
-    sess.Element("todos").Set("items", list.Items())
-    sess.Element("todos").Set("filter", "done")
-})
-```
-
-Up:
-
-```templ
-@ui.TodoList(props).ID("todos").On(ui.TodoListEventAdd, actionAdd)
-```
-
-```go
-live.On(srv, actionAdd, func(c *live.Ctx, d ui.TodoListAddDetail) error {
-    if _, err := list.Add(d.Text); err != nil {
-        return nil
-    }
-    c.Session.Element("todos").Set("items", list.Items())
-    return nil
-})
-```
-
-- `Handle.Set` takes the **JavaScript** prop name (`maxCount`), because it writes
-  the DOM property. Server-rendered props use the same name; only the wire
-  differs.
-- **The capability is an HttpOnly cookie, not `sess.ID()`.** The page id is not
-  a secret and needs no protecting. Do not put a session id in a URL, a log or
-  a template variable that ends up in one — there is no longer one to put.
-- **Always register `OnOpen`** and push the full state there. A reconnecting
-  `EventSource` missed everything sent while it was away.
-- **Use `Session.Context()` for `SetHTML`, never the request's.** The request
-  that rendered the page has finished by the time `OnOpen` runs, so its context
-  is cancelled. Same for a push to another session from an action handler.
-- **Validate the detail.** Strict binding checks the shape, not the values.
-- Action names are strings on both sides — put them in constants.
-- A handler error is logged and answered 500; it never reaches the browser. If a
-  user should see something, send a patch.
+**While this module is below 1.0.0, a breaking change is a _minor_ bump**, not a
+major one — 0.1.2 → 0.2.0, never 1.0.0. That rule is a `releaseRules` override
+in `.releaserc.json` with a comment saying to remove it when cutting 1.0.0. It
+is not a mistake; leave it alone until then.
 
 ## Common mistakes (wrong → right)
 
 | Wrong | Right | Why |
 | --- | --- | --- |
-| `each` inside a conditional template | `<ul ?hidden=...>` with `each` outside | The conditional rebuilds every row on every change |
-| `${todo().text}` in an `each` row | `${() => todo().text}` | The row signal must be read in a thunk |
-| Editing `ui/*_gen.go` | Change the component, regenerate | It is overwritten |
-| `alacris.E("user-card")` when a wrapper exists | `ui.UserCard(...)` | No defaults, no types, no checked names |
-| Hand-writing `max-count` | `Prop("maxCount", ...)` | The library kebab-cases it the way `define.js` does |
-| `float64` for an id | `@prop {integer}` or a string | JavaScript numbers round past 2^53 |
-| Treating `sess.ID()` as a secret | The cookie is the secret | The page id is an identifier; the capability is `HttpOnly` |
-| Skipping `OnOpen` | Push full state there | A reconnect silently shows stale data |
-| `SetHTML(r.Context(), ...)` in `OnOpen` | `SetHTML(s.Context(), ...)` | The request finished; its context is cancelled |
-| `WriteTimeout` on the http.Server | Leave it unset | It cuts every live stream on a timer |
-| Adding npm for the runtime | It is vendored | `RuntimeHandler` already serves it |
-| `!important` in a component | Custom properties, `::part` | It is the one thing a consumer cannot override |
+| Editing this file for consumer guidance | Edit [`docs/public/AGENTS.md`][drop-in] | Different audience; this one is about the module |
+| Hand-editing `assets/*.js` | `go run ./internal/vendorjs -v X.Y.Z` | It is a vendored build; the hashes will catch you |
+| Pasting new hashes to make `assets_test.go` pass | Re-vendor and read the changelog | The test is a drift alarm, not a formality |
+| Editing `examples/todo/ui/*_gen.go` | Change the component, regenerate | Overwritten, and `check` fails in CI |
+| Editing `CHANGELOG.md` | Write a good commit message | It is generated by semantic-release |
+| `go test ./live/...` alone | `go test -race ./live/...` | The layer is concurrent; CI runs both |
+| Relaxing a check in `names.go` | Fix the caller | Those names go into a start tag unescaped |
+| Making the page id sufficient on its own | Cookie **and** page id | The split is what makes a leaked log entry harmless |
+| `WriteTimeout` on an `http.Server` in an example | Leave it unset | It cuts every live stream on a timer |
+| A `perf:` commit with no benchmark | Numbers before and after | Otherwise it is a `refactor:` |
+| Adding a runtime dependency casually | Justify it, or put it in `internal/` | The public packages carry `templ` and nothing else |
+| Bumping a major for a breaking change | `!` and let it cut a minor | Below 1.0.0 by deliberate configuration |
 
 ## Verifying your work
 
 Before declaring a task done:
 
-1. `go generate ./...` then `go build ./...` — generated code is current.
-2. `go test ./...`, and `go test -race ./...` if you touched the live layer.
-3. `alacris-go check` passes.
-4. Load a page: no console errors, elements upgrade, no flash of empty elements.
-5. If you changed a list or the live layer: run the browser tests —
-   `cd e2e && npx playwright test`. They assert that an update keeps focus and
-   typed text and that the row nodes are the same nodes afterwards. If node
-   identity fails, an `each` is inside a conditional.
-6. Nothing untrusted flows into `SetHTML`, and no action handler trusts its
-   detail without checking it.
+1. `go build ./...`, `go vet ./...`, `gofmt -l .` prints nothing.
+2. `go test ./...`, plus `go test -race ./...` if you touched `live/`.
+3. `go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-`
+4. `go run ./internal/docsgen -check` and `go run ./internal/vendorjs -check`.
+5. If you touched `live/`, rendering, or the example: `cd e2e && npx playwright test`.
+6. If you claimed a performance change: the benchmark, before and after.
+7. If you changed a rule a consumer follows: [`docs/public/AGENTS.md`][drop-in]
+   and the affected guide say the same thing the code now does.
+8. The commit message's type matches what actually changed.
 
 ## Reference
 
-- Docs: https://bmartel.github.io/alacris-go/
-- Go API: https://pkg.go.dev/github.com/bmartel/alacris-go
-- Wire protocol: https://bmartel.github.io/alacris-go/reference/wire-protocol/
-- The alacris runtime itself: https://bmartel.github.io/alacris/ (and its own
-  `AGENTS.md` for writing component internals)
+- Docs: <https://bmartel.github.io/alacris-go/>
+- Go API: <https://pkg.go.dev/github.com/bmartel/alacris-go>
+- Wire protocol: <https://bmartel.github.io/alacris-go/reference/wire-protocol/>
+- The runtime this module vendors: <https://github.com/bmartel/alacris> — its own
+  root `AGENTS.md` covers working on the JavaScript half.

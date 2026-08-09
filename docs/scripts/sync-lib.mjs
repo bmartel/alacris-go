@@ -36,10 +36,8 @@ for (const source of sources) {
 const files = (await readdir(out)).sort();
 console.log(`  docs: synced ${files.length} files into public/lib — ${files.join(', ')}`);
 
-// AGENTS.md is served from the site so agents can curl it, but the repository
-// root is where it lives — a project using this library wants it there, and two
-// copies would drift.
-const agents = fileURLToPath(new URL('../../AGENTS.md', import.meta.url));
-const agentsOut = fileURLToPath(new URL('../public/AGENTS.md', import.meta.url));
-await cp(agents, agentsOut);
-console.log('  docs: synced AGENTS.md from the repository root');
+// public/AGENTS.md is not synced from anywhere. It is the drop-in file a
+// project using this library curls, and it is committed where Astro serves it
+// from. The repository root holds a different file — the guide to working on
+// this module — and copying one over the other is how that mistake would be
+// made.

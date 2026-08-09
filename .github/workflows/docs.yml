@@ -8,7 +8,6 @@ on:
       - 'docs/**'
       - 'assets/**'
       - 'live/assets/**'
-      - 'AGENTS.md'
       - 'internal/docsgen/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
