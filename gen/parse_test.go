@@ -290,3 +290,44 @@ func TestExportedName(t *testing.T) {
 		}
 	}
 }
+
+// Generated file names come from source file names, which come from a
+// directory walk. Nothing hostile is expected there, but a name that escaped
+// the output directory would be a bad surprise, and the check is one test.
+func TestGeneratedFileNamesStayInsideTheOutputDirectory(t *testing.T) {
+	nasty := []string{
+		"../escape.js",
+		"../../etc/passwd.js",
+		`..\windows.js`,
+		"/absolute.js",
+		"a/b/c.js",
+		"...js",
+		"....js",
+		`C:\evil.js`,
+		"",
+		"---.js",
+	}
+
+	for _, name := range nasty {
+		base := fileBase(name)
+		if strings.ContainsAny(base, `/\:`) || strings.Contains(base, "..") || base == "" {
+			t.Errorf("fileBase(%q) = %q, which is not a plain file name", name, base)
+		}
+	}
+}
+
+// Two components whose sources have the same base name in different
+// directories would otherwise overwrite each other's generated file.
+func TestGeneratedFileNamesAreDerivedFromTheBaseName(t *testing.T) {
+	cases := map[string]string{
+		"user-card.js":     "user_card",
+		"web/user-card.js": "user_card",
+		"UserCard.mjs":     "user_card",
+		"2fa.js":           "x2fa",
+	}
+	for in, want := range cases {
+		if got := fileBase(in); got != want {
+			t.Errorf("fileBase(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

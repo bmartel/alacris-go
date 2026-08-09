@@ -86,7 +86,20 @@ func splitWords(s string) []string {
 }
 
 // fileBase turns a source path into the base name of its generated Go file.
+//
+// It reduces to a base name itself rather than trusting the caller to have
+// done it. Every caller does today, so nothing was ever written outside the
+// output directory — but the name of this function is a promise, and a path
+// separator surviving into a generated file name would be a bad way to find
+// out it was not keeping it.
 func fileBase(name string) string {
+	name = strings.ReplaceAll(name, `\`, "/")
+	if i := strings.LastIndexByte(name, '/'); i >= 0 {
+		name = name[i+1:]
+	}
+	if i := strings.LastIndexByte(name, ':'); i >= 0 {
+		name = name[i+1:] // a Windows drive letter, or a file:line suffix
+	}
 	name = strings.TrimSuffix(name, ".js")
 	name = strings.TrimSuffix(name, ".mjs")
 	name = strings.TrimSuffix(name, ".json")
