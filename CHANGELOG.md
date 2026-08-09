@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.1.1](https://github.com/bmartel/alacris-go/compare/v0.1.0...v0.1.1) (2026-08-09)
+
+### Bug Fixes
+
+* **live:** give sessions their own context, outliving the request ([26b8dc7](https://github.com/bmartel/alacris-go/commit/26b8dc782a6050653a7af3ba0eb61976b46574f4))
+
 ## 0.1.0 (2026-08-09)
 
 The first release. Three layers, each usable on its own.
