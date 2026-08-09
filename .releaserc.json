@@ -5,7 +5,9 @@
       "@semantic-release/commit-analyzer",
       {
         "preset": "conventionalcommits",
+        "//": "While this module is below 1.0.0, a breaking change is a minor bump rather than a major one: 0.1.2 -> 0.2.0, not 1.0.0. semver.inc would otherwise take the first breaking change straight to 1.0.0, which would declare a stability this API has not earned. User rules are evaluated before the defaults, so this one wins over the built-in major. REMOVE IT when cutting 1.0.0, or breaking changes will stay minor forever.",
         "releaseRules": [
+          { "breaking": true, "release": "minor" },
           { "type": "perf", "release": "patch" },
           { "type": "refactor", "release": "patch" },
           { "type": "revert", "release": "patch" },
