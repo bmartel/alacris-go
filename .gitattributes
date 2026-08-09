@@ -17,3 +17,9 @@
 # review keeps a regenerate from burying a real change.
 *_gen.go     linguist-generated=true
 *_templ.go   linguist-generated=true
+
+# This is a Go module. The vendored runtime is someone else's build and the
+# documentation site is a site, so neither should count towards the repository's
+# language statistics.
+/assets/**   linguist-vendored=true
+/docs/**     linguist-documentation=true

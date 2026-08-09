@@ -4,6 +4,10 @@
 *.test
 *.out
 
+# Release tooling and end-to-end tests. This is a Go module; node is only ever
+# a build-time dependency of the docs, the release, and the browser tests.
+node_modules/
+
 # Editors
 .idea/
 .vscode/

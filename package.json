@@ -1,0 +1,15 @@
+{
+  "name": "alacris-go-release-tooling",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Release tooling only. This is a Go module — nothing here is published to npm, and the version above is never read. The Go version is the git tag, which semantic-release creates.",
+  "scripts": {
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "semantic-release": "^25.0.9"
+  }
+}

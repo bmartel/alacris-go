@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release at a time. A second push while a release is mid-flight would race
+# on the changelog commit and the git tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # commit the changelog, push the tag, create the release
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # semantic-release reads the whole tag history
+          persist-credentials: false
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+
+      # A Go module release is a git tag, and a tag cannot be taken back once
+      # proxy.golang.org has cached it. Nothing ships unless the whole suite
+      # passes on the exact commit being tagged.
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Generated wrappers are up to date
+        run: go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-
+
+      - name: Documentation examples are current
+        run: go run ./internal/docsgen -check
+
+      - name: Vendored runtime matches npm
+        run: go run ./internal/vendorjs -check
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
