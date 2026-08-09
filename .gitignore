@@ -1,0 +1,14 @@
+# Build output
+/dist/
+*.exe
+*.test
+*.out
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Go workspace
+go.work
+go.work.sum

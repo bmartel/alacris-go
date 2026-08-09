@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      # The live layer is concurrent by nature, so the race detector is not
+      # optional here.
+      - name: Test with the race detector
+        run: go test -race ./...
+
+  generated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+
+      # A component change that was never regenerated is the failure this
+      # repository is most likely to ship, so it is checked rather than trusted.
+      - name: Generated wrappers are up to date
+        run: go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-
+
+      - name: Formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  vendored:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+
+      # The vendored alacris runtime is a copy of someone else's build, so it
+      # goes stale silently unless something looks.
+      - name: Vendored runtime matches npm
+        run: go run ./internal/vendorjs -check
