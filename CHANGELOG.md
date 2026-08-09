@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.2.0](https://github.com/bmartel/alacris-go/compare/v0.1.2...v0.2.0) (2026-08-09)
+
+### ⚠ BREAKING CHANGES
+
+* **live:** Server.NewSession now takes the http.ResponseWriter and
+*http.Request, because it reads or sets the cookie and must run before anything
+is written. alacris.Config.Session is renamed to Config.Page, since the value
+it carries is an identifier rather than a capability. The wire protocol changed
+with it: ?s= is ?p=, the action body key s is p, the script attribute
+data-session is data-page, and the action endpoint requires an
+application/json content type. All three are compile errors or a 404; nothing
+changes behaviour silently. See docs/start/upgrading for the migration.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+### Features
+
+* **live:** authorise the stream with a cookie, not a URL parameter ([2602170](https://github.com/bmartel/alacris-go/commit/26021703155360f4341aa42c8d19c205957d93f4))
+
 ## [0.1.2](https://github.com/bmartel/alacris-go/compare/v0.1.1...v0.1.2) (2026-08-09)
 
 ### Bug Fixes
