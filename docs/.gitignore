@@ -1,0 +1,8 @@
+# Astro build output and caches
+dist/
+.astro/
+node_modules/
+
+# Synced from the repository — regenerate with `npm run sync-lib`
+public/lib/
+public/AGENTS.md

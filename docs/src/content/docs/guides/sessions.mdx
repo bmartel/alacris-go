@@ -1,0 +1,140 @@
+---
+title: Sessions and reconnects
+description: What a live session is, how it survives a reload, and why OnOpen is the one thing you should not skip.
+sidebar:
+  order: 7
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A session is one page's connection to the server. It holds the queue of patches
+for that page, the handlers registered for it, and whatever per-page state you
+put on it.
+
+```go
+sess := srv.NewSession()
+defer sess.Close()   // or let it expire
+
+sess.ID()          // put this in the page
+sess.Connected()   // is a browser attached right now?
+sess.Closed()
+```
+
+## The id is a capability
+
+<Aside type="danger">
+  Anyone holding a session id can receive that page's patches and send actions
+  as that page. It is generated with `crypto/rand` and it belongs in the page it
+  was made for and **nowhere else** — not in a URL that could be shared, logged,
+  or sent as a referer.
+
+  Serve pages carrying one with `Cache-Control: no-store, private` so nothing
+  between you and the browser keeps a copy.
+</Aside>
+
+```go
+w.Header().Set("Cache-Control", "no-store, private")
+```
+
+## Reconnects, and why OnOpen matters
+
+`EventSource` reconnects on its own after a dropped connection, a sleeping
+laptop, or a proxy timeout. When it comes back it has **missed everything sent
+while it was away**, and it has no way to know what it missed.
+
+Only the server knows what the page should look like. `OnOpen` is where you say
+so:
+
+```go
+sess.OnOpen(func(s *live.Session) {
+    s.Batch(func() {
+        s.Element("todos").Set("items", list.Items())
+        s.Element("todos").Set("filter", filterFor(s))
+    })
+})
+```
+
+It runs on every attach, including the first, so it doubles as the initial
+push and there is no separate path to keep in step.
+
+<Aside type="tip" title="Make it idempotent and complete">
+  Write the full state, not a delta. `OnOpen` is the one place where "send
+  everything" is the correct instinct — it is the only thing standing between a
+  reconnect and a stale page.
+</Aside>
+
+## Before the browser arrives
+
+A page renders, the server changes something, and only then does the browser
+open its stream. Patches sent in that window are buffered, so nothing is lost.
+
+The buffer is bounded — `Options.Buffer`, 256 by default. Past it the **oldest**
+are dropped, because a stream of writes to one prop only really needs its last
+value. `OnOpen` covers the rest.
+
+## Expiry
+
+A session with no browser attached survives `Options.TTL` (five minutes by
+default), which covers a reload, a flaky connection, and a tab that is
+backgrounded for a while. After that a collector closes it.
+
+```go
+srv := live.New(live.Options{
+    TTL:    15 * time.Minute,
+    Buffer: 1024,
+})
+```
+
+Sending to a closed session is a no-op rather than an error:
+
+```go
+sess.Close()
+sess.Element("todos").Set("items", items)   // discarded, no panic, no error
+```
+
+That is deliberate. The page it was for is gone, and making every call site
+handle that would put error checks around code whose only correct response is to
+carry on.
+
+## Two connections to one session
+
+A reload can open the new stream before the old one has finished dying. The
+newest connection wins and the older one is closed, rather than the new one
+being turned away — otherwise a reload could leave the page permanently
+disconnected.
+
+## Per-page state
+
+```go
+type filterKey struct{}
+
+sess.Set(filterKey{}, "all")
+if v, ok := sess.Get(filterKey{}); ok {
+    filter := v.(string)
+}
+```
+
+An unexported key type keeps two packages from colliding, the same way
+`context.Value` keys work.
+
+Use it for state that belongs to one page. Shared state belongs in your own
+model, where it can be looked at without a session in hand.
+
+## Cleaning up
+
+```go
+srv := live.New()
+defer srv.Close()   // ends every session and stops the collector
+```
+
+On shutdown, `Close` ends the sessions and every open stream returns. Give your
+`http.Server` a `Shutdown` with a timeout and do not set a `WriteTimeout` — an
+SSE stream is meant to stay open, and a write deadline will cut it.
+
+```go
+srv := &http.Server{
+    Handler:           mux,
+    ReadHeaderTimeout: 10 * time.Second,
+    // No WriteTimeout: it would kill every live stream on a timer.
+}
+```

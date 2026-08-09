@@ -1,0 +1,157 @@
+---
+title: Security
+description: The threat model, what the library refuses, and the three things it cannot check for you.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+## What is handled
+
+### Interpolated values are never markup
+
+A prop value becomes an attribute value, through `setAttribute` semantics and
+HTML escaping. There is nothing to escape by hand and no way to forget:
+
+<GoExample id="encoding-escaping" title="Hostile input, harmless output" />
+
+The JSON prop is the case worth noticing: quotes inside it are escaped so the
+attribute cannot end early, and the `<script>` in the payload is text when it
+arrives.
+
+alacris itself never parses an interpolated value as HTML either — child
+bindings become text nodes and attribute bindings go through `setAttribute` —
+so the guarantee holds on both sides of the boundary.
+
+### Inline CSS is checked, not escaped
+
+`Style` and `Var` refuse anything that could end the declaration, end the
+attribute, or open a comment:
+
+```go
+.Var("bg", "red;position:fixed")     // ';' is not allowed
+.Var("bg", "red/*x*/")               // comment markers are not allowed
+.Var("bg", "url(javascript:alert(1))")
+.Var("bg", "expression(alert(1))")
+```
+
+An error names the character and the property. A sanitizer that silently
+substitutes a placeholder would give you a page that looks wrong for reasons you
+cannot see.
+
+### The import map cannot be closed early
+
+Entries are JSON-encoded with Go's default HTML escaping, so `<`, `>` and `&`
+become `<` and friends. A hostile import path cannot end the `<script>`
+element.
+
+### Structural validation
+
+Tag names are checked against the rule `customElements.define` enforces, and
+attribute names against what can appear in a start tag. Both fail the render
+rather than producing HTML whose structure differs from what you wrote.
+
+### Action payloads
+
+- The body is capped at `MaxDetail` (64 KiB), enforced with
+  `http.MaxBytesReader`.
+- `Bind` decodes with `DisallowUnknownFields`, so a payload that does not match
+  the declared detail is refused rather than arriving half-filled.
+- Cross-origin posts are rejected by comparing `Origin` against the request
+  `Host`. `Options.AllowOrigin` overrides that when you need to.
+
+### Session ids
+
+Generated with `crypto/rand` — 18 bytes, base64url. Long enough that guessing is
+not a strategy, and generation panics rather than falling back to anything
+weaker if the OS has no randomness.
+
+### Content Security Policy
+
+No `eval`, no `new Function`, anywhere in the runtime or the client. Two Trusted
+Types policies are registered: `alacris` for template parsing, `alacris-live`
+for `SetHTML`.
+
+```
+Content-Security-Policy:
+    trusted-types alacris alacris-live;
+    require-trusted-types-for 'script';
+    script-src 'nonce-{{nonce}}';
+```
+
+`Config.Nonce`, or `templ.WithNonce` on the context, puts the nonce on every
+script tag the library emits.
+
+## What is yours
+
+<Aside type="danger" title="1. The session id is a capability">
+  Anyone holding it can receive that page's patches and send actions as that
+  page. It must reach only the page it was made for.
+
+  - Serve pages carrying one with `Cache-Control: no-store, private`.
+  - Never put one in a URL — it leaks through referers, logs, proxies and shared
+    links.
+  - It identifies a *page*, not a user. It is not an authentication token and
+    must not be used as one: authenticate the request the ordinary way, and
+    check that the session belongs to the authenticated user before acting on
+    it.
+
+  ```go
+  live.On(srv, "delete-invoice", func(c *live.Ctx, d DeleteDetail) error {
+      user, ok := auth.From(c.Request)          // the request, not the session
+      if !ok || !user.CanDelete(d.ID) {
+          return fmt.Errorf("not permitted")
+      }
+      ...
+  })
+  ```
+</Aside>
+
+<Aside type="danger" title="2. Action details are user input">
+  A well-behaved component emits what its `@fires` tag says. Nothing stops a
+  console from emitting something else, with any detail, against any action your
+  server handles.
+
+  Strict binding gives you the right *shape*. It says nothing about whether the
+  values are allowed.
+
+  ```go
+  live.On(srv, "set-filter", func(c *live.Ctx, d ui.TodoListFilterDetail) error {
+      switch d.Filter {
+      case "all", "active", "done":
+      default:
+          return fmt.Errorf("unknown filter %q", d.Filter)
+      }
+      ...
+  })
+  ```
+</Aside>
+
+<Aside type="caution" title="3. SetHTML sends markup">
+  It replaces a slot's children with a string, through a pass-through Trusted
+  Types policy. The markup is yours — render it with templ, which escapes
+  interpolated values — but anything you put in it unescaped arrives unescaped.
+
+  Props do not have this property, which is one more reason to prefer them.
+</Aside>
+
+## Two things to know about
+
+**Patches are not authorised per element.** A session can be told to write any
+prop on any element on its own page. That is not a hole — it is the same page
+the server rendered — but it means a handler must decide whether an action is
+permitted *before* patching, not rely on the page not asking.
+
+**Errors do not reach the browser.** A handler returning an error logs it and
+answers `500`; the response body is a fixed string. If a user should see
+something, send a patch saying so in the page's own terms. This is deliberate:
+it stops internal detail leaking through an error path nobody was thinking
+about.
+
+## Reporting
+
+Security issues in this module go to
+[its security page](https://github.com/bmartel/alacris-go/security). For the
+runtime itself, see [alacris](https://github.com/bmartel/alacris/security).

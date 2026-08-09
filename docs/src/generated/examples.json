@@ -1,0 +1,113 @@
+[
+  {
+    "id": "element",
+    "go": "return alacris.E(\"user-card\").\n\tProp(\"name\", \"Ada\").\n\tProp(\"age\", 36).\n\tProp(\"tags\", []string{\"math\", \"code\"})",
+    "html": "\u003cuser-card name=\"Ada\" age=\"36\" tags=\"[\u0026#34;math\u0026#34;,\u0026#34;code\u0026#34;]\"\u003e\u003c/user-card\u003e",
+    "pretty": "\u003cuser-card name=\"Ada\" age=\"36\" tags=\"[\u0026#34;math\u0026#34;,\u0026#34;code\u0026#34;]\"\u003e\u003c/user-card\u003e",
+    "tags": [
+      "user-card"
+    ],
+    "note": "Props are kebab-cased and encoded by their Go type."
+  },
+  {
+    "id": "slots",
+    "go": "return alacris.E(\"info-card\").\n\tProp(\"tone\", \"warn\").\n\tSlot(\"title\", text(\"Ada Lovelace\")).\n\tSlotAs(\"p\", \"body\", text(\"Wrote the first algorithm.\"))",
+    "html": "\u003cinfo-card tone=\"warn\"\u003e\u003cdiv slot=\"title\"\u003eAda Lovelace\u003c/div\u003e\u003cp slot=\"body\"\u003eWrote the first algorithm.\u003c/p\u003e\u003c/info-card\u003e",
+    "pretty": "\u003cinfo-card tone=\"warn\"\u003e\n  \u003cdiv slot=\"title\"\u003eAda Lovelace\u003c/div\u003e\n  \u003cp slot=\"body\"\u003eWrote the first algorithm.\u003c/p\u003e\n\u003c/info-card\u003e",
+    "tags": [
+      "info-card"
+    ],
+    "note": "Slot content is light DOM, so it is in the first paint."
+  },
+  {
+    "id": "attrs",
+    "go": "return alacris.E(\"user-card\").\n\tID(\"ada\").\n\tClass(\"card\", \"card--wide\").\n\tAttr(\"hidden\", false).\n\tAttr(\"aria-label\", \"A person\").\n\tAttr(\"data-testid\", \"user-card\")",
+    "html": "\u003cuser-card class=\"card card--wide\" id=\"ada\" aria-label=\"A person\" data-testid=\"user-card\"\u003e\u003c/user-card\u003e",
+    "pretty": "\u003cuser-card\n  class=\"card card--wide\"\n  id=\"ada\"\n  aria-label=\"A person\"\n  data-testid=\"user-card\"\n\u003e\u003c/user-card\u003e",
+    "tags": [
+      "user-card"
+    ],
+    "note": "Ordinary attributes follow HTML rules: a false bool disappears."
+  },
+  {
+    "id": "theming",
+    "go": "chip := alacris.Vars(\"--chip-bg\", \"--chip-fg\", \"--chip-radius\")\nreturn alacris.E(\"ala-chip\").\n\tApply(chip, map[string]string{\n\t\t\"--chip-bg\":     \"#ffe9a8\",\n\t\t\"--chip-radius\": \"999px\",\n\t}).\n\tText(\"new\")",
+    "html": "\u003cala-chip style=\"--chip-bg:#ffe9a8;--chip-radius:999px\"\u003enew\u003c/ala-chip\u003e",
+    "pretty": "\u003cala-chip style=\"--chip-bg:#ffe9a8;--chip-radius:999px\"\u003enew\u003c/ala-chip\u003e",
+    "tags": [
+      "ala-chip"
+    ],
+    "note": "Custom properties reach through the shadow boundary."
+  },
+  {
+    "id": "encoding-scalars",
+    "go": "return alacris.E(\"x-demo\").\n\tProp(\"label\", \"hello\").\n\tProp(\"count\", 42).\n\tProp(\"ratio\", 1.5).\n\tProp(\"open\", true).\n\tProp(\"shut\", false)",
+    "html": "\u003cx-demo label=\"hello\" count=\"42\" ratio=\"1.5\" open=\"true\" shut=\"false\"\u003e\u003c/x-demo\u003e",
+    "pretty": "\u003cx-demo label=\"hello\" count=\"42\" ratio=\"1.5\" open=\"true\" shut=\"false\"\u003e\u003c/x-demo\u003e",
+    "tags": [
+      "x-demo"
+    ],
+    "note": "Booleans are always written out, never signalled by presence."
+  },
+  {
+    "id": "encoding-composites",
+    "go": "type point struct {\n\tX int `json:\"x\"`\n\tY int `json:\"y\"`\n}\nreturn alacris.E(\"x-demo\").\n\tProp(\"tags\", []string{\"a\", \"b\"}).\n\tProp(\"origin\", point{X: 1, Y: 2}).\n\tProp(\"lookup\", map[string]int{\"b\": 2, \"a\": 1}).\n\tProp(\"at\", time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)).\n\tProp(\"timeout\", 1500*time.Millisecond)",
+    "html": "\u003cx-demo tags=\"[\u0026#34;a\u0026#34;,\u0026#34;b\u0026#34;]\" origin=\"{\u0026#34;x\u0026#34;:1,\u0026#34;y\u0026#34;:2}\" lookup=\"{\u0026#34;a\u0026#34;:1,\u0026#34;b\u0026#34;:2}\" at=\"2026-08-08T12:00:00Z\" timeout=\"1500\"\u003e\u003c/x-demo\u003e",
+    "pretty": "\u003cx-demo\n  tags=\"[\u0026#34;a\u0026#34;,\u0026#34;b\u0026#34;]\"\n  origin=\"{\u0026#34;x\u0026#34;:1,\u0026#34;y\u0026#34;:2}\"\n  lookup=\"{\u0026#34;a\u0026#34;:1,\u0026#34;b\u0026#34;:2}\"\n  at=\"2026-08-08T12:00:00Z\"\n  timeout=\"1500\"\n\u003e\u003c/x-demo\u003e",
+    "tags": [
+      "x-demo"
+    ],
+    "note": "Objects and arrays cross as JSON, so no post-load assignment is needed."
+  },
+  {
+    "id": "encoding-omitted",
+    "go": "// A nil value leaves the attribute off entirely, so the component keeps\n// the default it declared in define().\nreturn alacris.E(\"x-demo\").\n\tProp(\"name\", nil).\n\tProp(\"tags\", []string(nil)).\n\tProp(\"kept\", \"written\")",
+    "html": "\u003cx-demo kept=\"written\"\u003e\u003c/x-demo\u003e",
+    "pretty": "\u003cx-demo kept=\"written\"\u003e\u003c/x-demo\u003e",
+    "tags": [
+      "x-demo"
+    ],
+    "note": "A nil prop leaves the component's own default alone."
+  },
+  {
+    "id": "encoding-escaping",
+    "go": "// Interpolated values are attribute values, never markup. There is\n// nothing to escape by hand and no way to forget.\nreturn alacris.E(\"x-demo\").\n\tProp(\"label\", `\" onload=\"alert(1)`).\n\tProp(\"payload\", map[string]string{\"html\": \"\u003c/x-demo\u003e\u003cscript\u003e\"})",
+    "html": "\u003cx-demo label=\"\u0026#34; onload=\u0026#34;alert(1)\" payload=\"{\u0026#34;html\u0026#34;:\u0026#34;\\u003c/x-demo\\u003e\\u003cscript\\u003e\u0026#34;}\"\u003e\u003c/x-demo\u003e",
+    "pretty": "\u003cx-demo\n  label=\"\u0026#34; onload=\u0026#34;alert(1)\"\n  payload=\"{\u0026#34;html\u0026#34;:\u0026#34;\\u003c/x-demo\\u003e\\u003cscript\\u003e\u0026#34;}\"\n\u003e\u003c/x-demo\u003e",
+    "tags": [
+      "x-demo"
+    ],
+    "note": "Values are attribute values, never markup."
+  },
+  {
+    "id": "scripts",
+    "go": "return alacris.Scripts(alacris.Config{\n\tModules: []string{\"/web/components.js\"},\n\tVersion: \"2026.08.08\",\n})",
+    "html": "\u003cscript type=\"importmap\"\u003e{\"imports\":{\"alacris\":\"/_alacris/alacris.js?v=2026.08.08\",\"alacris/context\":\"/_alacris/context.js?v=2026.08.08\",\"alacris/signal\":\"/_alacris/signal.js?v=2026.08.08\",\"alacris/store\":\"/_alacris/store.js?v=2026.08.08\"}}\u003c/script\u003e\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e",
+    "pretty": "\u003cscript type=\"importmap\"\u003e\n  {\"imports\":{\"alacris\":\"/_alacris/alacris.js?v=2026.08.08\",\"alacris/context\":\"/_alacris/context.js?v=2026.08.08\",\"alacris/signal\":\"/_alacris/signal.js?v=2026.08.08\",\"alacris/store\":\"/_alacris/store.js?v=2026.08.08\"}}\n\u003c/script\u003e\n\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e",
+    "note": "The import map has to precede the first module import."
+  },
+  {
+    "id": "scripts-live",
+    "go": "return alacris.Scripts(alacris.Config{\n\tModules: []string{\"/web/components.js\"},\n\tLive:    true,\n\tSession: \"SESSION-ID\",\n})",
+    "html": "\u003cscript type=\"importmap\"\u003e{\"imports\":{\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\u003c/script\u003e\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e\u003cscript type=\"module\" src=\"/_alacris/live.js\" data-endpoint=\"/_alacris/live\" data-session=\"SESSION-ID\"\u003e\u003c/script\u003e",
+    "pretty": "\u003cscript type=\"importmap\"\u003e\n  {\"imports\":{\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\n\u003c/script\u003e\n\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e\n\u003cscript\n  type=\"module\"\n  src=\"/_alacris/live.js\"\n  data-endpoint=\"/_alacris/live\"\n  data-session=\"SESSION-ID\"\n\u003e\u003c/script\u003e",
+    "note": "The live client carries its endpoint and session on its script tag."
+  },
+  {
+    "id": "pending",
+    "go": "return alacris.Pending{Tags: []string{\"user-card\", \"ala-chip\"}}",
+    "html": "\u003cstyle\u003euser-card:not(:defined),ala-chip:not(:defined){visibility:hidden}\u003c/style\u003e",
+    "pretty": "\u003cstyle\u003e\n  user-card:not(:defined),ala-chip:not(:defined){visibility:hidden}\n\u003c/style\u003e",
+    "note": "Hides elements until their module has defined them."
+  },
+  {
+    "id": "generated",
+    "go": "// What ui.TodoList(...) expands to. The generator knows every prop's\n// default, so Filter: \"all\" would have been left off the element.\nreturn alacris.E(\"ala-todo-list\").\n\tID(\"todos\").\n\tProp(\"items\", []todoItem{{ID: 1, Text: \"Read the docs\"}}).\n\tProp(\"filter\", \"active\").\n\tOn(\"add\", \"add-todo\").\n\tOn(\"toggle\", \"toggle-todo\")",
+    "html": "\u003cala-todo-list items=\"[{\u0026#34;id\u0026#34;:1,\u0026#34;text\u0026#34;:\u0026#34;Read the docs\u0026#34;,\u0026#34;done\u0026#34;:false}]\" filter=\"active\" id=\"todos\" data-ala-on=\"add:add-todo toggle:toggle-todo\"\u003e\u003c/ala-todo-list\u003e",
+    "pretty": "\u003cala-todo-list\n  items=\"[{\u0026#34;id\u0026#34;:1,\u0026#34;text\u0026#34;:\u0026#34;Read the docs\u0026#34;,\u0026#34;done\u0026#34;:false}]\"\n  filter=\"active\"\n  id=\"todos\"\n  data-ala-on=\"add:add-todo toggle:toggle-todo\"\n\u003e\u003c/ala-todo-list\u003e",
+    "tags": [
+      "ala-todo-list"
+    ],
+    "note": "What a generated wrapper expands to."
+  }
+]

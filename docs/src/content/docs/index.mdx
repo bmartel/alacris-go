@@ -1,0 +1,84 @@
+---
+title: alacris-go
+description: Build alacris web components from Go and templ — typed wrappers generated from your define() calls, the runtime served from Go, and server-driven props with no HTML on the wire.
+template: splash
+hero:
+  tagline: Web components from Go and templ. Typed wrappers generated from your components, the runtime served from Go, and server-driven props with no HTML on the wire.
+  actions:
+    - text: Start here
+      link: /alacris-go/start/what-is-alacris-go/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/bmartel/alacris-go
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+import GoExample from '../../components/GoExample.astro';
+
+## The idea
+
+[alacris](https://bmartel.github.io/alacris/) is a ~6 kB web component library
+built on signals and fine-grained DOM updates. **alacris-go is the server half**:
+it renders the elements, gets the props across the boundary correctly, generates
+typed Go wrappers from your components, and — when you want it — makes the
+server authoritative over what those components show.
+
+<GoExample id="element" title="Go in, an element out" />
+
+## Why it is more than a string builder
+
+A prop is a signal on the other side. That one fact is what the third layer is
+built on: when the server changes something, it does not re-render a fragment
+and swap it in — it writes **one property**, which wakes **one binding**, which
+updates **one DOM node**.
+
+```go
+// The whole update. No HTML on the wire, nothing to diff, nothing to morph.
+sess.Element("todos").Set("items", list.Items())
+```
+
+Focus, scroll position and half-typed text survive, because no node is replaced.
+
+<CardGrid>
+  <Card title="Render" icon="document">
+    An `Element` that implements `templ.Component`. Props cross as attributes —
+    objects and arrays included — so the page is complete before any JavaScript
+    has run.
+  </Card>
+  <Card title="Generate" icon="seti:go">
+    `alacris-go generate` reads your `define()` calls and writes typed Go
+    wrappers, typed event details and slot constants. One source of truth.
+  </Card>
+  <Card title="Go live" icon="rocket">
+    Push prop changes over SSE, receive component events over POST. Server-owned
+    state, fine-grained updates, no client framework.
+  </Card>
+  <Card title="No npm required" icon="approve-check">
+    The alacris runtime is vendored into the Go module and served from Go. A Go
+    project needs no JavaScript toolchain to ship.
+  </Card>
+</CardGrid>
+
+## Install
+
+```bash
+go get github.com/bmartel/alacris-go
+```
+
+```go
+mux.Handle("/_alacris/", alacris.RuntimeHandler())
+```
+
+That is the whole setup for the first layer. [Start here](/alacris-go/start/what-is-alacris-go/)
+for what the server can and cannot render — it is the fact that shapes
+everything else.
+
+## Honest about the trade
+
+The shadow content of a component is built by `setup()` **in the browser**.
+There is no server-side rendering of component internals and no declarative
+shadow DOM. What Go renders is the element, its props and its light-DOM slot
+children — see [Limitations](/alacris-go/reference/limitations/) for the full
+list before you commit to it.

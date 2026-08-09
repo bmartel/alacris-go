@@ -178,4 +178,7 @@ if (session && endpoint) {
   console.warn('alacris live: no session on the page; the live client did nothing');
 }
 
-export { send };
+// apply and send are exported so a page can drive the real client directly —
+// the documentation site feeds apply the same frames a Go server would send,
+// rather than reimplementing it and letting the two drift.
+export { send, apply };

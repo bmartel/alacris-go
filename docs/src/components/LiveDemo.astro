@@ -1,0 +1,99 @@
+---
+/**
+ * A live-tier demo, driven by the real client.
+ *
+ * There is no Go server behind a static site, so the frames are scripted here.
+ * Everything downstream of them is real: the demo imports `apply` from the
+ * live client the Go module embeds and hands it exactly the JSON a Server
+ * would have written to the SSE stream. What you see is what that patch does.
+ *
+ * The Go that would produce each frame is shown beside it, so the mapping from
+ * one to the other is never left to the imagination.
+ */
+import { Code } from 'astro-expressive-code/components';
+
+interface Props {
+  /** Markup for the stage, usually one or more custom elements. */
+  markup: string;
+  /** The Go a reader would write to send these frames. */
+  go: string;
+  /** Steps: a label, the Go line it corresponds to, and the frame it sends. */
+  steps: { label: string; patch: unknown[] }[];
+  title?: string;
+  /** A note under the demo. */
+  note?: string;
+}
+
+const { markup, go, steps, title = 'Live', note } = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const id = `live-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<figure class="live-demo not-content" data-live-demo id={id}>
+  <figcaption class="live-demo__head">
+    <span class="live-demo__title">{title}</span>
+    <span class="live-demo__hint">frames are scripted; the client applying them is the real one</span>
+  </figcaption>
+
+  <div class="live-demo__cols">
+    <div>
+      <div class="go-example__label">on the server</div>
+      <Code code={go} lang="go" meta="wrap" />
+    </div>
+
+    <div>
+      <div class="go-example__label">in the page</div>
+      <div class="live-demo__stage" set:html={markup} />
+
+      <div class="live-demo__actions">
+        {
+          steps.map((step, i) => (
+            <button type="button" class="live-demo__step" data-step={i}>
+              {step.label}
+            </button>
+          ))
+        }
+        <button type="button" class="live-demo__reset" data-reset>Reset</button>
+      </div>
+
+      <div class="go-example__label">on the wire</div>
+      <pre class="live-demo__wire" aria-live="polite"><code>nothing sent yet</code></pre>
+    </div>
+  </div>
+
+  {note && <p class="go-example__note">{note}</p>}
+
+  <script type="application/json" data-steps set:html={JSON.stringify(steps)} />
+</figure>
+
+{/* is:inline keeps Astro from bundling this, so the import map resolves it in the browser. */}
+<script type="module" is:inline define:vars={{ id, base }}>
+  // The applier is imported from the client the Go module serves, not
+  // reimplemented here — a demo that drifted from the real thing would be
+  // worse than no demo.
+  const { apply } = await import(`${base}/lib/live.js`);
+
+  const root = document.getElementById(id);
+  const steps = JSON.parse(root.querySelector('[data-steps]').textContent);
+  const stage = root.querySelector('.live-demo__stage');
+  const wire = root.querySelector('.live-demo__wire code');
+  const initial = stage.innerHTML;
+
+  const show = (frame) => {
+    wire.textContent = JSON.stringify(frame, null, 1).replace(/\n\s*/g, ' ').replace(/ }/g, ' }');
+  };
+
+  root.querySelectorAll('.live-demo__step').forEach((button) => {
+    button.addEventListener('click', () => {
+      const frame = steps[Number(button.dataset.step)].patch;
+      show(frame);
+      for (const patch of frame) apply(patch);
+    });
+  });
+
+  root.querySelector('[data-reset]').addEventListener('click', () => {
+    stage.innerHTML = initial;
+    wire.textContent = 'nothing sent yet';
+  });
+</script>

@@ -1,0 +1,152 @@
+---
+title: Installation
+description: Add alacris-go to a Go project, serve the runtime, and get a component onto a page.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+<Steps>
+
+1. **Add the module.**
+
+   ```bash
+   go get github.com/bmartel/alacris-go
+   ```
+
+   The alacris runtime is vendored inside it, so there is nothing to install
+   from npm and no JavaScript build step to add.
+
+2. **Serve the runtime.**
+
+   ```go
+   mux := http.NewServeMux()
+   mux.Handle("/_alacris/", alacris.RuntimeHandler())
+   ```
+
+   The handler resolves requests by file name, so it works at any mount point
+   and needs no `http.StripPrefix`.
+
+3. **Put the script tags in `<head>`.**
+
+   <GoExample id="scripts" title="What Scripts renders" live={false} />
+
+   ```templ
+   templ layout() {
+       <html>
+           <head>
+               @alacris.Scripts(alacris.Config{
+                   Modules: []string{"/web/components.js"},
+                   Version: buildRevision,
+               })
+           </head>
+           <body>{ children... }</body>
+       </html>
+   }
+   ```
+
+   <Aside type="caution" title="Order matters">
+     `Scripts` belongs in `<head>`, before any other module script. An import
+     map has to precede the first module import it applies to, or the bare
+     specifier `alacris` will not resolve.
+   </Aside>
+
+4. **Write a component and render it.**
+
+   ```js title="web/components.js"
+   import { define, html } from 'alacris';
+
+   define('hello-world', {
+     props: { name: 'world' },
+     setup: ({ name }) => html`<p>Hello, ${name}!</p>`,
+   });
+   ```
+
+   ```templ
+   @alacris.E("hello-world").Prop("name", "Ada")
+   ```
+
+</Steps>
+
+## A project laid out
+
+<FileTree>
+- go.mod
+- main.go
+- **web/**
+  - components.js  every `define()` call, one module
+- **ui/**  generated wrappers — see [Generating wrappers](/alacris-go/guides/codegen/)
+  - components_gen.go
+  - alacris_gen.go
+- **views/**
+  - page.templ
+  - page_templ.go
+</FileTree>
+
+## Serving your components
+
+The runtime handler serves alacris itself. Your own component module is an
+ordinary static asset — serve it however you serve the rest of them:
+
+<Tabs>
+  <TabItem label="embed">
+    ```go
+    //go:embed web
+    var webFS embed.FS
+
+    mux.Handle("/web/", http.FileServerFS(webFS))
+    ```
+    One binary, nothing to deploy alongside it.
+  </TabItem>
+  <TabItem label="disk">
+    ```go
+    mux.Handle("/web/", http.StripPrefix("/web/", http.FileServer(http.Dir("web"))))
+    ```
+    Edit and reload without rebuilding, which is what you want in development.
+  </TabItem>
+  <TabItem label="CDN">
+    ```go
+    alacris.Config{
+        Modules: []string{"https://cdn.example.com/app.abc123.js"},
+    }
+    ```
+    Point `Imports` at your CDN too if you also host alacris there.
+  </TabItem>
+</Tabs>
+
+## Caching
+
+Asset URLs carry no version by default, so the handler serves them
+`Cache-Control: public, no-cache` — cached, but revalidated. Revalidation costs
+one conditional request and almost always answers `304`.
+
+Set `Config.Version` to anything that changes with a deploy, and each release
+becomes a distinct URL that can be cached for a year:
+
+```go
+alacris.Config{Version: build.Revision}   // /_alacris/alacris.js?v=<revision>
+```
+
+<Aside type="tip" title="Why not just cache for an hour?">
+  Because the URL is the same before and after a deploy. A long `max-age` on an
+  unversioned URL means a fixed bug stays broken in every browser that already
+  has the old copy.
+</Aside>
+
+## Development build
+
+`Config.Dev` swaps in `alacris.dev.js`, which is unminified and carries readable
+errors. Wire it to whatever flag already distinguishes your environments:
+
+```go
+alacris.Config{Dev: !isProduction}
+```
+
+## Next
+
+- [Your first component](/alacris-go/start/first-component/) — the full loop,
+  including generated wrappers.
+- [Rendering elements](/alacris-go/guides/rendering/) — the `Element` API in
+  full.

@@ -1,0 +1,166 @@
+---
+title: Wire protocol
+description: The endpoints, the frame format and the patch operations — enough to write another client, or to debug the one you have.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Small enough to read in one sitting, which is the point: there is no framework
+protocol to learn, and no opaque payload to trust.
+
+## Endpoints
+
+Relative to the mount point, `/_alacris/` by default.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `live.js` | The client script. |
+| `GET` | `live?s=<session>` | The patch stream, `text/event-stream`. |
+| `POST` | `live` | One action. |
+
+## The stream
+
+```http
+GET /_alacris/live?s=PAZlOnTCMes0TtjTNqisWV0V
+
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache, no-transform
+Connection: keep-alive
+X-Accel-Buffering: no
+
+retry: 2000
+
+data: [{"o":"p","i":"todos","k":"items","v":[{"id":1,"text":"Read the docs","done":false}]}]
+
+: ping
+
+data: [{"o":"p","i":"todos","k":"filter","v":"done"},{"o":"c","i":"todos","k":"is-busy","v":false}]
+```
+
+- Each `data:` line is a **JSON array of patches**, applied in order. A batch is
+  one array.
+- `: ping` is a comment, written every `Heartbeat` (25s by default) so idle
+  connections are not reaped.
+- `retry: 2000` asks the browser to wait 2s before reconnecting.
+- JSON escapes newlines, so a payload is always exactly one line.
+
+Status codes: `404` for an unknown or expired session, `410` if it closed
+between lookup and subscribe, `500` if the response does not support flushing.
+
+## A patch
+
+```json
+{ "o": "p", "i": "todos", "k": "items", "v": [ ... ] }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `o` | The operation. |
+| `i` | The target element's `id`. Absent targets the document element. |
+| `k` | Property, attribute, slot or class name, depending on `o`. Always present. |
+| `v` | The value. Absent means `null`. |
+
+<Aside type="note" title="Why k is never omitted">
+  The default slot's name is the empty string. If `k` were omitted when empty, a
+  patch for the default slot would be indistinguishable from one with no key at
+  all — so `k` is always on the wire, and there is a test pinning that.
+</Aside>
+
+### Operations
+
+| `o` | Name | What the client does |
+| --- | --- | --- |
+| `p` | prop | `el[k] = v` |
+| `a` | attribute | `el.setAttribute(k, v)`, or `removeAttribute(k)` when `v` is null |
+| `h` | html | Replaces the light-DOM children assigned to slot `k` |
+| `c` | class | `el.classList.toggle(k, !!v)` |
+| `x` | reload | `location.reload()` |
+
+`p` is the one that matters. Because an alacris prop is a signal, writing the
+property wakes exactly the bindings that read it — no diffing, and nothing else
+on the page is touched. It also uses the **JavaScript** prop name from
+`define()`, not the kebab-cased attribute.
+
+Values assigned before an element upgrades are replayed by `define()`'s
+constructor, so a patch that arrives early is not lost.
+
+A patch for an element the page does not have is ignored, not an error: pages
+drift, and a missing element is not worth breaking the stream over.
+
+## An action
+
+```http
+POST /_alacris/live
+Content-Type: application/json
+
+{"s":"PAZlOnTCMes0TtjTNqisWV0V","a":"add-todo","i":"todos","d":{"text":"buy milk"}}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `s` | Session id. |
+| `a` | Action name, the right-hand side of a `data-ala-on` pair. |
+| `i` | The id of the element that emitted the event, or `""`. |
+| `d` | The `CustomEvent` detail, or `null`. |
+
+Responses: `204` on success, `400` for a malformed body, `403` for a
+cross-origin post, `404` for an unknown session or unhandled action, `413` past
+`MaxDetail`, `500` when the handler returns an error.
+
+<Aside type="danger" title="The session id is a capability">
+  It is generated with `crypto/rand`, and it is the only thing identifying a
+  page. Anyone holding one can receive that page's patches and act as it. Keep
+  it out of URLs, logs and referers, and serve pages carrying one `no-store`.
+</Aside>
+
+## Declaring an action in the markup
+
+```html
+<ala-todo-list id="todos" data-ala-on="add:add-todo toggle:toggle-todo"></ala-todo-list>
+```
+
+Space-separated `event:action` pairs. The client attaches one listener per
+event type to the document and walks `composedPath()` to find the element
+carrying the declaration — so it works across shadow boundaries and for elements
+added later, with one listener regardless of how many elements declare it.
+
+## The client
+
+The script tag carries its own configuration:
+
+```html
+<script type="module" src="/_alacris/live.js"
+        data-endpoint="/_alacris/live"
+        data-session="PAZlOnTCMes0TtjTNqisWV0V"></script>
+```
+
+It exports `apply` and `send`, so a page can drive it directly — the demos on
+this site feed `apply` the same frames a Go server would send, rather than
+reimplementing it.
+
+It dispatches `alacris:live` on `window` as its connection state changes:
+
+```js
+window.addEventListener('alacris:live', (e) => {
+  e.detail.state;   // 'open' | 'closed' | 'error'
+});
+```
+
+Useful for showing a reconnecting indicator without touching the library.
+
+## Writing another client
+
+Everything above is the contract. A client needs to:
+
+1. Open the stream with the session id in `?s=`.
+2. Parse each `data:` line as an array and apply the patches in order.
+3. `POST` actions in the shape above.
+4. Let the browser handle reconnects, and expect the server to restate the
+   world via its `OnOpen` hook rather than trying to replay what was missed.
+
+Point 4 is the one to get right: there is no message id and no replay buffer,
+because the server is authoritative and re-sending the current state is both
+simpler and more correct than reconstructing a history.

@@ -1,0 +1,148 @@
+---
+title: JSDoc tags
+description: Every tag the generator reads, the type vocabulary, and what happens without them.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`define()` says a prop's name and, through the type of its default, how it is
+coerced. Everything else the generator needs comes from a JSDoc block directly
+above the call.
+
+```js
+/**
+ * A person, at a glance.
+ *
+ * @prop    {string[]} tags   the labels shown under the name
+ * @prop    {integer}  age    whole years
+ * @fires   greet {name: string} - the user said hello
+ * @slot    title - replaces the heading
+ * @cssprop [--card-bg=#fff] - the background
+ * @goname  PersonCard
+ */
+define('user-card', { props: { name: 'anon', age: 0, tags: [] }, setup });
+```
+
+The description above the tags becomes the constructor's doc comment.
+
+<Aside type="note" title="Where the block has to be">
+  Directly above the call, separated only by a simple declaration prefix
+  (`export const Card = define(...)` is fine). A block further away, or one
+  separated by another statement, belongs to something else and is ignored — so
+  a stray comment cannot silently become a component's documentation.
+</Aside>
+
+## The tags
+
+| Tag | Shape | Effect |
+| --- | --- | --- |
+| `@prop` | `{type} name description` | Overrides the inferred Go type and documents the field. |
+| `@property` | | Alias for `@prop`. |
+| `@fires` | `name {detail} - description` | An event constant, and a typed detail struct. |
+| `@event` | | Alias for `@fires`. |
+| `@slot` | `name - description` | A slot name constant. Omit the name for the default slot. |
+| `@cssprop` | `[--name=default] - description` | Adds the property to the generated `VarSet`. |
+| `@cssproperty` | | Alias for `@cssprop`. |
+| `@goname` | `Identifier` | Overrides the Go name derived from the tag. |
+| `@goimport` | `[alias] path` | Imports a package needed by a `go:` type. |
+| `@deprecated` | `reason` | Adds `Deprecated:` to the constructor's doc. |
+
+## Types
+
+| Written | Go |
+| --- | --- |
+| `string` | `string` |
+| `number` | `float64` |
+| `integer`, `int` | `int` |
+| `boolean`, `bool` | `bool` |
+| `object` | `map[string]any` |
+| `any`, `*`, `unknown` | `any` |
+| `T[]`, `Array<T>` | `[]T` |
+| `Record<string, T>` | `map[string]T` |
+| `go:Expr` | `Expr`, verbatim |
+
+`number` is `float64` because that is what a JavaScript number is. Write
+`integer` when the value really is one and the generated code should say `int`.
+
+### `go:` and `@goimport`
+
+```js
+/**
+ * @prop {go:[]todo.Item} items
+ * @prop {go:money.Amount} price
+ * @goimport todo  example.com/app/todo
+ * @goimport money example.com/app/money
+ */
+define('order-line', { props: { items: [], price: {} }, setup });
+```
+
+The expression is used verbatim, so write it exactly as Go needs it —
+`[]todo.Item`, not `todo.Item[]`.
+
+## Event details
+
+Three forms:
+
+```js
+// No detail: just a constant.
+@fires reset - the card went back to its initial state
+
+// An inline object: generates a struct.
+@fires greet {name: string, times: integer} - the user said hello
+
+// A Go type you declared yourself.
+@fires save {go:orders.Draft} - the user saved a draft
+```
+
+```go
+const UserCardEventGreet = "greet"
+
+type UserCardGreetDetail struct {
+    Name  string `json:"name"`
+    Times int    `json:"times"`
+}
+```
+
+That struct is what [`live.On`](/alacris-go/guides/live-actions/) decodes into.
+
+Both orders parse, so `@fires {name: string} greet` works too.
+
+## What happens without them
+
+The generator infers what it can from the default value:
+
+| Default in `define()` | Inferred |
+| --- | --- |
+| `'anon'` | `string` |
+| `0` | `int` |
+| `1.5` | `float64` |
+| `true` / `false` | `bool` (a `true` default becomes `*bool`) |
+| `['a', 'b']` | `[]string` |
+| `[1, 2]` | `[]int` |
+| `[]` | `[]any` — an empty array says nothing about its elements |
+| `{}` | `map[string]any` |
+| `null` | `any` |
+
+So `@prop` matters most for empty arrays and objects, and for saying `integer`
+where the default happens to be whole.
+
+Events, slots and custom properties are **only** what the tags say — `define()`
+does not mention them at all.
+
+## Errors
+
+The generator refuses rather than guessing:
+
+```text
+@prop: line 5: "missing" is not one of the props declared by define()
+@prop: line 5: unknown type "Widget" (use string, number, integer, boolean,
+       object, any, T[], or go:YourType)
+prop "a" defaults to array, so its attribute is parsed as JSON; string cannot
+       be encoded that way
+```
+
+The first is the useful one: a documented prop that `define()` does not declare
+is a rename that was only half done, and generating a field for it would render
+an attribute the component ignores.

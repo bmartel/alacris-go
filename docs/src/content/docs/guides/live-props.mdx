@@ -1,0 +1,184 @@
+---
+title: "Live: props from the server"
+description: Make the server authoritative over what a component shows — one property write per change, with no HTML on the wire.
+sidebar:
+  order: 5
+  badge: Live
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LiveDemo from '../../../components/LiveDemo.astro';
+
+A prop is a signal. That is the whole basis of this layer: when the server
+changes something, it does not render a fragment and swap it in — it writes
+**one property**, which wakes **one binding**, which updates **one DOM node**.
+
+<LiveDemo
+  title="Watch a prop patch land"
+  markup={`<ala-todo-list id="demo-todos" items="[{&quot;id&quot;:1,&quot;text&quot;:&quot;Read the docs&quot;,&quot;done&quot;:false},{&quot;id&quot;:2,&quot;text&quot;:&quot;Write a component&quot;,&quot;done&quot;:false}]"></ala-todo-list>`}
+  go={`sess.Element("demo-todos").Set("items", list.Items())
+
+// or several as one frame
+sess.Batch(func() {
+    sess.Element("demo-todos").Set("items", list.Items())
+    sess.Element("demo-todos").Set("filter", "done")
+})`}
+  steps={[
+    {
+      label: 'Add an item',
+      patch: [{ o: 'p', i: 'demo-todos', k: 'items', v: [
+        { id: 1, text: 'Read the docs', done: false },
+        { id: 2, text: 'Write a component', done: false },
+        { id: 3, text: 'Ship it', done: false },
+      ] }],
+    },
+    {
+      label: 'Mark one done',
+      patch: [{ o: 'p', i: 'demo-todos', k: 'items', v: [
+        { id: 1, text: 'Read the docs', done: true },
+        { id: 2, text: 'Write a component', done: false },
+        { id: 3, text: 'Ship it', done: false },
+      ] }],
+    },
+    {
+      label: 'Filter to done (batched)',
+      patch: [
+        { o: 'p', i: 'demo-todos', k: 'items', v: [
+          { id: 1, text: 'Read the docs', done: true },
+          { id: 2, text: 'Write a component', done: false },
+          { id: 3, text: 'Ship it', done: false },
+        ] },
+        { o: 'p', i: 'demo-todos', k: 'filter', v: 'done' },
+      ],
+    },
+  ]}
+  note="The frames are scripted here because a static site has no Go server, but the client applying them is the one the Go module embeds."
+/>
+
+## Setting it up
+
+<Steps>
+
+1. **Create a server** and mount it.
+
+   ```go
+   srv := live.New()
+   defer srv.Close()
+
+   mux := http.NewServeMux()
+   live.Mount(mux, alacris.DefaultBase, srv)
+   ```
+
+   `Mount` registers the runtime, the live client, and the two endpoints. Doing
+   it by hand is fine; this only exists so the three cannot drift apart.
+
+2. **Mint a session per page render** and put its id in the page.
+
+   ```go
+   func (a *app) index(w http.ResponseWriter, r *http.Request) {
+       sess := a.live.NewSession()
+       sess.OnOpen(func(s *live.Session) { a.push(s) })
+
+       cfg := alacris.Config{
+           Modules: []string{"/web/components.js"},
+           Live:    true,
+           Session: sess.ID(),
+       }
+       // ... render the page with cfg
+   }
+   ```
+
+3. **Give the elements you will patch an id.** A patch addresses an element by
+   its `id`, and generated wrappers return an `*Element`, so:
+
+   ```templ
+   @ui.TodoList(props).ID("todos")
+   ```
+
+4. **Patch.**
+
+   ```go
+   sess.Element("todos").Set("items", list.Items())
+   ```
+
+</Steps>
+
+## The API
+
+```go
+h := sess.Element("todos")
+
+h.Set("items", list.Items())        // a component prop
+h.SetAttr("data-state", "ready")    // an ordinary attribute; nil removes it
+h.Class("is-busy", true)            // toggle a class
+h.SetHTML(ctx, "empty", tmpl)       // replace the children of one slot
+h.Props(map[string]any{...})        // several props, one frame
+```
+
+`Set` takes the **JavaScript** prop name from `define()` — `maxCount`, not
+`max-count` — because it writes the DOM property rather than the attribute.
+That is also why values need no encoding: they are JSON on the wire and become
+real JavaScript values on arrival.
+
+<Aside type="note" title="Why the property and not the attribute">
+  Writing the property sets the signal directly, and it sidesteps the boolean
+  removal problem that makes attributes awkward. Values assigned before an
+  element upgrades are replayed by `define()`'s constructor, so a patch that
+  arrives early is not lost.
+</Aside>
+
+## Batching
+
+Every `Send` is a frame. Wrap a group so the browser applies them together and
+the page does not paint half an update:
+
+```go
+sess.Batch(func() {
+    sess.Element("todos").Set("items", items)
+    sess.Element("remaining").Set("count", n)
+})
+```
+
+## Sending to everyone
+
+```go
+srv.Broadcast(live.Prop("ticker", "price", 42.5))
+
+for _, s := range srv.Sessions() {
+    s.Element("todos").Set("items", items)   // when each page needs different data
+}
+```
+
+This is what makes two open tabs agree without either of them polling.
+
+## When props are the wrong tool
+
+`SetHTML` replaces the light-DOM children assigned to one slot with markup the
+server rendered:
+
+```go
+h.SetHTML(ctx, ui.ChipSlotDefault, chipText("4 left"))
+```
+
+Reach for it when the server genuinely owns the markup — a rendered document, a
+chunk of a report. For anything a component already models as a prop, a prop is
+smaller, does not touch the DOM the user is interacting with, and keeps
+rendering where the component put it.
+
+<Aside type="caution" title="A named slot needs an element">
+  Bare text cannot be assigned to a named slot; it lands in the default one.
+  Render an element around it — the client logs a warning if you do not.
+</Aside>
+
+## What this costs
+
+Sessions live in memory, so the server is stateful and needs session affinity
+behind a load balancer. See [Deploying](/alacris-go/guides/deploying/). The
+first two layers of this library have no dependency on any of it.
+
+## Next
+
+- [Live: actions from the page](/alacris-go/guides/live-actions/) — closing the
+  loop, so the page can ask the server to change something.
+- [Sessions and reconnects](/alacris-go/guides/sessions/) — buffering, TTL, and
+  why `OnOpen` is not optional.

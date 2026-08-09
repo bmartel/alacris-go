@@ -1,0 +1,89 @@
+---
+title: AI agents
+description: A drop-in AGENTS.md that teaches coding agents this library's conventions and footguns, plus an llms.txt map of these docs.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+An agent writing code against this library gets a few things wrong by default,
+and they are the same few things every time: it hand-writes attribute names,
+it puts `each` inside a conditional, it edits generated files, and it forgets
+that a reconnecting page has missed everything.
+
+`AGENTS.md` is a drop-in file that heads all of that off.
+
+## Install it
+
+```bash
+curl -o AGENTS.md https://bmartel.github.io/alacris-go/AGENTS.md
+```
+
+Put it in your project root. Claude Code, Cursor, Copilot, Codex and others read
+it automatically; for tools that do not, paste it into the system prompt or
+whatever the equivalent is.
+
+If you also write component internals — the JavaScript half — take alacris' own
+file too, and keep both:
+
+```bash
+curl -o AGENTS.alacris.md https://bmartel.github.io/alacris/AGENTS.md
+```
+
+## What it covers
+
+- The model: shadow content is client-rendered, every prop crosses as an
+  attribute, a prop is a signal.
+- Project layout, and that `ui/` is generated and must not be edited.
+- The encoding rules, including the two that look odd — booleans always written
+  out, and `*bool` for a default of `true`.
+- The live layer: `OnOpen` is not optional, details are user input, the session
+  id is a capability.
+- A wrong → right table of the mistakes that actually happen.
+- A verification checklist, including the focus-and-node-identity check that
+  catches an `each` in a conditional.
+
+## Docs for agents that fetch them
+
+[`llms.txt`](https://bmartel.github.io/alacris-go/llms.txt) is a map of this
+site for agents that read documentation on demand:
+
+```
+https://bmartel.github.io/alacris-go/llms.txt
+```
+
+Every page is also plain content at its own URL, so an agent can fetch a
+specific guide rather than the whole site.
+
+## Why the examples on this site are trustworthy
+
+Every Go example is extracted from
+[`internal/docsgen/examples.go`](https://github.com/bmartel/alacris-go/blob/main/internal/docsgen/examples.go)
+with `go/ast` and then **executed**. The HTML shown beside it is what that code
+actually rendered, and `go test ./...` fails if the committed output stops
+matching the library.
+
+<Aside type="tip" title="This matters more for agents than for people">
+  A person notices when an example looks stale. An agent copies it. Examples
+  that cannot drift are worth the machinery.
+</Aside>
+
+The live-tier demos are the one exception, and they say so on the page: a static
+site has no Go server, so the frames are scripted. The client applying them is
+the real one, imported from the bytes the Go module embeds.
+
+## Prompts that work well
+
+Point at the specific thing rather than the general one:
+
+> Add a `priority` prop to `<ala-todo-item>`: an integer, default 0. Update the
+> JSDoc, regenerate the wrappers, and use it in `views/list.templ`.
+
+> The todo list should update every open tab when an item changes. Use the live
+> layer, and make sure `OnOpen` pushes the full state.
+
+> Review `web/components.js` for `each` used inside a conditional template.
+
+The last one is worth running on any codebase using this library — it is the
+mistake that silently undoes the whole point of the update path.

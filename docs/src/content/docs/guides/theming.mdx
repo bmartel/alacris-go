@@ -1,0 +1,161 @@
+---
+title: Theming
+description: Restyle a component from Go through the contract it declares — custom properties, parts, and a Go type that checks you are using them.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+A shadow root is opaque, which protects the component author and blocks everyone
+else. The platform provides three ways through, and alacris leans on all three
+rather than inventing a fourth. From Go you reach the first one.
+
+## Custom properties
+
+A component declares what it is themed by with `vars()`:
+
+```js
+import { vars, css } from 'alacris';
+
+const chip = vars('chip', { bg: '#eee', fg: '#111', radius: '999px' });
+// chip.bg === 'var(--chip-bg, #eee)'
+
+define('ala-chip', {
+  styles: css`:host { background: ${chip.bg}; color: ${chip.fg}; border-radius: ${chip.radius} }`,
+  setup: () => html`<slot></slot>`,
+});
+```
+
+Custom properties inherit straight through the shadow boundary, so setting one
+on the element — or anywhere above it — reaches inside:
+
+<GoExample id="theming" />
+
+## Making the contract checkable
+
+`Var` will set any property you name, including one the component does not
+declare. `VarSet` is the version that knows the difference:
+
+```go
+var ChipVars = alacris.Vars("--chip-bg", "--chip-fg", "--chip-radius")
+
+alacris.E("ala-chip").Apply(ChipVars, map[string]string{
+    "--chip-bg": "#ffe9a8",
+})
+```
+
+A key outside the contract fails the render rather than writing a property
+nothing reads:
+
+```go
+alacris.E("ala-chip").Apply(ChipVars, map[string]string{"--chip-colour": "#111"})
+// render fails: alacris: --chip-colour is not part of this theming contract
+//               (have: --chip-bg, --chip-fg, --chip-radius)
+```
+
+That turns a rename in the component into a failing request instead of styling
+that quietly stops working.
+
+## Generating it
+
+Declare the properties in the component's JSDoc and the contract is generated
+along with everything else:
+
+```js
+/**
+ * @cssprop [--chip-bg=#eee] - the background
+ * @cssprop [--chip-fg=#111] - the text colour
+ * @cssprop [--chip-radius=999px] - the corner radius
+ */
+define('ala-chip', { props: { tone: 'neutral' }, setup });
+```
+
+```go
+// generated
+var ChipVars = alacris.Vars(
+    "--chip-bg",     // the background (defaults to #eee)
+    "--chip-fg",     // the text colour (defaults to #111)
+    "--chip-radius", // the corner radius (defaults to 999px)
+)
+```
+
+```templ
+@ui.Chip(ui.ChipProps{}).Apply(ui.ChipVars, map[string]string{"--chip-bg": "#ffe9a8"})
+```
+
+`NewVarSet` builds the same thing from a prefix and camelCase keys, mirroring
+`vars()` directly:
+
+```go
+alacris.NewVarSet("chip", "bg", "fg", "borderRadius")
+// --chip-bg, --chip-fg, --chip-border-radius
+```
+
+## What gets refused
+
+Values are checked, not escaped. Anything that could end the declaration, end
+the attribute, or open a comment is an error:
+
+```go
+.Var("bg", "red;position:fixed")   // ';' is not allowed
+.Var("bg", "red/*x*/")             // comment markers are not allowed
+.Var("bg", "url(javascript:...)")  // "javascript:" is not allowed
+```
+
+Colour and length functions are fine, because that is what a themable value
+usually is:
+
+```go
+.Var("bg", "oklch(0.7 0.1 200)")
+.Var("bg", "color-mix(in srgb, var(--brand) 40%, transparent)")
+```
+
+<Aside type="note" title="Why refuse rather than sanitize">
+  A sanitizer that silently substitutes a placeholder gives you a page that
+  looks wrong for reasons you cannot see. An error names the character and the
+  property.
+</Aside>
+
+## The other two routes
+
+They are CSS, not Go, but worth knowing they exist:
+
+**`::part`** reaches a specific internal the component chose to expose. Outer
+rules beat the component's own, so a consumer always wins:
+
+```css
+ala-chip::part(dot) { width: 14px }
+```
+
+**`adoptGlobal`** pushes a stylesheet into every alacris component on the page,
+including ones that do not exist yet — the escape hatch for restyling a
+component set whose source you do not control:
+
+```js
+import { adoptGlobal, css } from 'alacris';
+const remove = adoptGlobal(css`:host { font-family: Inter, system-ui }`);
+```
+
+## One rule
+
+<Aside type="caution" title="Never use !important in a component">
+  It is the only inner declaration a consumer cannot override — it defeats
+  `::part`, custom properties and `adoptGlobal` alike. alacris never emits it,
+  and neither should your components.
+</Aside>
+
+## Page-level theming
+
+Because custom properties inherit, the most maintainable place to set them is
+usually your ordinary stylesheet, not Go:
+
+```css
+ala-chip           { --chip-bg: #ececf2; --chip-fg: #333 }
+.dark ala-chip     { --chip-bg: #2b2b33; --chip-fg: #eee }
+[data-tone="warn"] { --chip-bg: #ffe9a8 }
+```
+
+Reach for `Apply` when the value is genuinely per-element and comes from data —
+a category colour, a progress percentage — rather than from design.

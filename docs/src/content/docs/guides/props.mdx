@@ -1,0 +1,180 @@
+---
+title: Props and encoding
+description: How a Go value becomes an attribute and then a typed JavaScript value — and the two rules that exist because of sharp edges in the runtime.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+alacris coerces an attribute using the **type of the prop's default** in
+`define()`. Everything here follows from that.
+
+```js
+define('x-demo', { props: { count: 0, tags: [] } });
+//                          ^ number     ^ object
+```
+
+`count` will be coerced with `+v`; `tags` with `JSON.parse`. So the Go type you
+pass has to line up with the type of the default. Generated wrappers guarantee
+that; hand-written `Prop` calls are on your own.
+
+## The table
+
+| Go type | Attribute | Matching default in `define()` |
+| --- | --- | --- |
+| `string`, `fmt.Stringer` | the text | a string |
+| `bool` | `"true"` / `"false"` | a boolean |
+| `int`…`int64`, `uint`…`uint64` | decimal | a number |
+| `float32`, `float64` | shortest round-tripping form | a number |
+| `time.Time` | RFC 3339 | a string |
+| `time.Duration` | whole milliseconds | a number |
+| slices, maps, structs, `json.Marshaler` | JSON | an object or array |
+| `nil`, nil pointer, nil slice/map | *omitted* | anything |
+
+<GoExample id="encoding-scalars" title="Scalars" />
+
+## Objects and arrays cross too
+
+This is the part that makes server rendering worth doing. Because object
+defaults are parsed with `JSON.parse`, a struct or a map crosses as an
+attribute — no post-load property assignment, no hydration payload, and a page
+that is complete before any JavaScript has run.
+
+<GoExample id="encoding-composites" title="Composites" />
+
+The live area is showing the component reporting the JavaScript **type** each
+prop arrived as. `tags` is an array. `origin` is an object. They were attribute
+strings a moment ago.
+
+## Booleans
+
+A boolean prop is always written out explicitly, never signalled by presence.
+The reason is in `coerce`:
+
+```js
+if (v === null) return typeof d === 'boolean' ? false : d;
+```
+
+`v` is `null` when an attribute is **removed**. So removing a boolean attribute
+returns `false` — even when the prop's declared default is `true`. Presence and
+absence cannot express "leave it alone", so the library never relies on them.
+
+<Aside type="danger" title="A default of true needs a pointer">
+  For the same reason, a generated field for a boolean prop whose default is
+  `true` is a `*bool`, not a `bool`. Go's zero value is `false`, so a plain
+  field could never mean "unset" and the component's default would be
+  unreachable from Go.
+
+  ```go
+  type XYProps struct {
+      Open *bool   // define() default: true
+      Shut bool    // define() default: false
+  }
+  ```
+</Aside>
+
+## Numbers
+
+A numeric prop is coerced with `+v`, which produces a JavaScript number — a
+float64. Anything past 2<sup>53</sup>−1 cannot survive that.
+
+```go
+alacris.E("x-y").Prop("id", int64(9007199254740993))
+// render fails: alacris: integer exceeds JavaScript's safe integer range;
+//               encode it as a string
+```
+
+It is an error rather than a rounding because a silently altered identifier is
+the worst outcome available. Send large ids as strings and have the component
+treat them as strings.
+
+`NaN` and the infinities are refused for the same reason: they have no
+attribute form that survives the round trip.
+
+## Nothing needs escaping
+
+Interpolated values are attribute values, never markup. There is nothing to
+escape by hand and no way to forget:
+
+<GoExample id="encoding-escaping" title="Hostile input, harmless output" />
+
+Note the JSON prop: quotes inside it are escaped so the attribute cannot end
+early, and the `<script>` in the payload is just text when it arrives.
+
+## Omitting versus sending a zero
+
+Generated wrappers leave a prop off when the value is the Go zero value **or**
+equal to the component's own default. Both mean "I did not set this".
+
+```go
+ui.UserCard(ui.UserCardProps{Name: ""})       // no name attribute; component uses 'anon'
+ui.UserCard(ui.UserCardProps{Name: "anon"})   // same
+```
+
+To send a zero value on purpose, set it on the returned element:
+
+```go
+ui.UserCard(ui.UserCardProps{}).Prop("name", "")   // name=""
+```
+
+If that trade is wrong for your project, generate with pointer fields instead:
+
+```bash
+alacris-go generate ./web -o ./ui -optional=pointer
+```
+
+```go
+ui.UserCard(ui.UserCardProps{Name: ptr("")})   // unambiguous, more typing
+```
+
+## Attribute names
+
+The conversion from prop name to attribute name is `define.js`'s, reproduced
+exactly:
+
+```js
+const kebab = s => s.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+```
+
+| Prop | Attribute |
+| --- | --- |
+| `name` | `name` |
+| `maxCount` | `max-count` |
+| `URL` | `-u-r-l` |
+| `Name` | `-name` |
+
+The last two are quirks, not bugs. They are reproduced because the element is
+listening for exactly what `define()` computed, and being tasteful instead
+would produce an attribute nothing reads.
+
+<Aside type="note" title="The live layer uses the other name">
+  A [prop patch](/alacris-go/guides/live-props/) writes the DOM **property**, so
+  it uses the JavaScript name — `maxCount`, not `max-count`. Both APIs take the
+  name as `define()` spells it; only the wire differs.
+</Aside>
+
+## Custom types
+
+A type implementing `json.Marshaler`, `fmt.Stringer` or
+`encoding.TextMarshaler` encodes through it, in that order of preference. So a
+domain type can control its own representation:
+
+```go
+type Money struct{ Cents int64 }
+
+func (m Money) MarshalJSON() ([]byte, error) {
+    return json.Marshal(map[string]any{"cents": m.Cents, "display": m.String()})
+}
+```
+
+Tell the generator about it with a JSDoc tag, and the field is typed:
+
+```js
+/**
+ * @prop {go:money.Money} price
+ * @goimport money example.com/shop/money
+ */
+define('price-tag', { props: { price: {} }, setup });
+```

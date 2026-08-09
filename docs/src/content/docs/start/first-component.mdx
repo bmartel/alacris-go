@@ -1,0 +1,149 @@
+---
+title: Your first component
+description: Write an alacris component, generate its typed Go wrapper, and render it from templ.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Card } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+The division of labour: **JavaScript owns what happens inside the component,
+Go owns what goes into it and what the page is made of.** `setup()` runs in a
+browser, so it stays in JavaScript; everything around it can be typed.
+
+<Steps>
+
+1. **Write the component.**
+
+   ```js title="web/components.js"
+   import { define, html, css, computed } from 'alacris';
+
+   /**
+    * A person, at a glance.
+    *
+    * @prop {string[]} tags  the labels shown under the name
+    * @fires greet {name: string} - the user said hello
+    * @slot title - replaces the heading
+    */
+   define('user-card', {
+     props: { name: 'anon', age: 0, tags: [] },
+     styles: css`:host { display: block } h3 { margin: 0 }`,
+     setup({ name, age, tags }, host) {
+       const grown = computed(() => age() >= 18);
+       return html`
+         <h3><slot name="title">${name}</slot></h3>
+         <p>${() => (grown() ? 'adult' : 'minor')} · ${() => tags().join(', ')}</p>
+         <button @click=${() => host.emit('greet', { name: name() })}>say hi</button>`;
+     },
+   });
+   ```
+
+   The JSDoc block is not decoration. `define()` says what a prop is called and
+   how it is coerced; the tags say what `define()` cannot — that `tags` is a
+   list of strings rather than a list of anything, that a `greet` event exists
+   and what it carries, that there is a `title` slot.
+
+2. **Generate the wrapper.**
+
+   ```bash
+   go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui
+   ```
+
+   ```text
+   alacris-go: 1 component(s) -> ./ui
+     wrote   ui/components_gen.go
+     wrote   ui/alacris_gen.go
+   ```
+
+3. **Read what you got.**
+
+   ```go title="ui/components_gen.go"
+   const UserCardTag = "user-card"
+
+   const UserCardSlotTitle = "title"
+   const UserCardEventGreet = "greet"
+
+   type UserCardGreetDetail struct {
+       Name string `json:"name"`
+   }
+
+   type UserCardProps struct {
+       // Name ...
+       // The component defaults it to 'anon'.
+       Name string
+       Age  int
+       // Tags is the labels shown under the name.
+       //
+       // Crosses as JSON in the tags attribute.
+       Tags []string
+   }
+
+   func UserCard(p UserCardProps) *alacris.Element
+   ```
+
+4. **Use it.**
+
+   ```templ
+   @ui.UserCard(ui.UserCardProps{
+       Name: "Ada",
+       Age:  36,
+       Tags: []string{"math", "code"},
+   }) {
+       <span slot={ ui.UserCardSlotTitle }>Ada Lovelace</span>
+   }
+   ```
+
+   <GoExample id="element" title="And this is what reaches the browser" />
+
+</Steps>
+
+## What the generator bought you
+
+<Card title="Defaults it knows about" icon="information">
+The generator read `name: 'anon'` out of `define()`, so a `Name` left empty —
+or set to `"anon"` — is **left off the element entirely**. Smaller HTML, and
+only a layer that knows the component's defaults can do it.
+</Card>
+
+Three more things it did that are easy to miss:
+
+- **Kebab-casing that matches the runtime.** `maxCount` becomes `max-count`
+  using the same transformation `define.js` uses, quirks and all. A hand-written
+  attribute name that gets this wrong produces an element that silently ignores
+  it.
+- **A typed event detail.** `UserCardGreetDetail` is what the
+  [live layer](/alacris-go/guides/live-actions/) decodes into, so a rename in
+  the component's `@fires` tag becomes a Go compile error rather than a handler
+  that receives an empty struct.
+- **A `*bool` where it matters.** A boolean prop whose default is `true` cannot
+  be a plain `bool` — Go's zero value is `false`, so the field could never mean
+  "leave it alone". See [Props and encoding](/alacris-go/guides/props/#booleans).
+
+## Wire it into your build
+
+```go title="main.go"
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui
+//go:generate go run github.com/a-h/templ/cmd/templ@latest generate
+```
+
+Order matters: the wrappers first, because the templates use them.
+
+In CI, check rather than regenerate:
+
+```bash
+alacris-go check ./web -o ./ui
+```
+
+<Aside type="tip">
+  A component changed and never regenerated is the most likely failure in a
+  project like this. `check` turns it into a red build instead of a page that
+  silently renders an attribute nothing is listening for.
+</Aside>
+
+## Next
+
+- [Props and encoding](/alacris-go/guides/props/) — what crosses, how, and the
+  two rules that exist because of sharp edges in the runtime.
+- [Generating wrappers](/alacris-go/guides/codegen/) — every JSDoc tag, and the
+  manifest escape hatch for components the scanner cannot read.

@@ -6,6 +6,13 @@
 
 Typed wrappers generated from your `define()` calls · the runtime served from Go, no npm · server-driven props with no HTML on the wire
 
+[![CI](https://github.com/bmartel/alacris-go/actions/workflows/ci.yml/badge.svg)](https://github.com/bmartel/alacris-go/actions/workflows/ci.yml)
+[![Docs](https://github.com/bmartel/alacris-go/actions/workflows/docs.yml/badge.svg)](https://bmartel.github.io/alacris-go/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/bmartel/alacris-go.svg)](https://pkg.go.dev/github.com/bmartel/alacris-go)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+**[Documentation →](https://bmartel.github.io/alacris-go/)** · **[Go API →](https://pkg.go.dev/github.com/bmartel/alacris-go)**
+
 </div>
 
 ```go
@@ -298,12 +305,38 @@ go run ./internal/vendorjs -check      # verify, change nothing
 A vendored copy of someone else's build goes stale silently; the failing test is
 the point.
 
+## Building with AI agents
+
+[`AGENTS.md`](https://bmartel.github.io/alacris-go/AGENTS.md) is a drop-in file
+that teaches coding agents the conventions here — the encoding rules, that `ui/`
+is generated, that `each` must not sit inside a conditional, that a reconnecting
+page needs `OnOpen`. Put it in your project root:
+
+```bash
+curl -o AGENTS.md https://bmartel.github.io/alacris-go/AGENTS.md
+```
+
+There is also an [`llms.txt`](https://bmartel.github.io/alacris-go/llms.txt) map
+of the documentation for agents that fetch docs on demand.
+
+## Documentation
+
+Full documentation, with every Go example rendered by the library itself, is at
+**[bmartel.github.io/alacris-go](https://bmartel.github.io/alacris-go/)**.
+
+Every example on the site is extracted from `internal/docsgen/examples.go` with
+`go/ast` and then executed — the HTML shown beside the Go is what that Go
+actually rendered, and `go test ./...` fails if the two stop matching.
+
 ## Development
 
 ```bash
 go test ./...
 go test -race ./...
 go generate ./examples/todo/...
+
+go run ./internal/docsgen        # re-render the documentation examples
+cd docs && npm install && npm run dev
 ```
 
 ## License

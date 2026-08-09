@@ -1,0 +1,162 @@
+---
+title: Go API
+description: Every exported type and function across the three packages, with the one-line reason each exists.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Full generated documentation is on
+[pkg.go.dev](https://pkg.go.dev/github.com/bmartel/alacris-go). This page is the
+map: what exists, and why.
+
+## Package `alacris`
+
+```go
+import alacris "github.com/bmartel/alacris-go"
+```
+
+### Elements
+
+| | |
+| --- | --- |
+| `E(tag string) *Element` | Start an element. An invalid custom element name is recorded as an error. |
+| `(*Element) Prop(name string, v any)` | Set a component prop, encoded from its Go type. `nil` omits it. |
+| `(*Element) PropRaw(name, value string)` | Set an already-encoded prop value. |
+| `(*Element) Props(map[string]any)` | Several props, applied in sorted key order. |
+| `(*Element) Attr(name string, v any)` | An ordinary HTML attribute; a false bool disappears. |
+| `(*Element) Attrs(templ.Attributes)` | Spread an attribute map. |
+| `(*Element) ID(string)` | Set `id` — required for anything the live layer patches. |
+| `(*Element) Class(...string)` / `ClassIf(bool, ...string)` | Append class names. |
+| `(*Element) Style(property, value string)` | One sanitized inline declaration. |
+| `(*Element) Var(name, value string)` | A CSS custom property; `--` optional. |
+| `(*Element) Vars(map[string]string)` | Several custom properties. |
+| `(*Element) Apply(VarSet, map[string]string)` | Custom properties checked against a contract. |
+| `(*Element) On(event, action string)` | Forward a CustomEvent to a live action. |
+| `(*Element) Slot(name string, c templ.Component)` | Fill a slot, wrapped in a `<div>`. |
+| `(*Element) SlotAs(tag, name string, c templ.Component)` | Fill a slot with a chosen wrapper. |
+| `(*Element) Children(templ.Component)` / `Text(string)` | Set children explicitly. |
+| `(*Element) Err() error` | The first problem recorded while building. |
+| `(*Element) Render(ctx, w) error` | Implements `templ.Component`. |
+
+### Encoding
+
+| | |
+| --- | --- |
+| `AttrName(prop string) string` | Prop name to attribute name, matching `define.js` exactly. |
+| `EncodeProp(v any) (string, bool, error)` | The prop encoding rules. `ok` is false when the attribute should be omitted. |
+| `EncodeAttr(v any) (string, bool, bool, error)` | The HTML attribute rules. |
+| `IsZero(v any) bool` | Reflective zero check, used by generated wrappers for named types. |
+| `MaxSafeInteger` | `1<<53 - 1`. Beyond it, encoding is an error. |
+| `ErrUnsafeInteger`, `ErrNonFiniteFloat` | Sentinels for the two numeric refusals. |
+| `ValidTagName(string) error` | The rule `customElements.define` enforces. |
+| `ValidAttrName(string) error` | Rejects names that would change a start tag's structure. |
+
+### The runtime
+
+| | |
+| --- | --- |
+| `RuntimeHandler() http.Handler` | Serves the vendored runtime, by file name, at any mount point. |
+| `Assets() fs.FS` | The vendored files, for your own asset pipeline. |
+| `SetCacheHeaders(http.Header, *http.Request, etag string)` | The caching policy: immutable when the URL is versioned, revalidated otherwise. |
+| `RuntimeVersion` | The alacris version vendored in this module. |
+| `TrustedTypesPolicy` | `"alacris"` — allow it under a trusted-types CSP. |
+| `DefaultBase` | `"/_alacris/"`. |
+| `AssetCore`, `AssetCoreDev`, `AssetStore`, `AssetContext`, `AssetSignal`, `AssetLive` | Served file names. |
+
+### Page setup
+
+| | |
+| --- | --- |
+| `Config` | Base, Dev, Modules, Imports, Live, Session, Endpoint, Nonce, Version. |
+| `Scripts(Config) templ.Component` | The import map, your modules, and the live client. Goes in `<head>`. |
+| `(Config) ImportMap() map[string]string` | The specifiers it produces, for a bundler or a test. |
+| `Pending` | The stylesheet that hides elements until they are defined. |
+
+### Theming
+
+| | |
+| --- | --- |
+| `Vars(names ...string) VarSet` | A contract from full property names — what generated code uses. |
+| `NewVarSet(prefix string, keys ...string) VarSet` | A contract from a prefix and camelCase keys, mirroring `vars()`. |
+| `(VarSet) Name(key) string`, `Names() []string`, `Apply(*Element, map[string]string)` | The contract, and applying it. |
+
+## Package `gen`
+
+```go
+import "github.com/bmartel/alacris-go/gen"
+```
+
+For building the generator into your own tooling. The CLI is the usual way in.
+
+| | |
+| --- | --- |
+| `Load(paths ...string) (*Manifest, error)` | Read components from JS files, directories, or manifests. |
+| `ParseFile`, `ParseDir`, `ParseSource` | The scanner directly. |
+| `Generate(*Manifest, Options) ([]File, error)` | Manifest to Go source. |
+| `WriteFiles(dir string, []File)` | Write, skipping files whose contents did not change. |
+| `Stale(dir string, []File) ([]string, error)` | Generated files this run did not produce. |
+| `ReadManifest`, `WriteManifest` | The JSON form. |
+| `Manifest`, `Component`, `Prop`, `Event`, `Field`, `Slot`, `CSSProp`, `Import` | The manifest schema. |
+| `Options` | Package, Import, Optional, StripPrefix, RelativeTo. |
+| `Kind` | `KindString`, `KindNumber`, `KindBool`, `KindJSON`. |
+
+## Package `live`
+
+```go
+import "github.com/bmartel/alacris-go/live"
+```
+
+| | |
+| --- | --- |
+| `New(opts ...Options) *Server` | A running server. Close it. |
+| `Mount(*http.ServeMux, base string, *Server)` | Runtime, client and endpoints in one call. |
+| `(*Server) NewSession() *Session` | One per page render. |
+| `(*Server) Session(id) (*Session, bool)`, `Sessions() []*Session` | Look them up. |
+| `(*Server) Broadcast(...Patch)` | Send to every session. |
+| `(*Server) On(action string, Handler)` | A server-wide handler. |
+| `(*Server) Close()` | End every session and stop the collector. |
+| `On[T](*Server, action, func(*Ctx, T) error)` | A handler with the detail decoded into `T`. |
+| `OnSession[T](*Session, action, func(*Ctx, T) error)` | The same, for one page. |
+
+### Sessions
+
+| | |
+| --- | --- |
+| `(*Session) ID() string` | The capability to put in the page. |
+| `(*Session) Element(id) Handle` | A handle for patching one element. |
+| `(*Session) Send(...Patch)` | Queue patches. Never blocks, never fails. |
+| `(*Session) Batch(func())` | Coalesce into one frame. |
+| `(*Session) OnOpen(func(*Session))` | Runs on every attach, including reconnects. |
+| `(*Session) Set(key, value any)` / `Get(key any)` | Per-page state. |
+| `(*Session) On(action string, Handler)` | A handler for this page, beating the server-wide one. |
+| `(*Session) Connected() bool`, `Closed() bool`, `Close()` | Lifecycle. |
+
+### Handles and patches
+
+| | |
+| --- | --- |
+| `(Handle) Set(name string, v any)` | Write a component prop by its JavaScript name. |
+| `(Handle) SetAttr(name string, v any)` | An attribute; `nil` removes it. |
+| `(Handle) Class(name string, on bool)` | Toggle a class. |
+| `(Handle) Props(map[string]any)` | Several props, one frame. |
+| `(Handle) SetHTML(ctx, slot string, templ.Component) error` | Replace one slot's children. |
+| `Prop`, `Attr`, `Class`, `HTML`, `Reload` | Patch constructors. |
+| `Patch`, `Op` | The wire shape — see [Wire protocol](/alacris-go/reference/wire-protocol/). |
+
+### Context
+
+| | |
+| --- | --- |
+| `Ctx` | Session, Action, Element, Detail, Request. |
+| `(*Ctx) Bind(v any) error` | Decode the event detail, strictly. |
+| `(*Ctx) Handle() Handle` | The element that emitted the event. |
+| `(*Ctx) Context() context.Context` | The request's context. |
+| `Options` | TTL, Buffer, MaxDetail, Heartbeat, AllowOrigin, Logger, Now. |
+| `ErrClosed` | Returned when a session has ended. |
+
+<Aside type="note">
+  `Client() []byte` returns the live client script, for projects serving assets
+  from their own pipeline rather than from Go.
+</Aside>

@@ -1,0 +1,162 @@
+---
+title: Rendering elements
+description: The Element API — props, attributes, classes, styles, slots and children — and how it fits into a templ file.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+`alacris.Element` implements `templ.Component`, so it goes anywhere a component
+goes and picks up children from the block around it.
+
+```templ
+@alacris.E("user-card").Prop("name", "Ada") {
+    <h3 slot="title">Ada Lovelace</h3>
+}
+```
+
+Builder methods return the element, so they chain. They collect errors rather
+than panicking, and `Render` reports the first one — a bad tag name or an
+unencodable prop fails the request instead of producing quietly broken HTML.
+
+## Props
+
+`Prop` takes the **JavaScript** prop name from `define()`. The library converts
+it to the attribute the element observes.
+
+<GoExample id="element" />
+
+A `nil` value leaves the attribute off, so the component keeps the default it
+declared:
+
+<GoExample id="encoding-omitted" />
+
+`PropRaw` sets an already-encoded value when you need to bypass the encoding
+rules, and `Props` takes a map, applied in sorted key order for stable output.
+
+<Aside type="note">
+  The full encoding table, and the reasons behind the two rules that look odd,
+  are in [Props and encoding](/alacris-go/guides/props/).
+</Aside>
+
+## Ordinary attributes
+
+`Attr` follows **HTML** rules rather than alacris' — a `true` bool renders bare
+and a `false` one disappears. That is the opposite of how props behave, and it
+is deliberate: `hidden` and `disabled` are HTML, not component API.
+
+<GoExample id="attrs" />
+
+`ID`, `Class` and `ClassIf` are shorthands. `Attrs` spreads a
+`templ.Attributes` map.
+
+```go
+alacris.E("user-card").
+    ID("ada").
+    ClassIf(selected, "is-selected").
+    Attrs(templ.Attributes{"data-index": 3})
+```
+
+`Attr("class", …)` appends to the class list rather than replacing it.
+`Attr("style", …)` is refused, because `Style` and `Var` sanitize their input
+and a raw string cannot be checked usefully.
+
+## Styles and custom properties
+
+`Var` sets a CSS custom property, which is how a themed component is configured
+from outside its shadow root:
+
+<GoExample id="theming" />
+
+Both the property and the value are checked. Anything that could end the
+declaration, end the attribute, or open a comment is an error rather than a
+silent substitution:
+
+```go
+alacris.E("x-y").Var("bg", "red;position:fixed")
+// render fails: alacris: character ';' is not allowed in an inline CSS value
+```
+
+See [Theming](/alacris-go/guides/theming/) for `VarSet`, which turns a
+component's set of custom properties into something Go can check.
+
+## Slots and children
+
+Slot content is light DOM. It is in the document, in the first paint, and
+visible to a crawler — which makes it the right home for content that matters
+when JavaScript has not arrived yet.
+
+Three ways to fill a slot, in order of preference:
+
+```templ
+{/* 1. On your own markup. No wrapper element, full control. */}
+@ui.UserCard(props) {
+    <h3 slot={ ui.UserCardSlotTitle }>Ada Lovelace</h3>
+}
+```
+
+```go
+// 2. Slot, when the content comes from Go. Wraps it in a <div slot="...">.
+alacris.E("info-card").Slot("title", heading())
+
+// 3. SlotAs, when the wrapper element matters to layout.
+alacris.E("info-card").SlotAs("h3", "title", heading())
+```
+
+<GoExample id="slots" />
+
+`Children` sets children programmatically instead of taking them from the
+enclosing block, and `Text` sets a single escaped text child.
+
+<Aside type="caution" title="The wrapper is real">
+  `Slot` wraps content in a `<div>`, which participates in layout. When that
+  matters, use `SlotAs` or put the `slot` attribute on your own markup —
+  generated packages export the slot names as constants for exactly that.
+</Aside>
+
+## Hiding elements until they are defined
+
+A custom element that is in the document but not yet upgraded is empty and has
+no size. The page paints, then reflows when the module lands.
+
+```templ
+<head>
+    @alacris.Pending{Tags: ui.Tags}
+    @alacris.Scripts(cfg)
+</head>
+```
+
+<GoExample id="pending" live={false} />
+
+`ui.Tags` is generated, so the list cannot fall behind the components. The
+declaration defaults to `visibility: hidden`; pass `Style` to choose another.
+
+```go
+alacris.Pending{
+    Tags:  ui.Tags,
+    Style: map[string]string{"opacity": "0", "transition": "opacity .15s"},
+}
+```
+
+<Aside type="tip" title="Reserve the space too">
+  Hiding stops the flash but not the reflow, because an undefined element still
+  has no size. If layout stability matters, give the element a `min-height` in
+  your own CSS.
+</Aside>
+
+## Errors
+
+Every builder method records problems instead of panicking:
+
+```go
+el := alacris.E("div")                        // no hyphen: not a custom element
+el.Prop("id", int64(1)<<60)                   // beyond JavaScript's safe range
+if err := el.Err(); err != nil {
+    // ... or just let Render return it
+}
+```
+
+This is why a typo surfaces as a failed request rather than an element the
+browser silently ignores.

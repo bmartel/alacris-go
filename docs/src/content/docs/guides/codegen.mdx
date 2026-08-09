@@ -1,0 +1,198 @@
+---
+title: Generating wrappers
+description: Turn your define() calls into typed Go — props structs, event details, slot names and theming contracts — with one source of truth.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, FileTree } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+The generator reads the `define()` call itself. There is no second file to keep
+in step, and no manifest to maintain — until you want one.
+
+```bash
+alacris-go generate ./web/components -o ./internal/ui
+```
+
+## What comes out
+
+For each component: a tag constant, a props struct, a constructor, slot and
+event constants, typed event details, and the theming contract.
+
+```go title="internal/ui/components_gen.go"
+const UserCardTag = "user-card"
+
+const (
+    UserCardSlotTitle = "title"
+)
+
+const (
+    UserCardEventGreet = "greet"
+)
+
+type UserCardGreetDetail struct {
+    Name string `json:"name"`
+}
+
+var UserCardVars = alacris.Vars(
+    "--card-bg", // the background (defaults to #fff)
+)
+
+type UserCardProps struct {
+    Name string
+    Age  int
+    Tags []string
+}
+
+func UserCard(p UserCardProps) *alacris.Element
+```
+
+Plus a shared file with `Tags`, the list every component in the package
+registers — which is what `alacris.Pending` wants:
+
+```templ
+@alacris.Pending{Tags: ui.Tags}
+```
+
+<GoExample id="generated" title="What a call expands to" />
+
+## Telling it what define() cannot
+
+`define()` says a prop's name and, through its default, how it is coerced. It
+does not say that `tags` holds strings, that a `greet` event exists, or which
+slots a component renders. JSDoc above the call does.
+
+```js
+/**
+ * A person, at a glance.
+ *
+ * @prop   {string[]} tags   the labels shown under the name
+ * @prop   {integer}  age    whole years
+ * @fires  greet {name: string} - the user said hello
+ * @slot   title - replaces the heading
+ * @cssprop [--card-bg=#fff] - the background
+ * @goname PersonCard
+ */
+define('user-card', {
+  props: { name: 'anon', age: 0, tags: [] },
+  setup,
+});
+```
+
+Without `@prop {string[]} tags`, an empty array default gives `[]any` — because
+an empty array says nothing about its elements. The tag is how you say
+otherwise. Every tag is listed in the [JSDoc reference](/alacris-go/reference/jsdoc/).
+
+## What it refuses to guess
+
+The scanner is a scanner, not a JavaScript engine. A props object it cannot
+read as literal data is an **error**, never a guess:
+
+```js
+define('x-y', { props: buildProps(), setup });
+// t.js:1: <x-y>: props is expression, not an object literal;
+//         declare the props in a manifest instead
+
+define('x-y', { props: { ...base, a: 1 }, setup });
+// t.js:1: <x-y>: props holds a spread or a computed key, so the full set of
+//         props is not visible here; declare this component in a manifest instead
+```
+
+Generating the props it *can* see would produce a struct quietly missing
+fields, which is worse than stopping.
+
+<Aside type="note" title="What it does read past">
+  It happily skips code sitting next to the data. `setup({ name }) { ... }`,
+  `styles: css`...``, template literals with nested substitutions, regex
+  literals containing `define(` — none of them confuse it, and none of them
+  stop it reading the `props` object beside them.
+</Aside>
+
+## The manifest escape hatch
+
+When a component genuinely builds its props at runtime, describe it by hand:
+
+<Steps>
+
+1. **Write out what the scanner found:**
+
+   ```bash
+   alacris-go manifest ./web -o alacris.components.json
+   ```
+
+2. **Edit it** — add the component the scanner refused, fix a type, name a Go
+   type for an event detail.
+
+3. **Generate from it**, alone or mixed with sources:
+
+   ```bash
+   alacris-go generate ./alacris.components.json ./web/other -o ./ui
+   ```
+
+</Steps>
+
+The manifest is the same shape the scanner produces, so nothing is lost by
+switching one component to it.
+
+## Naming
+
+A tag becomes a Go identifier: `user-card` → `UserCard`. Recognised
+initialisms keep their casing, so `avatarUrl` → `AvatarURL` and `itemId` →
+`ItemID`.
+
+A project prefix on every tag would put it on every identifier too, so strip
+it:
+
+```bash
+alacris-go generate ./web -o ./ui -strip ala-
+# <ala-counter> generates Counter, not AlaCounter
+```
+
+Collisions are refused, including ones stripping introduces:
+
+```text
+alacris-go: with -strip "ala-", <ala-todo-item> and <todo-item> both generate TodoItem
+```
+
+`@goname` settles it.
+
+## In your build
+
+```go title="main.go"
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui -strip ala-
+//go:generate go run github.com/a-h/templ/cmd/templ@latest generate
+```
+
+The wrappers first — the templates use them.
+
+In CI, check instead:
+
+```yaml
+- name: Generated wrappers are up to date
+  run: go run ./cmd/alacris-go check ./web -o ./ui -strip ala-
+```
+
+`check` compares byte for byte and reports what differs, including files left
+behind by a component that was renamed or deleted. Output does not depend on
+the directory you run from, so the same command works locally and in CI.
+
+<Aside type="tip" title="Regenerating is cheap and quiet">
+  Files are only rewritten when their contents change, so a generate step does
+  not disturb build caches or file watchers for components that did not move.
+</Aside>
+
+## Layout
+
+<FileTree>
+- web/
+  - components.js  your `define()` calls
+- ui/  generated — do not edit
+  - components_gen.go
+  - alacris_gen.go  `Tags`, package docs
+- alacris.components.json  optional, only for what the scanner cannot read
+</FileTree>
+
+Generated files carry a `Code generated by alacris-go … DO NOT EDIT.` header and
+are marked `linguist-generated` by the repository's `.gitattributes`, so review
+diffs stay readable.

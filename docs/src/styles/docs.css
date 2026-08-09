@@ -1,0 +1,168 @@
+/* alacris-go docs — a thin layer over Starlight's defaults.
+   Named after what it styles, so a change here is easy to trace back. */
+
+:root {
+  --ala-accent: #ffb300;
+  --ala-radius: 12px;
+}
+
+/* --------------------------------------------------------------- examples */
+
+.go-example,
+.live-demo {
+  margin: 1.5rem 0;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: var(--ala-radius);
+  padding: 1rem 1.1rem 1.1rem;
+  background: var(--sl-color-black);
+}
+
+.go-example__title,
+.live-demo__title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-2);
+  margin-bottom: 0.7rem;
+}
+
+.go-example__label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+  margin: 1rem 0 0.4rem;
+}
+
+.go-example__hint,
+.live-demo__hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--sl-color-gray-4);
+  font-size: 0.78rem;
+}
+
+/* A plain block, not flex: flex blockifies its children, which would stretch
+   an inline element like a chip across the full width and lose the shape the
+   example is demonstrating. */
+.go-example__stage,
+.live-demo__stage {
+  border: 1px dashed var(--sl-color-gray-5);
+  border-radius: 9px;
+  padding: 0.9rem 1rem;
+  background: var(--sl-color-bg);
+}
+
+.go-example__stage > * + *,
+.live-demo__stage > * + * {
+  margin-top: 0.6rem;
+}
+
+.go-example__note {
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  color: var(--sl-color-gray-3);
+  border-left: 2px solid var(--ala-accent);
+  padding-left: 0.7rem;
+}
+
+/* Custom elements have no layout until they are defined, and an example that
+   pops into place reads as a bug. */
+.go-example__stage > *:not(:defined),
+.live-demo__stage > *:not(:defined) {
+  visibility: hidden;
+  min-height: 2.5rem;
+  min-width: 8rem;
+}
+
+/* -------------------------------------------------------------- live demo */
+
+.live-demo__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.live-demo__head .live-demo__title {
+  margin-bottom: 0;
+}
+
+.live-demo__cols {
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 60rem) {
+  .live-demo__cols {
+    grid-template-columns: 1fr 1fr;
+  }
+  .live-demo__cols > div > .go-example__label:first-child {
+    margin-top: 0;
+  }
+}
+
+.live-demo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.live-demo__actions button {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid var(--sl-color-gray-5);
+  background: transparent;
+  color: var(--sl-color-white);
+}
+
+.live-demo__actions button:hover {
+  border-color: var(--ala-accent);
+}
+
+.live-demo__actions [data-reset] {
+  margin-left: auto;
+  color: var(--sl-color-gray-3);
+}
+
+.live-demo__wire {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--sl-color-gray-7, var(--sl-color-bg));
+  border: 1px solid var(--sl-color-gray-5);
+  font-size: 0.76rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--sl-color-gray-2);
+}
+
+/* ------------------------------------------------------------------ misc */
+
+/* Wide tables are common in the reference pages; they scroll rather than
+   pushing the page sideways. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.sl-markdown-content .layers th:first-child,
+.sl-markdown-content .layers td:first-child {
+  white-space: nowrap;
+}

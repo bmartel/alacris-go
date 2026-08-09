@@ -1,0 +1,74 @@
+---
+/**
+ * A Go example, its rendered output, and that output running.
+ *
+ * Nothing on this page is typed by hand. The Go source is lifted out of
+ * `internal/docsgen/examples.go` with go/ast, the HTML beside it is what that
+ * source actually rendered, and the live area is that same HTML inserted into
+ * the page for the real alacris runtime to upgrade.
+ *
+ * `go test ./...` fails if the committed JSON stops matching the library, so
+ * an example here cannot quietly document something that no longer happens.
+ */
+import { Code } from 'astro-expressive-code/components';
+import examples from '../generated/examples.json';
+
+interface Props {
+  /** Example id, from the catalogue in internal/docsgen/examples.go. */
+  id: string;
+  /** Heading above the block. */
+  title?: string;
+  /** Hide the rendered HTML. */
+  html?: boolean;
+  /** Hide the live area, for examples that are not elements. */
+  live?: boolean;
+  /** Override the one-line note. */
+  note?: string;
+}
+
+const { id, title, html: showHTML = true, live: showLive = true, note } = Astro.props;
+
+const example = examples.find((e) => e.id === id);
+if (!example) {
+  throw new Error(
+    `GoExample: no example with id "${id}". Add it to the catalogue in internal/docsgen/examples.go ` +
+      `and run: go run ./internal/docsgen`,
+  );
+}
+
+// Only elements are worth showing live; a script tag or a stylesheet is not.
+const canRunLive = showLive && (example.tags?.length ?? 0) > 0;
+const summary = note ?? example.note;
+---
+
+<figure class="go-example not-content">
+  {title && <figcaption class="go-example__title">{title}</figcaption>}
+
+  <Code code={example.go} lang="go" meta="wrap" />
+
+  {
+    showHTML && (
+      <div class="go-example__out">
+        <div class="go-example__label">
+          renders
+          <span class="go-example__hint">verified by go test</span>
+        </div>
+        <Code code={example.pretty} lang="html" meta="wrap" />
+      </div>
+    )
+  }
+
+  {
+    canRunLive && (
+      <div class="go-example__out">
+        <div class="go-example__label">
+          which the browser turns into
+          <span class="go-example__hint">the real runtime, upgrading that markup</span>
+        </div>
+        <div class="go-example__stage" set:html={example.html} />
+      </div>
+    )
+  }
+
+  {summary && <p class="go-example__note">{summary}</p>}
+</figure>

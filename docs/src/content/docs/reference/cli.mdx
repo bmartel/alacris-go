@@ -1,0 +1,148 @@
+---
+title: CLI
+description: alacris-go generate, check and manifest — every flag and what it changes.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+```bash
+go run github.com/bmartel/alacris-go/cmd/alacris-go <command> ...
+```
+
+Or install it:
+
+```bash
+go install github.com/bmartel/alacris-go/cmd/alacris-go@latest
+```
+
+```text
+alacris-go generate <path>... -o <dir>   write Go wrappers
+alacris-go check    <path>... -o <dir>   fail if the wrappers are out of date
+alacris-go manifest <path>...            write what it found, as JSON
+alacris-go version
+```
+
+Each `<path>` is a JavaScript file, a directory to walk, or a manifest `.json`
+file. Flags and paths can be interleaved, so the order in the usage line is the
+order you can type.
+
+## `generate`
+
+```bash
+alacris-go generate ./web/components -o ./internal/ui -strip ala-
+```
+
+| Flag | Default | What it does |
+| --- | --- | --- |
+| `-o` | *(required)* | Directory to write the generated package to. |
+| `-package` | the output directory's name | Package name. |
+| `-strip` | none | Tag prefix dropped when deriving Go names. `ala-` makes `<ala-counter>` generate `Counter`. |
+| `-optional` | `zero` | `zero` or `pointer` — how a prop with a non-zero default is represented. |
+| `-import` | `github.com/bmartel/alacris-go` | Import path of the runtime package, for a fork or a vendored copy. |
+| `-manifest` | none | Also write the manifest to this file. |
+| `-q` | off | Only report problems. |
+
+Files are written only when their contents change, so a generate step does not
+disturb build caches or file watchers. Generated files this run did not produce
+— the leftovers of a renamed or deleted component — are removed.
+
+### `-optional`
+
+```go
+// zero (default): a field left at its zero value, or equal to the component's
+// own default, is left off the element.
+type UserCardProps struct{ Name string }
+ui.UserCard(ui.UserCardProps{})            // no name attribute
+
+// pointer: unset and "the zero value" are different things.
+type UserCardProps struct{ Name *string }
+ui.UserCard(ui.UserCardProps{Name: ptr("")})   // name=""
+```
+
+`zero` reads better and covers almost every case; the escape hatch is calling
+`.Prop()` on the returned element. `pointer` is there when a prop genuinely
+needs to distinguish the two.
+
+A boolean prop whose default is `true` is always a pointer, in either mode —
+see [Props and encoding](/alacris-go/guides/props/#booleans).
+
+## `check`
+
+```bash
+alacris-go check ./web/components -o ./internal/ui -strip ala-
+```
+
+Takes the same flags as `generate`, writes nothing, and exits non-zero when the
+package on disk does not match the components:
+
+```text
+alacris-go: the generated package does not match the components:
+  out of date: internal/ui/components_gen.go
+  left over: internal/ui/old_widget_gen.go
+
+run: alacris-go generate ... -o ./internal/ui
+```
+
+<Aside type="tip" title="Put this in CI">
+  A component changed and never regenerated is the most likely failure in a
+  project like this, and it produces a page that renders an attribute nothing is
+  listening for — silent, and hard to trace. Output does not depend on the
+  directory you run from, so the same command works locally and in CI.
+</Aside>
+
+## `manifest`
+
+```bash
+alacris-go manifest ./web -o alacris.components.json
+```
+
+Writes what the scanner found as JSON. Use it when a component declares
+something the scanner cannot see — props built at runtime, an event whose detail
+deserves a hand-written Go type — then commit the file and generate from it:
+
+```bash
+alacris-go generate ./alacris.components.json ./web/other -o ./ui
+```
+
+The manifest is the same shape the scanner produces, so switching one component
+to it loses nothing.
+
+```json
+{
+  "version": 1,
+  "components": [
+    {
+      "tag": "user-card",
+      "goName": "PersonCard",
+      "doc": "A person, at a glance.",
+      "props": [
+        { "name": "tags", "attr": "tags", "kind": "json", "goType": "[]string" }
+      ],
+      "events": [
+        { "name": "greet", "detail": [{ "name": "name", "goType": "string" }] }
+      ],
+      "slots": [{ "name": "title" }],
+      "cssProps": [{ "name": "--card-bg", "default": "#fff" }]
+    }
+  ]
+}
+```
+
+## In `go:generate`
+
+```go
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui -strip ala-
+//go:generate go run github.com/a-h/templ/cmd/templ@latest generate
+```
+
+Wrappers first: the templates use them.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Success. |
+| 1 | A scan, generation or check failure — the message says which. |
+| 2 | Usage: an unknown command, or a bad flag. |

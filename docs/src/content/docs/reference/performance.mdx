@@ -1,0 +1,121 @@
+---
+title: Performance
+description: Where the time and the bytes go, what the live layer costs against alternatives, and the one mistake that undoes all of it.
+sidebar:
+  order: 6
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Bytes on the page
+
+| File | gzip |
+| --- | ---: |
+| `alacris.js` — signals, templates, styles, elements | ~5.97 kB |
+| `live.js` — the live client | ~1.6 kB |
+| `store.js` (optional) | ~0.99 kB |
+| `context.js` (optional) | ~0.54 kB |
+
+A page using the first two ships roughly **7.5 kB** of framework, gzipped, and
+no hydration payload at all — the props are already in the HTML that was going
+to be sent anyway.
+
+## Bytes on the wire, after first paint
+
+This is where the live layer earns its keep. One update to one list:
+
+| Approach | Typical payload | Work in the browser |
+| --- | --- | --- |
+| Full page reload | the whole document | full parse, layout, state lost |
+| HTML fragment swap | the fragment's markup | parse, diff or morph, DOM replaced |
+| **A prop patch** | **the changed value as JSON** | **one property write** |
+
+```json
+[{"o":"p","i":"todos","k":"items","v":[...]}]
+```
+
+There is no diffing step, because there is nothing to diff: a prop is a signal,
+so writing it wakes exactly the bindings that read it. For a list, alacris'
+`each` then reorders by key rather than rebuilding.
+
+<Aside type="tip" title="The measurable consequence">
+  Because no node is replaced, focus, scroll position, text selection and
+  half-typed input survive an update. That is not a nicety — it is the thing
+  that makes server-driven UI usable on a form.
+</Aside>
+
+## Server cost
+
+Per session: a small struct, a bounded patch buffer (256 entries by default),
+and one goroutine only while a browser is attached. A patch is one
+`json.Marshal` and one write to an already-open connection.
+
+The SSE stream is a held connection, so the ceiling is file descriptors and
+memory rather than CPU. Budget roughly "open pages × what you queue for them",
+and the buffer bound is what stops a disconnected tab growing without limit.
+
+`Batch` is worth using for anything that changes together: it is one frame, one
+write, one paint.
+
+## Render cost
+
+Rendering an element is string building — no reflection for `string`, `bool`,
+`int` or `float`, which are handled by a type switch before any reflective path.
+Composite props cost one `json.Marshal`.
+
+Generated wrappers omit props equal to their defaults, so the HTML is smaller
+than a naive encoder would produce, and the saving compounds across a list.
+
+## The mistake that undoes all of it
+
+An `each` inside a conditional template rebuilds the entire list on every
+change:
+
+```js
+// Wrong: the thunk returns a fresh template result, so the ul and its each()
+// are rebuilt whenever items changes.
+${() => items().length === 0
+  ? html`<p>Nothing here.</p>`
+  : html`<ul>${each(() => items(), row, (t) => t.id)}</ul>`}
+```
+
+```js
+// Right: each() is created once. Emptiness toggles an attribute.
+<ul ?hidden=${() => items().length === 0}>
+  ${each(() => items(), row, (t) => t.id)}
+</ul>
+<p ?hidden=${() => items().length > 0}><slot name="empty">Nothing here.</slot></p>
+```
+
+With the first version, a prop patch replaces every row node and drops focus —
+exactly what the live layer exists to avoid. With the second, the same patch
+updates the rows in place and the `<li>` elements are the same nodes afterwards.
+
+The example app in the repository was written the wrong way first, and the
+browser test that checks node identity is what caught it.
+
+## Where the runtime is slow
+
+Worth knowing, and it comes from alacris rather than this module: **creating**
+DOM costs 3–4× hand-written DOM, because templates are parsed at runtime rather
+than compiled. Updating is competitive — removing a row is 0.075 ms against
+vanilla's 0.010, and selecting one is at the floor.
+
+The consequence for a Go server: rendering ten thousand rows into the initial
+HTML and letting the component take them as one prop is *fine*, but a component
+that builds ten thousand rows on the client will feel it. Paginate, or use
+`each` with a store.
+
+Full numbers, including the benchmark methodology, are in the
+[alacris performance docs](https://bmartel.github.io/alacris/reference/performance/).
+
+## Practical checklist
+
+- Set `Config.Version` so assets cache for a year instead of revalidating.
+- `Batch` anything that changes together.
+- Prefer a prop patch to `SetHTML`; it is smaller and does not touch the DOM.
+- Keep `each` out of conditionals.
+- Use `@prop {integer}` where a value really is one — `float64` in Go for an id
+  is a smell that usually ends in a rounding bug.
+- Serve your component module with a long cache and a hashed filename, the same
+  as any other asset.

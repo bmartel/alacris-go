@@ -1,0 +1,98 @@
+---
+title: What is alacris-go?
+description: The model behind the library — what a Go server can and cannot render for a web component, and why every prop can cross as an attribute.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+alacris-go renders [alacris](https://bmartel.github.io/alacris/) web components
+from Go and [templ](https://templ.guide). It is three layers, each usable on its
+own, and one fact that shapes all of them.
+
+## The fact that shapes everything
+
+A component's shadow content is produced by its `setup()` function when the
+element connects, **in the browser**. There is no server-side rendering of
+component internals, and alacris does not support declarative shadow DOM.
+
+So what a Go server renders is the element itself:
+
+<GoExample id="slots" title="What the server produces" />
+
+Two consequences worth internalising:
+
+- **Slot content is real HTML in the document.** It is in the first paint and in
+  a crawler's view of the page, and it is the right place for the content that
+  matters for SEO or for readers with JavaScript disabled.
+- **Everything inside the shadow root appears when the module loads.** Between
+  first paint and that moment the element is present but empty, which is what
+  [`alacris.Pending`](/alacris-go/guides/rendering/#hiding-elements-until-they-are-defined)
+  exists to smooth over.
+
+<Aside type="caution" title="If you need the component's internals in the HTML">
+  You need a different tool. alacris-go will not render them, and no amount of
+  configuration changes that. What it will do is make the parts a server *can*
+  own — props, slot content, and state — pleasant and type-safe.
+</Aside>
+
+## Why every prop can cross as an attribute
+
+alacris coerces an attribute using the **type of the prop's default** in
+`define()`. Look at what that means for an object default:
+
+```js
+// define.js
+const coerce = (v, d) => {
+  if (v === null) return typeof d === 'boolean' ? false : d;
+  const t = typeof d;
+  if (t === 'number') return +v;
+  if (t === 'boolean') return v !== 'false';
+  if (d !== null && t === 'object') { try { return JSON.parse(v); } catch { return d; } }
+  return v;
+};
+```
+
+`JSON.parse` is the object path. That means **objects and arrays round-trip
+through attributes**, so a fully-formed component needs no post-load property
+assignment and no hydration payload:
+
+<GoExample id="encoding-composites" title="A struct, a map, a time — all attributes" />
+
+This is the single most useful thing to know about the library. The page is
+complete before any JavaScript has run.
+
+## The three layers
+
+| Layer | What it does | What it costs |
+| --- | --- | --- |
+| [`alacris`](/alacris-go/guides/rendering/) | Render elements, serve the runtime. | Nothing. Ordinary request/response. |
+| [`gen` + CLI](/alacris-go/guides/codegen/) | Typed Go wrappers from your `define()` calls. | A generate step, next to templ's. |
+| [`live`](/alacris-go/guides/live-props/) | Server-driven props and component events. | A stateful server and session affinity. |
+
+Most applications want the first two. Reach for the third when the server is
+genuinely the owner of what the page shows — a shared list, a dashboard, a
+queue — and you would otherwise be writing polling or a bespoke WebSocket
+protocol.
+
+## What this is not
+
+- **Not a component framework.** Component internals are JavaScript, because
+  `setup()` runs in a browser. alacris-go does not invent a Go DSL for
+  templates and signals, and would be worse if it did.
+- **Not a replacement for htmx or Datastar.** Those swap HTML. This writes
+  properties, which is a smaller and more precise operation, but only works for
+  state a component already models as a prop.
+- **Not tied to the live layer.** The first two layers are stateless and have no
+  dependency on the third.
+
+## Where to go next
+
+- [Installation](/alacris-go/start/installation/) — the five minutes that get a
+  component on a page.
+- [Your first component](/alacris-go/start/first-component/) — writing one,
+  generating its wrapper, using it.
+- [Props and encoding](/alacris-go/guides/props/) — the rules, and the two
+  footguns the library exists to absorb.
