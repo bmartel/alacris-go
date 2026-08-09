@@ -28,9 +28,14 @@
 // # Security
 //
 // A session id is a capability. It is generated with crypto/rand and it must
-// only ever reach the page it was created for — not a URL that could be
-// shared, logged or sent as a referer. Action payloads are input like any
-// other: bound to a Go type, size-limited, and worth validating.
+// only ever reach the page it was created for. Note that the client puts it in
+// the stream URL, because EventSource cannot set headers, so it reaches your
+// access logs too: scrub the "s" query parameter, or treat log access as
+// equivalent to being able to drive any live page. It never appears in a
+// page's own URL, so it does not travel in a Referer or a shared link.
+//
+// Action payloads are input like any other: bound to a Go type, size-limited,
+// and worth validating.
 package live
 
 import (
@@ -39,6 +44,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -46,10 +52,11 @@ import (
 
 // Defaults for Options.
 const (
-	DefaultTTL       = 5 * time.Minute
-	DefaultBuffer    = 256
-	DefaultMaxDetail = 64 << 10
-	DefaultHeartbeat = 25 * time.Second
+	DefaultTTL         = 5 * time.Minute
+	DefaultBuffer      = 256
+	DefaultMaxDetail   = 64 << 10
+	DefaultHeartbeat   = 25 * time.Second
+	DefaultMaxSessions = 10_000
 )
 
 // Options configure a Server.
@@ -65,6 +72,18 @@ type Options struct {
 	// MaxDetail is the largest action payload accepted, in bytes.
 	// Defaults to DefaultMaxDetail.
 	MaxDetail int64
+
+	// MaxSessions bounds how many sessions are held at once. Past it, the
+	// least recently active session with no browser attached is closed to make
+	// room. Defaults to DefaultMaxSessions.
+	//
+	// A session is usually created per page render, which for most
+	// applications means per unauthenticated GET. Without a bound, anything
+	// that follows links — a crawler, a scanner, a load test — leaves a
+	// session behind for every request, each holding a buffer, none of them
+	// expiring until their TTL. This is a backstop, not a substitute for rate
+	// limiting the handler that creates them.
+	MaxSessions int
 
 	// Heartbeat is how often a comment is written to an idle stream, to stop
 	// proxies from closing it. Defaults to DefaultHeartbeat.
@@ -92,6 +111,9 @@ func (o *Options) fill() {
 	if o.MaxDetail <= 0 {
 		o.MaxDetail = DefaultMaxDetail
 	}
+	if o.MaxSessions <= 0 {
+		o.MaxSessions = DefaultMaxSessions
+	}
 	if o.Heartbeat <= 0 {
 		o.Heartbeat = DefaultHeartbeat
 	}
@@ -115,6 +137,7 @@ type Server struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
 	actions  map[string]Handler
+	closed   bool
 
 	stop     chan struct{}
 	stopOnce sync.Once
@@ -158,9 +181,73 @@ func (s *Server) NewSession() *Session {
 		actions:  map[string]Handler{},
 	}
 	s.mu.Lock()
+	if s.closed {
+		// The collector has stopped, so a session registered now would never
+		// expire. Hand back a closed one instead: Send is a no-op on it, which
+		// is what a caller racing shutdown wants anyway.
+		s.mu.Unlock()
+		cancel()
+		sess.closed = true
+		return sess
+	}
 	s.sessions[sess.id] = sess
+	over := len(s.sessions) - s.opts.MaxSessions
+	var others []*Session
+	if over > 0 {
+		others = make([]*Session, 0, len(s.sessions)-1)
+		for _, other := range s.sessions {
+			if other != sess {
+				others = append(others, other)
+			}
+		}
+	}
 	s.mu.Unlock()
+
+	// Deliberately outside the lock. Deciding what to evict means reading each
+	// session's own state, and every other path in this package takes a
+	// session's lock before the server's — taking them the other way round
+	// here would be the one inversion that deadlocks.
+	if over > 0 {
+		s.evict(others, over)
+	}
 	return sess
+}
+
+// evict closes the least useful sessions to get back under the cap.
+//
+// A session with a browser attached is someone looking at a page, so idle ones
+// go first and, among those, the ones idle longest.
+func (s *Server) evict(candidates []*Session, n int) {
+	type scored struct {
+		sess      *Session
+		connected bool
+		idleSince time.Time
+	}
+
+	ranked := make([]scored, 0, len(candidates))
+	for _, sess := range candidates {
+		connected, since := sess.activity()
+		ranked = append(ranked, scored{sess: sess, connected: connected, idleSince: since})
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		if ranked[i].connected != ranked[j].connected {
+			return !ranked[i].connected
+		}
+		return ranked[i].idleSince.Before(ranked[j].idleSince)
+	})
+
+	closed := 0
+	for _, r := range ranked {
+		if closed >= n {
+			break
+		}
+		r.sess.Close()
+		closed++
+	}
+	if closed > 0 {
+		s.opts.Logger.Warn("alacris live: session limit reached, closing the least active",
+			"closed", closed, "limit", s.opts.MaxSessions)
+	}
 }
 
 // Session looks up a session by id.
@@ -198,6 +285,9 @@ func (s *Server) remove(id string) {
 // Close ends every session and stops the collector.
 func (s *Server) Close() {
 	s.stopOnce.Do(func() { close(s.stop) })
+	s.mu.Lock()
+	s.closed = true
+	s.mu.Unlock()
 	for _, sess := range s.Sessions() {
 		sess.Close()
 	}

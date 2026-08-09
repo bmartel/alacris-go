@@ -179,7 +179,9 @@ func (s *Session) Send(patches ...Patch) {
 	sub, out := s.take(patches)
 	s.mu.Unlock()
 
-	deliver(sub, out)
+	if !s.deliver(sub, out) {
+		s.resync()
+	}
 }
 
 // take decides, under the lock, whether patches go out now or wait.
@@ -198,18 +200,46 @@ func (s *Session) take(patches []Patch) (chan []Patch, []Patch) {
 	return s.sub, patches
 }
 
-// deliver sends outside the lock so a slow reader cannot block the caller.
-func deliver(sub chan []Patch, out []Patch) {
+// deliver hands a frame to the subscriber, outside the lock so a slow reader
+// cannot block the caller. It reports whether the frame was taken.
+func (s *Session) deliver(sub chan []Patch, out []Patch) bool {
 	if sub == nil || len(out) == 0 {
-		return
+		return true
 	}
 	select {
 	case sub <- out:
+		return true
 	default:
-		// The subscriber is not keeping up. Dropping is the only option that
-		// does not stall the application; the stream carries whole values, so
-		// the next write of the same prop replaces what was lost.
+		return false
 	}
+}
+
+// resync ends the stream so the browser reconnects.
+//
+// It is what happens when a subscriber stops keeping up. Blocking would stall
+// the application on one slow reader; dropping the frame would leave the page
+// wrong with nobody aware of it, because a patch is a whole value and there is
+// no guarantee anything writes that prop again. Ending the stream costs a
+// reconnect and gets a page that is right: EventSource comes back on its own,
+// and OnOpen restates everything.
+func (s *Session) resync() {
+	s.mu.Lock()
+	sub := s.sub
+	// Clearing it under the lock means exactly one caller sees a live channel
+	// here, so exactly one closes it.
+	s.sub = nil
+	if sub != nil {
+		s.connected = false
+		s.lastSeen = s.srv.now()
+	}
+	s.mu.Unlock()
+
+	if sub == nil {
+		return
+	}
+	close(sub)
+	s.srv.opts.Logger.Warn("alacris live: subscriber fell behind, ending the stream so it reconnects",
+		"session", s.id)
 }
 
 // Batch coalesces every patch made inside fn into one frame, so the browser
@@ -234,7 +264,9 @@ func (s *Session) Batch(fn func()) {
 		s.batch = nil
 		sub, out := s.take(batch)
 		s.mu.Unlock()
-		deliver(sub, out)
+		if !s.deliver(sub, out) {
+			s.resync()
+		}
 	}()
 
 	fn()
@@ -302,6 +334,14 @@ func (s *Session) subscribe() (<-chan []Patch, []Patch, func(), error) {
 		s.mu.Unlock()
 	}
 	return ch, backlog, release, nil
+}
+
+// activity reports whether a browser is attached and, if not, when the last
+// one left. It is what eviction ranks on.
+func (s *Session) activity() (connected bool, since time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.connected, s.lastSeen
 }
 
 // expired reports whether a disconnected session has outlived its grace period.
