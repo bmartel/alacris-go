@@ -27,12 +27,18 @@
 //
 // # Security
 //
-// A session id is a capability. It is generated with crypto/rand and it must
-// only ever reach the page it was created for. Note that the client puts it in
-// the stream URL, because EventSource cannot set headers, so it reaches your
-// access logs too: scrub the "s" query parameter, or treat log access as
-// equivalent to being able to drive any live page. It never appears in a
-// page's own URL, so it does not travel in a Referer or a shared link.
+// Driving a page takes two values, and neither is enough alone.
+//
+// The capability is a client token in an HttpOnly, SameSite, path-scoped
+// cookie. Script cannot read it, it is not sent cross-site, and it never
+// appears in a page, a URL or a log.
+//
+// The page id says which of a browser's open pages is talking. It travels in
+// the stream's query string, because EventSource cannot set headers, so it
+// does reach access logs — and that is fine: on its own it grants nothing.
+// There is nothing here to scrub.
+//
+// See cookie.go for why the two are split rather than combined.
 //
 // Action payloads are input like any other: bound to a Go type, size-limited,
 // and worth validating.
@@ -396,7 +402,7 @@ func (s *Server) collect() {
 // ServeHTTP routes the live endpoints:
 //
 //	GET  .../live.js   the client script
-//	GET  .../live?s=   the patch stream
+//	GET  .../live?p=   the patch stream, for the page id in p
 //	POST .../live      an action
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch name := lastSegment(r.URL.Path); {
