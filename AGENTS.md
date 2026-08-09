@@ -195,6 +195,9 @@ live.On(srv, actionAdd, func(c *live.Ctx, d ui.TodoListAddDetail) error {
   differs.
 - **Always register `OnOpen`** and push the full state there. A reconnecting
   `EventSource` missed everything sent while it was away.
+- **Use `Session.Context()` for `SetHTML`, never the request's.** The request
+  that rendered the page has finished by the time `OnOpen` runs, so its context
+  is cancelled. Same for a push to another session from an action handler.
 - **Validate the detail.** Strict binding checks the shape, not the values.
 - Action names are strings on both sides — put them in constants.
 - A handler error is logged and answered 500; it never reaches the browser. If a
@@ -212,6 +215,7 @@ live.On(srv, actionAdd, func(c *live.Ctx, d ui.TodoListAddDetail) error {
 | `float64` for an id | `@prop {integer}` or a string | JavaScript numbers round past 2^53 |
 | Session id in a URL | In the page only, `no-store` | It is a capability |
 | Skipping `OnOpen` | Push full state there | A reconnect silently shows stale data |
+| `SetHTML(r.Context(), ...)` in `OnOpen` | `SetHTML(s.Context(), ...)` | The request finished; its context is cancelled |
 | `WriteTimeout` on the http.Server | Leave it unset | It cuts every live stream on a timer |
 | Adding npm for the runtime | It is vendored | `RuntimeHandler` already serves it |
 | `!important` in a component | Custom properties, `::part` | It is the one thing a consumer cannot override |
@@ -224,9 +228,10 @@ Before declaring a task done:
 2. `go test ./...`, and `go test -race ./...` if you touched the live layer.
 3. `alacris-go check` passes.
 4. Load a page: no console errors, elements upgrade, no flash of empty elements.
-5. If you changed a list or the live layer: confirm an update **keeps focus and
-   typed text**, and that the row nodes are the same nodes afterwards. If they
-   are not, an `each` is inside a conditional.
+5. If you changed a list or the live layer: run the browser tests —
+   `cd e2e && npx playwright test`. They assert that an update keeps focus and
+   typed text and that the row nodes are the same nodes afterwards. If node
+   identity fails, an `each` is inside a conditional.
 6. Nothing untrusted flows into `SetHTML`, and no action handler trusts its
    detail without checking it.
 

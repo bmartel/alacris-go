@@ -24,6 +24,12 @@ type Session struct {
 	id  string
 	srv *Server
 
+	// ctx lives as long as the session, which is what work started from a
+	// callback needs — the request that created the session is long gone by
+	// the time OnOpen or an action handler runs.
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	mu        sync.Mutex
 	pending   []Patch
 	batching  int
@@ -52,6 +58,16 @@ func newSessionID() string {
 
 // ID returns the session identifier to put in the page.
 func (s *Session) ID() string { return s.id }
+
+// Context returns a context that lives as long as the session and is cancelled
+// when it closes.
+//
+// This is the context to pass to SetHTML, or to anything else started from
+// OnOpen or an action handler that outlives the request it was triggered by.
+// Reaching for the request's context instead is the mistake this exists to
+// prevent: the request that rendered the page has finished by the time OnOpen
+// runs, so its context is already cancelled and the render fails.
+func (s *Session) Context() context.Context { return s.ctx }
 
 // Closed reports whether the session has been closed or has expired.
 func (s *Session) Closed() bool {
@@ -240,6 +256,7 @@ func (s *Session) Close() {
 	if sub != nil {
 		close(sub)
 	}
+	s.cancel()
 	s.srv.remove(s.id)
 }
 

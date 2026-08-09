@@ -406,6 +406,48 @@ func TestSessionExpiry(t *testing.T) {
 	sess.Element("x").Set("n", 1)
 }
 
+func TestSessionContextOutlivesTheRequest(t *testing.T) {
+	// The mistake this prevents: capturing the rendering request's context and
+	// using it from OnOpen. That callback runs when the browser attaches, by
+	// which time the request has finished and its context is cancelled — so
+	// every SetHTML from it failed, silently, on the server.
+	srv, ts := newTestServer(t)
+	sess := srv.NewSession()
+
+	if err := sess.Context().Err(); err != nil {
+		t.Fatalf("a fresh session's context is already done: %v", err)
+	}
+
+	// Stand in for the request that rendered the page: finished, cancelled.
+	requestCtx, cancelRequest := context.WithCancel(context.Background())
+	cancelRequest()
+
+	rendered := make(chan error, 2)
+	sess.OnOpen(func(s *Session) {
+		rendered <- s.Element("chip").SetHTML(s.Context(), "", templText("<b>4 left</b>"))
+		rendered <- s.Element("chip").SetHTML(requestCtx, "", templText("<b>4 left</b>"))
+	})
+
+	frames, stop := stream(t, ts, sess.ID())
+	defer stop()
+
+	if err := <-rendered; err != nil {
+		t.Errorf("the session's own context should still be live: %v", err)
+	}
+	if err := <-rendered; err == nil {
+		t.Error("the finished request's context should not have worked; the test is not proving anything")
+	}
+
+	if got := recv(t, frames); len(got) != 1 || got[0].Op != OpHTML {
+		t.Errorf("got %+v, want one OpHTML patch", got)
+	}
+
+	sess.Close()
+	if err := sess.Context().Err(); err == nil {
+		t.Error("closing a session should cancel its context")
+	}
+}
+
 func TestSessionIDsAreUnguessable(t *testing.T) {
 	srv := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	defer srv.Close()

@@ -63,6 +63,35 @@ push and there is no separate path to keep in step.
   reconnect and a stale page.
 </Aside>
 
+## Which context to use
+
+<Aside type="danger" title="Not the request's">
+  `SetHTML` needs a context to render with, and the obvious one is wrong.
+
+  ```go
+  // WRONG: r is the request that rendered the page. By the time OnOpen runs,
+  // it has finished and its context is cancelled.
+  sess.OnOpen(func(s *live.Session) { push(r.Context(), s) })
+  ```
+
+  ```go
+  // Right.
+  sess.OnOpen(func(s *live.Session) { push(s.Context(), s) })
+  ```
+
+  `Session.Context` lives as long as the session and is cancelled when it
+  closes. Use it for anything started from `OnOpen` or an action handler that
+  outlives the request that triggered it — including a push to *another*
+  session, where the triggering request's lifetime is doubly irrelevant.
+
+  `SetHTML` refuses a cancelled context and says so, so the mistake is loud
+  rather than a slot that silently never updates.
+</Aside>
+
+Inside an action handler, `c.Context()` is the action request's context and is
+correct for work that belongs to that request — a database read whose result the
+user is waiting on. For the patch itself, prefer `c.Session.Context()`.
+
 ## Before the browser arrives
 
 A page renders, the server changes something, and only then does the browser

@@ -125,6 +125,7 @@ import "github.com/bmartel/alacris-go/live"
 | | |
 | --- | --- |
 | `(*Session) ID() string` | The capability to put in the page. |
+| `(*Session) Context() context.Context` | Lives as long as the session. The context to render `SetHTML` with — not the request's, which has finished by the time `OnOpen` runs. |
 | `(*Session) Element(id) Handle` | A handle for patching one element. |
 | `(*Session) Send(...Patch)` | Queue patches. Never blocks, never fails. |
 | `(*Session) Batch(func())` | Coalesce into one frame. |

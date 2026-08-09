@@ -90,6 +90,16 @@ func Reload() Patch {
 // the component put it. Reach for this when the server genuinely owns the
 // markup — a rendered document, a chunk of a report.
 func HTML(ctx context.Context, id, slot string, c templ.Component) (Patch, error) {
+	// Fail on a dead context rather than depending on the component to notice
+	// one. Passing the rendering request's context here is the easy mistake —
+	// it has finished by the time OnOpen or an action handler runs — and a
+	// component simple enough to ignore cancellation would otherwise let it
+	// through and produce a patch nobody asked for. Session.Context is the one
+	// to use.
+	if err := ctx.Err(); err != nil {
+		return Patch{}, fmt.Errorf("live: rendering slot %q of %q: %w (use Session.Context, not the request's)", slot, id, err)
+	}
+
 	var b bytes.Buffer
 	if c != nil {
 		if err := c.Render(templ.InitializeContext(ctx), &b); err != nil {

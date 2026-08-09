@@ -34,6 +34,7 @@
 package live
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -142,10 +143,17 @@ func New(opts ...Options) *Server {
 func (s *Server) now() time.Time { return s.opts.Now() }
 
 // NewSession creates a session for one page render.
+//
+// The session's context is derived from context.Background rather than from
+// the request that created it: it has to outlive that request, because OnOpen
+// and every action handler run long after it has finished.
 func (s *Server) NewSession() *Session {
+	ctx, cancel := context.WithCancel(context.Background())
 	sess := &Session{
 		id:       newSessionID(),
 		srv:      s,
+		ctx:      ctx,
+		cancel:   cancel,
 		lastSeen: s.now(),
 		actions:  map[string]Handler{},
 	}

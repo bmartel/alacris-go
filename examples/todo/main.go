@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	alacris "github.com/bmartel/alacris-go"
@@ -106,7 +107,11 @@ func main() {
 	defer stop()
 
 	go func() {
-		log.Printf("listening on http://localhost%s", *addr)
+		shown := *addr
+		if strings.HasPrefix(shown, ":") {
+			shown = "localhost" + shown
+		}
+		log.Printf("listening on http://%s", shown)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
@@ -148,7 +153,11 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 
 	// A reconnecting browser has missed everything sent while it was away, and
 	// only the server knows what the page should look like.
-	sess.OnOpen(func(s *live.Session) { a.push(r.Context(), s) })
+	//
+	// s.Context(), not r.Context(): this runs when the browser attaches, by
+	// which time the request that rendered the page has finished and its
+	// context has been cancelled.
+	sess.OnOpen(func(s *live.Session) { a.push(s) })
 
 	v := view{
 		Config: alacris.Config{
@@ -181,19 +190,19 @@ func (a *app) handlers() {
 			// cleared itself, which is the only feedback this warrants.
 			return nil
 		}
-		a.pushAll(c.Context())
+		a.pushAll()
 		return nil
 	})
 
 	live.On(srv, actionToggle, func(c *live.Ctx, d ui.TodoListToggleDetail) error {
 		a.list.Toggle(d.ID)
-		a.pushAll(c.Context())
+		a.pushAll()
 		return nil
 	})
 
 	live.On(srv, actionRemove, func(c *live.Ctx, d ui.TodoListRemoveDetail) error {
 		a.list.Remove(d.ID)
-		a.pushAll(c.Context())
+		a.pushAll()
 		return nil
 	})
 
@@ -214,12 +223,19 @@ func (a *app) handlers() {
 	// reported, rendered by the server into a slot.
 	live.On(srv, actionCount, func(c *live.Ctx, d ui.CounterChangeDetail) error {
 		return c.Session.Element(echoID).
-			SetHTML(c.Context(), ui.ChipSlotDefault, chipText(fmt.Sprint(d.Value)))
+			SetHTML(c.Session.Context(), ui.ChipSlotDefault, chipText(fmt.Sprint(d.Value)))
 	})
 }
 
 // push brings one page up to date.
-func (a *app) push(ctx context.Context, s *live.Session) {
+//
+// The context comes from the session, not from whatever request triggered the
+// change: a page is updated because the list changed, and that has nothing to
+// do with the lifetime of the request that changed it. Using the caller's
+// context here would make one user's cancelled request abandon another user's
+// update half-done.
+func (a *app) push(s *live.Session) {
+	ctx := s.Context()
 	items := a.list.Items()
 	filter, _ := s.Get(filterKey{})
 
@@ -239,8 +255,8 @@ func (a *app) push(ctx context.Context, s *live.Session) {
 
 // pushAll brings every open page up to date, which is what makes two tabs
 // agree without either of them polling.
-func (a *app) pushAll(ctx context.Context) {
+func (a *app) pushAll() {
 	for _, s := range a.live.Sessions() {
-		a.push(ctx, s)
+		a.push(s)
 	}
 }
