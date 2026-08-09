@@ -123,3 +123,33 @@ func TestEncodeAttrFollowsHTMLBooleanRules(t *testing.T) {
 		t.Error("EncodeAttr(nil) should omit the attribute")
 	}
 }
+
+// A named float32 went through the reflect path, which formatted it as the
+// float64 it had been widened to: 0.1 came out as 0.10000000149011612. The
+// direct float32 case had always been right, so this only ever bit types that
+// wrapped one.
+func TestEncodePropNamedFloatTypes(t *testing.T) {
+	type celsius float32
+	type ratio float64
+
+	cases := []struct {
+		in   any
+		want string
+	}{
+		{float32(0.1), "0.1"},
+		{celsius(0.1), "0.1"},
+		{celsius(36.6), "36.6"},
+		{ratio(0.1), "0.1"},
+		{float64(0.1), "0.1"},
+	}
+
+	for _, c := range cases {
+		got, _, err := EncodeProp(c.in)
+		if err != nil {
+			t.Fatalf("EncodeProp(%#v): %v", c.in, err)
+		}
+		if got != c.want {
+			t.Errorf("EncodeProp(%#v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

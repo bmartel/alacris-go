@@ -160,7 +160,11 @@ func EncodeProp(v any) (s string, ok bool, err error) {
 		return encodeInt(rv.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return encodeUint(rv.Uint())
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
+		// rv.Float widens to float64, so formatting at 64 bits would print the
+		// widening rather than the value: 0.1 as 0.10000000149011612.
+		return encodeFloat(rv.Float(), 32)
+	case reflect.Float64:
 		return encodeFloat(rv.Float(), 64)
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
 		return "", false, fmt.Errorf("alacris: cannot encode a %s as a prop", rv.Kind())
