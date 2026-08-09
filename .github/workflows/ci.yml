@@ -65,6 +65,49 @@ jobs:
             exit 1
           fi
 
+  browser:
+    name: Browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      # `go test` covers the wire format and the session lifecycle. It cannot
+      # cover the claim that justifies the live layer — that an update writes
+      # one property and leaves the DOM the user is touching alone — because
+      # that is real-DOM behaviour. This job is that claim.
+      - name: Install
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # Build the example first so a cold module cache does not eat the
+      # webServer start timeout.
+      - name: Warm the example build
+        run: go build -o /dev/null ./examples/todo
+
+      - name: Test
+        working-directory: e2e
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          retention-days: 7
+
   vendored:
     runs-on: ubuntu-latest
     steps:

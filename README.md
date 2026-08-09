@@ -339,6 +339,18 @@ go run ./internal/docsgen        # re-render the documentation examples
 cd docs && npm install && npm run dev
 ```
 
+Browser tests, for the claims `go test` cannot reach — that a server-driven
+update moves rows instead of rebuilding them, that focus and a half-typed draft
+survive it, and that every open tab stays in step:
+
+```bash
+cd e2e && npm install && npx playwright install chromium
+npx playwright test
+```
+
+They run against `examples/todo` unmodified. If they ever need a fixture
+instead, the thing being tested has stopped being the thing people copy.
+
 ## License
 
 MIT. The vendored alacris runtime is MIT too — see `assets/LICENSE.alacris`.
