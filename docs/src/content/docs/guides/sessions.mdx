@@ -25,11 +25,17 @@ sess.Closed()
 <Aside type="danger">
   Anyone holding a session id can receive that page's patches and send actions
   as that page. It is generated with `crypto/rand` and it belongs in the page it
-  was made for and **nowhere else** — not in a URL that could be shared, logged,
-  or sent as a referer.
+  was made for and nowhere else.
 
   Serve pages carrying one with `Cache-Control: no-store, private` so nothing
   between you and the browser keeps a copy.
+
+  **It is in the stream URL, so it is in your access logs.** `EventSource`
+  cannot set request headers, so the client connects to `…/live?s=<session>`,
+  and most servers and proxies log the query string. Scrub the `s` parameter,
+  or accept that reading the logs means being able to drive any page whose
+  session has not expired. It never appears in a page's own URL, so it does not
+  travel in a `Referer` or a shared link.
 </Aside>
 
 ```go

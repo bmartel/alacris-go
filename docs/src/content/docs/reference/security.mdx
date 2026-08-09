@@ -91,8 +91,13 @@ script tag the library emits.
   page. It must reach only the page it was made for.
 
   - Serve pages carrying one with `Cache-Control: no-store, private`.
-  - Never put one in a URL — it leaks through referers, logs, proxies and shared
-    links.
+  - **It is in the stream URL, and that means it is in your access logs.**
+    `EventSource` cannot set request headers, so the client connects to
+    `…/live?s=<session>`. Most servers and proxies log the query string.
+    Either scrub the `s` parameter from your access logs, or accept that
+    anyone who can read them can drive any page whose session has not yet
+    expired. It is never in a page's own URL, so it does not travel in a
+    `Referer` or in a shared link.
   - It identifies a *page*, not a user. It is not an authentication token and
     must not be used as one: authenticate the request the ordinary way, and
     check that the session belongs to the authenticated user before acting on

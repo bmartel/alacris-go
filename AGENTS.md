@@ -162,7 +162,7 @@ live.Mount(mux, alacris.DefaultBase, srv)
 sess := srv.NewSession()
 sess.OnOpen(func(s *live.Session) { pushEverything(s) })   // do not skip this
 cfg := alacris.Config{Live: true, Session: sess.ID(), ...}
-w.Header().Set("Cache-Control", "no-store, private")       // the id is a capability
+w.Header().Set("Cache-Control", "no-store, private")       // the id is a capability; scrub ?s= from access logs
 ```
 
 Down:
