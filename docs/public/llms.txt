@@ -20,6 +20,7 @@ events over SSE and POST).
 - [What is alacris-go?](https://bmartel.github.io/alacris-go/start/what-is-alacris-go/): The model, what a server can and cannot render, and why every prop can be an attribute.
 - [Installation](https://bmartel.github.io/alacris-go/start/installation/): go get, serving the runtime, script tags, caching and the dev build.
 - [Your first component](https://bmartel.github.io/alacris-go/start/first-component/): Write a component, generate its wrapper, render it from templ.
+- [Upgrading](https://bmartel.github.io/alacris-go/start/upgrading/): What changed between releases. 0.2.0 moved the live session credential from the URL into a cookie.
 
 ## Guides
 
@@ -29,7 +30,7 @@ events over SSE and POST).
 - [Theming](https://bmartel.github.io/alacris-go/guides/theming/): Custom properties, VarSet contracts, @cssprop, what inline CSS is refused.
 - [Live: props from the server](https://bmartel.github.io/alacris-go/guides/live-props/): Sessions, Handle.Set, batching, broadcasting, and when SetHTML is the right tool.
 - [Live: actions from the page](https://bmartel.github.io/alacris-go/guides/live-actions/): Forwarding CustomEvents to typed Go handlers, per-session handlers, error handling.
-- [Sessions and reconnects](https://bmartel.github.io/alacris-go/guides/sessions/): Session ids as capabilities, OnOpen, buffering, TTL, per-page state.
+- [Sessions and reconnects](https://bmartel.github.io/alacris-go/guides/sessions/): The cookie that carries the capability, the page id that does not, OnOpen, buffering, TTL, per-page state.
 - [Deploying](https://bmartel.github.io/alacris-go/guides/deploying/): Caching, CSP, proxy buffering, session affinity, shutdown.
 
 ## Reference

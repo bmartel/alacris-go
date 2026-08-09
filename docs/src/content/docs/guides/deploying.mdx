@@ -35,6 +35,47 @@ delete with one field.
   `no-cache` rather than an hour.
 </Aside>
 
+## The live cookie behind a proxy
+
+`SecureAuto` looks at `r.TLS` and `X-Forwarded-Proto`. A proxy that terminates
+TLS and forwards plain HTTP without setting that header will produce a cookie
+with no `Secure` attribute — set `CookieSecure: live.SecureAlways` rather than
+relying on the header being there.
+
+If the page and the live endpoint are on different origins you need three
+things together, and browsers enforce all of them:
+
+```go
+live.New(live.Options{
+    CookieSameSite: http.SameSiteNoneMode,  // required to send it cross-site
+    CookieSecure:   live.SecureAlways,      // None is refused without Secure
+    AllowOrigin: func(origin string, _ *http.Request) bool {
+        return origin == "https://app.example"
+    },
+})
+```
+
+Without `AllowOrigin` naming the origin, no CORS headers are sent and the
+browser discards the response — which looks exactly like a server that never
+answers.
+
+<Aside type="tip" title="If you own the whole origin">
+  A sibling subdomain can set a cookie your server will accept. To rule that
+  out, use the `__Host-` prefix, which browsers only honour for a host-only,
+  `Secure`, `Path=/` cookie:
+
+  ```go
+  live.New(live.Options{
+      CookieName:   "__Host-alacris_live",
+      CookiePath:   "/",
+      CookieSecure: live.SecureAlways,
+  })
+  ```
+
+  The trade is that the cookie is then sent with every request to the origin
+  rather than only to the live endpoints.
+</Aside>
+
 ## Content Security Policy
 
 alacris registers a Trusted Types policy named `alacris` for template parsing.
@@ -59,8 +100,8 @@ Or set it explicitly with `Config.Nonce`.
 
 ## Serving pages that carry a session
 
-A session id is a capability, so the page holding one must not be cached by
-anything in between:
+The live capability is a cookie, so the response that sets it is for exactly
+one browser and must not be held by anything in between:
 
 ```go
 w.Header().Set("Cache-Control", "no-store, private")
@@ -187,7 +228,9 @@ never going to close on their own.
 ## A checklist
 
 - `Config.Version` set from the build.
-- Pages with a session served `no-store`.
+- Pages that set the live cookie served `no-store`.
+- TLS terminated, or `CookieSecure: live.SecureAlways` if the proxy does it
+  without setting `X-Forwarded-Proto`.
 - No `WriteTimeout`; proxy buffering off on the live route.
 - Session affinity configured, or only one instance.
 - `trusted-types alacris alacris-live` in the CSP if you enforce it.

@@ -196,10 +196,12 @@ live.Mount(mux, alacris.DefaultBase, srv)   // runtime + client + endpoints
 Per page render, mint a session and put it in the page:
 
 ```go
-sess := srv.NewSession()
+// Reads or sets the cookie that authorises this browser, so call it before
+// writing anything to w.
+sess := srv.NewSession(w, r)
 sess.OnOpen(func(s *live.Session) { push(s) })   // also runs after a reconnect
 
-cfg := alacris.Config{Live: true, Session: sess.ID(), /* ... */}
+cfg := alacris.Config{Live: true, Page: sess.ID(), /* ... */}
 ```
 
 Down — one property write per change, coalesced into one frame:
@@ -262,10 +264,12 @@ and this library kebab-cases it into the attribute (`max-count`) exactly the way
 
 ## Security
 
-- **A session id is a capability.** It is generated with `crypto/rand`, and
-  anyone holding it can receive that page's patches and act as that page. It
-  belongs in the page it was made for and nowhere else — not in a URL that might
-  be shared, logged or sent as a referer. Serve those pages `no-store`.
+- **The live capability is an `HttpOnly` cookie**, set by `NewSession` with
+  `SameSite=Lax`, a path scoped to the live endpoints, and `Secure` over TLS.
+  It never appears in a page, a URL or a log, and script cannot read it. What
+  the page carries is a page id, which is an identifier and not a secret:
+  without the cookie it reaches nothing. Serve pages that set the cookie
+  `no-store`.
 - **Action payloads are input.** A well-behaved component emits what it says it
   emits; a console can emit anything. Binding is strict, the body is size-capped,
   and cross-origin posts are refused. Validate what you decode.

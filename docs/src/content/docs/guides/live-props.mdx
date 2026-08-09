@@ -72,17 +72,21 @@ sess.Batch(func() {
    `Mount` registers the runtime, the live client, and the two endpoints. Doing
    it by hand is fine; this only exists so the three cannot drift apart.
 
-2. **Mint a session per page render** and put its id in the page.
+2. **Mint a session per page render** and put its page id in the page. The
+   capability is a cookie the call sets; see
+   [Sessions](/alacris-go/guides/sessions/#the-capability-is-a-cookie).
 
    ```go
    func (a *app) index(w http.ResponseWriter, r *http.Request) {
-       sess := a.live.NewSession()
+       // Sets the cookie that authorises this browser, so it has to run
+       // before anything is written to w.
+       sess := a.live.NewSession(w, r)
        sess.OnOpen(func(s *live.Session) { a.push(s) })
 
        cfg := alacris.Config{
            Modules: []string{"/web/components.js"},
            Live:    true,
-           Session: sess.ID(),
+           Page:    sess.ID(),
        }
        // ... render the page with cfg
    }

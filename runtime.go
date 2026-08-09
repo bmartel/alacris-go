@@ -172,10 +172,15 @@ type Config struct {
 	// packages of your own by bare specifier.
 	Imports map[string]string
 
-	// Live loads the live client and connects it. Session must be the id of a
-	// session created by the live package for this page.
-	Live    bool
-	Session string
+	// Live loads the live client and connects it. Page must be the id of a
+	// session created by the live package for this page render.
+	//
+	// The page id is not a secret and does not need protecting: it says which
+	// of a browser's pages is talking, and it is useless without the cookie
+	// the live package sets, which script cannot read and which never appears
+	// in a page or a URL.
+	Live bool
+	Page string
 
 	// Endpoint is where the live client connects. Defaults to Base + "live".
 	Endpoint string
@@ -274,7 +279,7 @@ func (c Config) Scripts() templ.Component {
 		if c.Live {
 			b.WriteString(`<script type="module" src="` + templ.EscapeString(c.asset(AssetLive)) + `"` +
 				` data-endpoint="` + templ.EscapeString(c.endpoint()) + `"` +
-				` data-session="` + templ.EscapeString(c.Session) + `"` + nonceAttr + `></script>`)
+				` data-page="` + templ.EscapeString(c.Page) + `"` + nonceAttr + `></script>`)
 		}
 
 		_, err = io.WriteString(w, b.String())

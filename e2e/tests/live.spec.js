@@ -184,3 +184,55 @@ test('the page works before the module arrives', async ({ browser }) => {
 
   await context.close();
 });
+
+test('the session capability is a cookie, and never a URL', async ({ page, context }) => {
+  // The whole point of the cookie: a page id in an access log or a referer
+  // reaches nothing without it.
+  const requests = [];
+  page.on('request', (r) => requests.push(r.url()));
+  await page.goto('/');
+  await ready(page);
+
+  const cookies = await context.cookies();
+  const live = cookies.find((c) => c.name === 'alacris_live');
+
+  expect(live, 'the live cookie was not set').toBeTruthy();
+  expect(live.httpOnly, 'script must not be able to read the capability').toBe(true);
+  expect(live.sameSite, 'SameSite is what stops a cross-site POST carrying it').toBe('Lax');
+  expect(live.path).toBe('/_alacris/');
+
+  // The token must not appear anywhere a log or a referer would pick it up.
+  const token = live.value;
+  expect(token.length).toBeGreaterThan(20);
+  for (const url of requests) {
+    expect(url, `the capability leaked into a URL: ${url}`).not.toContain(token);
+  }
+  expect(await page.content()).not.toContain(token);
+
+  // Script cannot reach it either.
+  const visible = await page.evaluate(() => document.cookie);
+  expect(visible).not.toContain(token);
+
+  // What is in the URL is the page id, which is useless on its own.
+  const streamURL = requests.find((u) => u.includes('/_alacris/live?'));
+  expect(streamURL, 'the stream never connected').toBeTruthy();
+  expect(streamURL).toContain('p=');
+  expect(streamURL).not.toContain(token);
+});
+
+test('a page id without the cookie is refused', async ({ page, browser }) => {
+  await page.goto('/');
+  await ready(page);
+
+  const streamURL = await page.evaluate(() => {
+    const s = document.querySelector('script[data-page]');
+    return new URL(s.dataset.endpoint + '?p=' + s.dataset.page, location.href).href;
+  });
+
+  // A fresh context is a different browser: it has the page id, from a log
+  // say, and no cookie.
+  const clean = await browser.newContext();
+  const response = await clean.request.get(streamURL);
+  expect(response.status()).toBe(404);
+  await clean.close();
+});

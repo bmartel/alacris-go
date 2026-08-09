@@ -2,8 +2,6 @@ package live
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"sync"
 	"time"
@@ -16,12 +14,19 @@ var ErrClosed = errors.New("live: session is closed")
 
 // A Session is one page's connection to the server.
 //
-// Its ID is a capability: anyone who has it can receive that page's patches
-// and send actions as that page. It is generated with crypto/rand, and it
-// belongs in the page it was made for and nowhere else — not in a URL that
-// might be shared, logged or referred.
+// It is identified by two values. Its ID names the page and is safe to put in
+// the page and in the stream URL. The capability is the client token in the
+// browser's cookie, which never appears in either. A request needs both, so a
+// page id recovered from a log or a referer reaches nothing on its own.
 type Session struct {
-	id  string
+	// id identifies the page. It travels in the stream URL, so it is an
+	// identifier rather than a secret.
+	id string
+
+	// client is the token from the browser's cookie. It is the capability, and
+	// a request has to present it to reach this session.
+	client string
+
 	srv *Server
 
 	// ctx lives as long as the session, which is what work started from a
@@ -45,18 +50,11 @@ type Session struct {
 	values  map[any]any
 }
 
-func newSessionID() string {
-	var b [18]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		// crypto/rand does not fail on any supported platform, and carrying on
-		// with a guessable session id would hand one page's state to whoever
-		// guesses it.
-		panic("live: no randomness available: " + err.Error())
-	}
-	return base64.RawURLEncoding.EncodeToString(b[:])
-}
-
-// ID returns the session identifier to put in the page.
+// ID returns the page id, which is what goes in the page as alacris.Config.Page.
+//
+// It is not a secret. The secret is the client token in the cookie, which this
+// package sets and the browser sends; it is never exposed here, because
+// nothing outside the package has any use for it.
 func (s *Session) ID() string { return s.id }
 
 // Context returns a context that lives as long as the session and is cancelled

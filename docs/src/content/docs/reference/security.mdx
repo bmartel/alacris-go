@@ -62,11 +62,26 @@ rather than producing HTML whose structure differs from what you wrote.
 - Cross-origin posts are rejected by comparing `Origin` against the request
   `Host`. `Options.AllowOrigin` overrides that when you need to.
 
-### Session ids
+### Session credentials
 
-Generated with `crypto/rand` — 18 bytes, base64url. Long enough that guessing is
-not a strategy, and generation panics rather than falling back to anything
-weaker if the OS has no randomness.
+Both halves are 18 bytes from `crypto/rand`, base64url. Long enough that
+guessing is not a strategy, and generation panics rather than falling back to
+anything weaker if the OS has no randomness. The client token is compared in
+constant time, because that comparison is the authorisation decision.
+
+### Cross-site request forgery
+
+The capability is a cookie, so the browser attaches it to whatever a page can
+cause. Three things stand in for the secret that used to sit in the request
+body, and they are described in full on the
+[wire protocol page](/alacris-go/reference/wire-protocol/#why-the-action-endpoint-is-safe):
+`SameSite=Lax`, a required `application/json` content type, and the page id as
+a double-submit token checked against the cookie.
+
+Cross-origin is off unless `Options.AllowOrigin` names the origins you trust. A
+credentialed endpoint that reflects whatever origin it is sent is an open door,
+so the headers that make cross-origin work are only sent for an origin that was
+allowed, and the response never uses `*`.
 
 ### Content Security Policy
 
@@ -86,32 +101,40 @@ script tag the library emits.
 
 ## What is yours
 
-<Aside type="danger" title="1. The session id is a capability">
-  Anyone holding it can receive that page's patches and send actions as that
-  page. It must reach only the page it was made for.
+<Aside type="danger" title="1. The live cookie is a capability">
+  Anyone holding the client token can act as every page that browser has open.
+  The library sets it with the attributes that keep it that way — `HttpOnly`,
+  `SameSite=Lax`, path-scoped to the live endpoints, `Secure` over TLS — and
+  script never touches it.
 
-  - Serve pages carrying one with `Cache-Control: no-store, private`.
-  - **It is in the stream URL, and that means it is in your access logs.**
-    `EventSource` cannot set request headers, so the client connects to
-    `…/live?s=<session>`. Most servers and proxies log the query string.
-    Either scrub the `s` parameter from your access logs, or accept that
-    anyone who can read them can drive any page whose session has not yet
-    expired. It is never in a page's own URL, so it does not travel in a
-    `Referer` or in a shared link.
-  - It identifies a *page*, not a user. It is not an authentication token and
-    must not be used as one: authenticate the request the ordinary way, and
-    check that the session belongs to the authenticated user before acting on
-    it.
+  - Serve pages that set it with `Cache-Control: no-store, private`. The
+    response carries a `Set-Cookie` for one browser.
+  - Terminate TLS. `SecureAuto` sets `Secure` for requests that arrived over
+    TLS; if a proxy terminates it without setting `X-Forwarded-Proto`, use
+    `SecureAlways`.
+  - **It identifies a browser, not a user.** It is not an authentication token
+    and must not be used as one: authenticate the request the ordinary way and
+    check the user may do the thing, before doing it.
 
   ```go
   live.On(srv, "delete-invoice", func(c *live.Ctx, d DeleteDetail) error {
-      user, ok := auth.From(c.Request)          // the request, not the session
+      user, ok := auth.From(c.Request)          // your auth, not the session
       if !ok || !user.CanDelete(d.ID) {
           return fmt.Errorf("not permitted")
       }
       ...
   })
   ```
+</Aside>
+
+<Aside type="note" title="The page id is not a capability">
+  It is in the page and in the stream's query string, so it does reach access
+  logs — and on its own it reaches nothing. Both halves are required, and the
+  half that authorises is the one that never appears in a URL.
+
+  It exists because a cookie is per-browser while a session is per page render.
+  Two tabs share a cookie; a cookie carrying the session id would have the
+  second tab's render overwrite the first tab's session.
 </Aside>
 
 <Aside type="danger" title="2. Action details are user input">

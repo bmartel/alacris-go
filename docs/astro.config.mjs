@@ -54,6 +54,7 @@ export default defineConfig({
             { label: 'What is alacris-go?', slug: 'start/what-is-alacris-go' },
             { label: 'Installation', slug: 'start/installation' },
             { label: 'Your first component', slug: 'start/first-component' },
+            { label: 'Upgrading', slug: 'start/upgrading' },
           ],
         },
         {

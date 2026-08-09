@@ -159,10 +159,12 @@ defer srv.Close()
 live.Mount(mux, alacris.DefaultBase, srv)
 
 // per page render
-sess := srv.NewSession()
+// NewSession needs w and r: it sets the cookie that authorises this browser.
+// Call it before writing anything to w.
+sess := srv.NewSession(w, r)
 sess.OnOpen(func(s *live.Session) { pushEverything(s) })   // do not skip this
-cfg := alacris.Config{Live: true, Session: sess.ID(), ...}
-w.Header().Set("Cache-Control", "no-store, private")       // the id is a capability; scrub ?s= from access logs
+cfg := alacris.Config{Live: true, Page: sess.ID(), ...}
+w.Header().Set("Cache-Control", "no-store, private")       // the response carries a Set-Cookie
 ```
 
 Down:
@@ -193,6 +195,9 @@ live.On(srv, actionAdd, func(c *live.Ctx, d ui.TodoListAddDetail) error {
 - `Handle.Set` takes the **JavaScript** prop name (`maxCount`), because it writes
   the DOM property. Server-rendered props use the same name; only the wire
   differs.
+- **The capability is an HttpOnly cookie, not `sess.ID()`.** The page id is not
+  a secret and needs no protecting. Do not put a session id in a URL, a log or
+  a template variable that ends up in one — there is no longer one to put.
 - **Always register `OnOpen`** and push the full state there. A reconnecting
   `EventSource` missed everything sent while it was away.
 - **Use `Session.Context()` for `SetHTML`, never the request's.** The request
@@ -213,7 +218,7 @@ live.On(srv, actionAdd, func(c *live.Ctx, d ui.TodoListAddDetail) error {
 | `alacris.E("user-card")` when a wrapper exists | `ui.UserCard(...)` | No defaults, no types, no checked names |
 | Hand-writing `max-count` | `Prop("maxCount", ...)` | The library kebab-cases it the way `define.js` does |
 | `float64` for an id | `@prop {integer}` or a string | JavaScript numbers round past 2^53 |
-| Session id in a URL | In the page only, `no-store` | It is a capability |
+| Treating `sess.ID()` as a secret | The cookie is the secret | The page id is an identifier; the capability is `HttpOnly` |
 | Skipping `OnOpen` | Push full state there | A reconnect silently shows stale data |
 | `SetHTML(r.Context(), ...)` in `OnOpen` | `SetHTML(s.Context(), ...)` | The request finished; its context is cancelled |
 | `WriteTimeout` on the http.Server | Leave it unset | It cuts every live stream on a timer |

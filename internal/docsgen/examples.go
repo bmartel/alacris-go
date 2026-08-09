@@ -106,7 +106,7 @@ func exampleScriptsLive() templ.Component {
 	return alacris.Scripts(alacris.Config{
 		Modules: []string{"/web/components.js"},
 		Live:    true,
-		Session: "SESSION-ID",
+		Page:    "PAGE-ID",
 	})
 }
 

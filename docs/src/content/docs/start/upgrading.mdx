@@ -1,0 +1,92 @@
+---
+title: Upgrading
+description: What changed between releases, and what to do about it.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This module is below 1.0.0, so breaking changes arrive as minor releases:
+0.1.x to 0.2.0, not 1.0.0. Pin a minor version if you would rather adopt them
+deliberately.
+
+```
+require github.com/bmartel/alacris-go v0.2.0
+```
+
+## 0.1.x → 0.2.0
+
+The live layer's session credential moved out of the URL and into a cookie.
+Everything else is unchanged; the render and codegen layers are untouched.
+
+### Why
+
+The stream URL carried the session id, which is a capability — anything holding
+it could receive a page's patches and act as that page. `EventSource` cannot set
+request headers, so that id went into the query string of every connection, and
+from there into every access log that records one.
+
+A cookie is not in a URL, is not readable by script, and is not sent
+cross-site. It is the right place for a capability.
+
+### What you have to change
+
+**1. `NewSession` takes the request and response.**
+
+```go
+sess := srv.NewSession()          // 0.1.x
+sess := srv.NewSession(w, r)      // 0.2.0
+```
+
+It reads the browser's cookie, or sets one. Call it **before anything is
+written to `w`** — a cookie cannot be set once the headers have gone out.
+
+**2. `Config.Session` became `Config.Page`.**
+
+```go
+alacris.Config{Live: true, Session: sess.ID()}   // 0.1.x
+alacris.Config{Live: true, Page: sess.ID()}      // 0.2.0
+```
+
+The value is the same. The name changed because it is no longer the capability,
+and calling it `Session` invited protecting the wrong thing.
+
+**3. A custom client, if you wrote one.**
+
+| | 0.1.x | 0.2.0 |
+| --- | --- | --- |
+| Stream | `GET …/live?s=<session>` | `GET …/live?p=<page>` + cookie |
+| Action body | `{"s": …}` | `{"p": …}` |
+| Action content type | anything | `application/json`, enforced |
+| Script attribute | `data-session` | `data-page` |
+
+The embedded client is updated; this only matters if you replaced it.
+
+<Aside type="tip" title="Nothing fails quietly">
+  All three are compile errors or a `404`. There is no configuration that
+  half-works.
+</Aside>
+
+### What you can now delete
+
+Any log scrubbing you set up for the `s` query parameter. What is in the URL now
+is a page id, which reaches nothing without the cookie.
+
+### What to check on your deployment
+
+- **TLS.** `SecureAuto` sets `Secure` for requests that arrived over TLS,
+  directly or through a proxy that set `X-Forwarded-Proto`. If your proxy
+  terminates TLS without setting it, use `CookieSecure: live.SecureAlways`.
+- **Mount point.** `live.Mount` scopes the cookie to the base it is given. If
+  you registered the routes by hand, set `Options.CookiePath` to match, or the
+  cookie will not be sent to the endpoints.
+- **Cross-origin**, if the page and the live endpoint are on different origins:
+  you now need `CookieSameSite: http.SameSiteNoneMode`, `SecureAlways`, and an
+  `AllowOrigin` naming the origins you trust. See
+  [Deploying](/alacris-go/guides/deploying/#the-live-cookie-behind-a-proxy).
+
+### What did not change
+
+Patches, actions, `OnOpen`, batching, the handler API, and every prop-encoding
+rule. A page that worked before behaves identically once it compiles.

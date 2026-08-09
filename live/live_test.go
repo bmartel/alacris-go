@@ -34,15 +34,16 @@ func newTestServer(t *testing.T, opts ...Options) (*Server, *httptest.Server) {
 }
 
 // stream opens an SSE connection and returns a channel of decoded frames.
-func stream(t *testing.T, ts *httptest.Server, session string) (<-chan []Patch, func()) {
+func stream(t *testing.T, ts *httptest.Server, sess *Session) (<-chan []Patch, func()) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		ts.URL+"/_alacris/live?s="+session, nil)
+		ts.URL+"/_alacris/live?p="+sess.ID(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.AddCookie(sessionCookie(sess))
 	resp, err := ts.Client().Do(req)
 	if err != nil {
 		cancel()
@@ -98,9 +99,9 @@ func recv(t *testing.T, frames <-chan []Patch) []Patch {
 
 func TestPropPatchReachesTheBrowser(t *testing.T) {
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
-	frames, stop := stream(t, ts, sess.ID())
+	frames, stop := stream(t, ts, sess)
 	defer stop()
 
 	// Give the stream a moment to subscribe, then send.
@@ -121,12 +122,12 @@ func TestPatchesBeforeConnectAreBuffered(t *testing.T) {
 	// A page renders, then the server changes something, then the browser
 	// finally connects. Nothing may be lost in that window.
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	sess.Element("cart").Set("count", 1)
 	sess.Element("cart").Set("count", 2)
 
-	frames, stop := stream(t, ts, sess.ID())
+	frames, stop := stream(t, ts, sess)
 	defer stop()
 
 	got := recv(t, frames)
@@ -140,7 +141,7 @@ func TestPatchesBeforeConnectAreBuffered(t *testing.T) {
 
 func TestBufferDropsOldestRatherThanBlocking(t *testing.T) {
 	srv, _ := newTestServer(t, Options{Buffer: 4})
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	for i := 0; i < 100; i++ {
 		sess.Element("x").Set("n", i)
@@ -166,9 +167,9 @@ func TestBufferDropsOldestRatherThanBlocking(t *testing.T) {
 
 func TestBatchIsOneFrame(t *testing.T) {
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
-	frames, stop := stream(t, ts, sess.ID())
+	frames, stop := stream(t, ts, sess)
 	defer stop()
 	waitConnected(t, sess)
 
@@ -188,7 +189,7 @@ func TestOnOpenRunsOnEveryConnect(t *testing.T) {
 	// A reconnecting EventSource missed whatever happened while it was away,
 	// so the server has to be able to restate the world.
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	var mu sync.Mutex
 	opens := 0
@@ -200,7 +201,7 @@ func TestOnOpenRunsOnEveryConnect(t *testing.T) {
 	})
 
 	for i := 0; i < 2; i++ {
-		frames, stop := stream(t, ts, sess.ID())
+		frames, stop := stream(t, ts, sess)
 		got := recv(t, frames)
 		if len(got) != 1 || got[0].Value != float64(7) {
 			t.Fatalf("connect %d: got %+v", i, got)
@@ -219,13 +220,13 @@ func TestOnOpenRunsOnEveryConnect(t *testing.T) {
 func TestSecondConnectionReplacesTheFirst(t *testing.T) {
 	// A reload can open the new stream before the old one has finished dying.
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
-	first, stopFirst := stream(t, ts, sess.ID())
+	first, stopFirst := stream(t, ts, sess)
 	defer stopFirst()
 	waitConnected(t, sess)
 
-	second, stopSecond := stream(t, ts, sess.ID())
+	second, stopSecond := stream(t, ts, sess)
 	defer stopSecond()
 
 	select {
@@ -246,7 +247,7 @@ func TestSecondConnectionReplacesTheFirst(t *testing.T) {
 
 func TestActionRoundTrip(t *testing.T) {
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	type addDetail struct {
 		Text string `json:"text"`
@@ -260,11 +261,11 @@ func TestActionRoundTrip(t *testing.T) {
 		return nil
 	})
 
-	frames, stop := stream(t, ts, sess.ID())
+	frames, stop := stream(t, ts, sess)
 	defer stop()
 	waitConnected(t, sess)
 
-	post(t, ts, `{"s":"`+sess.ID()+`","a":"add-todo","i":"todos","d":{"text":"buy milk"}}`, http.StatusNoContent)
+	post(t, ts, sess, `{"p":"`+sess.ID()+`","a":"add-todo","i":"todos","d":{"text":"buy milk"}}`, http.StatusNoContent)
 
 	got := recv(t, frames)
 	if len(got) != 1 || got[0].Key != "items" {
@@ -278,7 +279,7 @@ func TestActionRoundTrip(t *testing.T) {
 
 func TestSessionHandlerBeatsServerHandler(t *testing.T) {
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	srv.On("act", func(c *Ctx) error {
 		t.Error("the server-wide handler should not have run")
@@ -290,7 +291,7 @@ func TestSessionHandlerBeatsServerHandler(t *testing.T) {
 		return nil
 	})
 
-	post(t, ts, `{"s":"`+sess.ID()+`","a":"act","i":"","d":null}`, http.StatusNoContent)
+	post(t, ts, sess, `{"p":"`+sess.ID()+`","a":"act","i":"","d":null}`, http.StatusNoContent)
 
 	select {
 	case <-ran:
@@ -301,28 +302,29 @@ func TestSessionHandlerBeatsServerHandler(t *testing.T) {
 
 func TestActionRejections(t *testing.T) {
 	srv, ts := newTestServer(t, Options{MaxDetail: 64})
-	sess := srv.NewSession()
+	sess := newSession(srv)
 	srv.On("act", func(c *Ctx) error { return nil })
 
 	t.Run("unknown session", func(t *testing.T) {
-		post(t, ts, `{"s":"not-a-session","a":"act","d":null}`, http.StatusNotFound)
+		post(t, ts, sess, `{"p":"not-a-session","a":"act","d":null}`, http.StatusNotFound)
 	})
 
 	t.Run("unknown action", func(t *testing.T) {
-		post(t, ts, `{"s":"`+sess.ID()+`","a":"nope","d":null}`, http.StatusNotFound)
+		post(t, ts, sess, `{"p":"`+sess.ID()+`","a":"nope","d":null}`, http.StatusNotFound)
 	})
 
 	t.Run("oversized payload", func(t *testing.T) {
-		big := `{"s":"` + sess.ID() + `","a":"act","d":{"t":"` + strings.Repeat("x", 500) + `"}}`
-		post(t, ts, big, http.StatusRequestEntityTooLarge)
+		big := `{"p":"` + sess.ID() + `","a":"act","d":{"t":"` + strings.Repeat("x", 500) + `"}}`
+		post(t, ts, sess, big, http.StatusRequestEntityTooLarge)
 	})
 
 	t.Run("cross-origin", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, ts.URL+"/_alacris/live",
-			strings.NewReader(`{"s":"`+sess.ID()+`","a":"act","d":null}`))
+			strings.NewReader(`{"p":"`+sess.ID()+`","a":"act","d":null}`))
 		if err != nil {
 			t.Fatal(err)
 		}
+		req.AddCookie(sessionCookie(sess))
 		req.Header.Set("Origin", "https://evil.example")
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := ts.Client().Do(req)
@@ -342,7 +344,7 @@ func TestActionDetailMustFitItsType(t *testing.T) {
 	// Binding is strict so a payload that does not match the declared detail
 	// is refused rather than quietly arriving half-filled.
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	type detail struct {
 		Text string `json:"text"`
@@ -352,7 +354,7 @@ func TestActionDetailMustFitItsType(t *testing.T) {
 		return nil
 	})
 
-	post(t, ts, `{"s":"`+sess.ID()+`","a":"typed","d":{"unexpected":1}}`, http.StatusInternalServerError)
+	post(t, ts, sess, `{"p":"`+sess.ID()+`","a":"typed","d":{"unexpected":1}}`, http.StatusInternalServerError)
 }
 
 func TestUnknownSessionStream(t *testing.T) {
@@ -383,7 +385,7 @@ func TestSessionExpiry(t *testing.T) {
 	})
 	defer srv.Close()
 
-	sess := srv.NewSession()
+	sess := newSession(srv)
 	if sess.expired(now, time.Second) {
 		t.Error("a fresh session should not be expired")
 	}
@@ -412,7 +414,7 @@ func TestSessionContextOutlivesTheRequest(t *testing.T) {
 	// which time the request has finished and its context is cancelled — so
 	// every SetHTML from it failed, silently, on the server.
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	if err := sess.Context().Err(); err != nil {
 		t.Fatalf("a fresh session's context is already done: %v", err)
@@ -428,7 +430,7 @@ func TestSessionContextOutlivesTheRequest(t *testing.T) {
 		rendered <- s.Element("chip").SetHTML(requestCtx, "", templText("<b>4 left</b>"))
 	})
 
-	frames, stop := stream(t, ts, sess.ID())
+	frames, stop := stream(t, ts, sess)
 	defer stop()
 
 	if err := <-rendered; err != nil {
@@ -454,7 +456,7 @@ func TestSessionIDsAreUnguessable(t *testing.T) {
 
 	seen := map[string]bool{}
 	for i := 0; i < 1000; i++ {
-		id := srv.NewSession().ID()
+		id := newSession(srv).ID()
 		if seen[id] {
 			t.Fatalf("duplicate session id %q", id)
 		}
@@ -560,9 +562,19 @@ func TestHTMLPatchRenders(t *testing.T) {
 	}
 }
 
-func post(t *testing.T, ts *httptest.Server, body string, wantStatus int) {
+// post sends an action as the browser holding sess would. A nil session means
+// no cookie, which is how a request that has not been authorised looks.
+func post(t *testing.T, ts *httptest.Server, sess *Session, body string, wantStatus int) {
 	t.Helper()
-	resp, err := ts.Client().Post(ts.URL+"/_alacris/live", "application/json", strings.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/_alacris/live", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if sess != nil {
+		req.AddCookie(sessionCookie(sess))
+	}
+	resp, err := ts.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

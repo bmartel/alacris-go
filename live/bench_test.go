@@ -28,7 +28,7 @@ func BenchmarkBroadcast(b *testing.B) {
 
 			// Attached readers, so patches go out rather than buffering.
 			for i := 0; i < sessions; i++ {
-				sess := srv.NewSession()
+				sess := newSession(srv)
 				patches, _, release, err := sess.subscribe()
 				if err != nil {
 					b.Fatal(err)
@@ -54,7 +54,7 @@ func BenchmarkBroadcast(b *testing.B) {
 func BenchmarkSessions(b *testing.B) {
 	srv := quietServer(b, Options{MaxSessions: 20000})
 	for i := 0; i < 10000; i++ {
-		srv.NewSession()
+		newSession(srv)
 	}
 
 	b.ReportAllocs()
@@ -67,7 +67,7 @@ func BenchmarkSessions(b *testing.B) {
 
 func BenchmarkSendToAttachedSession(b *testing.B) {
 	srv := quietServer(b)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 	patches, _, release, err := sess.subscribe()
 	if err != nil {
 		b.Fatal(err)

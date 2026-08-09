@@ -11,8 +11,12 @@
 // bubbling, so one listener per event type on the document reaches every
 // element, including ones that do not exist yet.
 
-const script = document.querySelector('script[data-session][data-endpoint]');
-const session = script?.dataset.session;
+// The page id says which of this browser's pages is talking. It is not a
+// secret and never has to be: the capability is an HttpOnly cookie the server
+// set, which this script cannot read and does not need to. The browser
+// attaches it, and the two together are what authorise a request.
+const script = document.querySelector('script[data-page][data-endpoint]');
+const page = script?.dataset.page;
 const endpoint = script?.dataset.endpoint;
 
 // Trusted Types blocks assigning a string to innerHTML. Only SetHTML needs it,
@@ -96,9 +100,14 @@ function setSlot(el, slot, html) {
 function send(action, id, detail) {
   return fetch(endpoint, {
     method: 'POST',
+    // application/json is not a content type a cross-site form can send, which
+    // is one of the things keeping a hostile page from forging an action.
     headers: { 'content-type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ s: session, a: action, i: id, d: detail ?? null }),
+    // include, not same-origin: a page served from a different origin than the
+    // live endpoint still has to send the cookie. The server only accepts a
+    // cross-origin request from an origin it was told to trust.
+    credentials: 'include',
+    body: JSON.stringify({ p: page, a: action, i: id, d: detail ?? null }),
   }).then((r) => {
     if (!r.ok) announce('error', { action, status: r.status });
   }, (error) => announce('error', { action, error: String(error) }));
@@ -154,7 +163,8 @@ function start() {
   });
 
   const url = new URL(endpoint, location.href);
-  url.searchParams.set('s', session);
+  url.searchParams.set('p', page);
+  // withCredentials sends the cookie, which is what actually authorises this.
   const source = new EventSource(url, { withCredentials: true });
 
   source.onopen = () => announce('open');
@@ -172,10 +182,10 @@ function start() {
   window.addEventListener('pagehide', () => source.close());
 }
 
-if (session && endpoint) {
+if (page && endpoint) {
   start();
 } else {
-  console.warn('alacris live: no session on the page; the live client did nothing');
+  console.warn('alacris live: no page id on the page; the live client did nothing');
 }
 
 // apply and send are exported so a page can drive the real client directly —

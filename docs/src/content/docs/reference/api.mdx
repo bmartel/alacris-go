@@ -69,7 +69,7 @@ import alacris "github.com/bmartel/alacris-go"
 
 | | |
 | --- | --- |
-| `Config` | Base, Dev, Modules, Imports, Live, Session, Endpoint, Nonce, Version. |
+| `Config` | Base, Dev, Modules, Imports, Live, Page, Endpoint, Nonce, Version. |
 | `Scripts(Config) templ.Component` | The import map, your modules, and the live client. Goes in `<head>`. |
 | `(Config) ImportMap() map[string]string` | The specifiers it produces, for a bundler or a test. |
 | `Pending` | The stylesheet that hides elements until they are defined. |
@@ -112,7 +112,7 @@ import "github.com/bmartel/alacris-go/live"
 | --- | --- |
 | `New(opts ...Options) *Server` | A running server. Close it. |
 | `Mount(*http.ServeMux, base string, *Server)` | Runtime, client and endpoints in one call. |
-| `(*Server) NewSession() *Session` | One per page render. |
+| `(*Server) NewSession(w, r) *Session` | One per page render. Reads or sets the cookie that authorises the browser, so it must run before anything is written. |
 | `(*Server) Session(id) (*Session, bool)`, `Sessions() []*Session` | Look them up. |
 | `(*Server) Broadcast(...Patch)` | Send to every session. |
 | `(*Server) On(action string, Handler)` | A server-wide handler. |
@@ -124,7 +124,7 @@ import "github.com/bmartel/alacris-go/live"
 
 | | |
 | --- | --- |
-| `(*Session) ID() string` | The capability to put in the page. |
+| `(*Session) ID() string` | The page id to put in the page. Not a secret — the capability is the cookie. |
 | `(*Session) Context() context.Context` | Lives as long as the session. The context to render `SetHTML` with — not the request's, which has finished by the time `OnOpen` runs. |
 | `(*Session) Element(id) Handle` | A handle for patching one element. |
 | `(*Session) Send(...Patch)` | Queue patches. Never blocks, never fails. |
@@ -154,7 +154,9 @@ import "github.com/bmartel/alacris-go/live"
 | `(*Ctx) Bind(v any) error` | Decode the event detail, strictly. |
 | `(*Ctx) Handle() Handle` | The element that emitted the event. |
 | `(*Ctx) Context() context.Context` | The request's context. |
-| `Options` | TTL, Buffer, MaxDetail, Heartbeat, AllowOrigin, Logger, Now. |
+| `Options` | TTL, Buffer, MaxDetail, MaxSessions, Heartbeat, AllowOrigin, Logger, Now, and the Cookie* fields. |
+| `Secure` | `SecureAuto`, `SecureAlways`, `SecureNever` — whether the cookie carries Secure. |
+| `DefaultCookieName` | `"alacris_live"`. |
 | `ErrClosed` | Returned when a session has ended. |
 
 <Aside type="note">

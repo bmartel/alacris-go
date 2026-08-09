@@ -88,9 +88,9 @@
   },
   {
     "id": "scripts-live",
-    "go": "return alacris.Scripts(alacris.Config{\n\tModules: []string{\"/web/components.js\"},\n\tLive:    true,\n\tSession: \"SESSION-ID\",\n})",
-    "html": "\u003cscript type=\"importmap\"\u003e{\"imports\":{\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\u003c/script\u003e\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e\u003cscript type=\"module\" src=\"/_alacris/live.js\" data-endpoint=\"/_alacris/live\" data-session=\"SESSION-ID\"\u003e\u003c/script\u003e",
-    "pretty": "\u003cscript type=\"importmap\"\u003e\n  {\"imports\":{\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\n\u003c/script\u003e\n\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e\n\u003cscript\n  type=\"module\"\n  src=\"/_alacris/live.js\"\n  data-endpoint=\"/_alacris/live\"\n  data-session=\"SESSION-ID\"\n\u003e\u003c/script\u003e",
+    "go": "return alacris.Scripts(alacris.Config{\n\tModules: []string{\"/web/components.js\"},\n\tLive:    true,\n\tPage:    \"PAGE-ID\",\n})",
+    "html": "\u003cscript type=\"importmap\"\u003e{\"imports\":{\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\u003c/script\u003e\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e\u003cscript type=\"module\" src=\"/_alacris/live.js\" data-endpoint=\"/_alacris/live\" data-page=\"PAGE-ID\"\u003e\u003c/script\u003e",
+    "pretty": "\u003cscript type=\"importmap\"\u003e\n  {\"imports\":{\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\n\u003c/script\u003e\n\u003cscript type=\"module\" src=\"/web/components.js\"\u003e\u003c/script\u003e\n\u003cscript\n  type=\"module\"\n  src=\"/_alacris/live.js\"\n  data-endpoint=\"/_alacris/live\"\n  data-page=\"PAGE-ID\"\n\u003e\u003c/script\u003e",
     "note": "The live client carries its endpoint and session on its script tag."
   },
   {

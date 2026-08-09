@@ -26,6 +26,10 @@ func Mount(mux *http.ServeMux, base string, srv *Server) {
 		base += "/"
 	}
 
+	// The cookie is scoped to where the endpoints actually live, so it is not
+	// attached to every other request the application serves.
+	srv.setCookiePath(base)
+
 	// The more specific patterns win over the prefix, so the runtime handler
 	// serves everything except the two live endpoints.
 	mux.Handle(base, alacris.RuntimeHandler())

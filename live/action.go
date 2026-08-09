@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -120,17 +120,50 @@ func (s *Session) handlerFor(action string) (Handler, bool) {
 
 // actionRequest is what the client posts.
 type actionRequest struct {
-	Session string          `json:"s"`
+	// Page is the page id from the page's own markup. It is required, and it
+	// is what makes this endpoint safe now that the capability is a cookie:
+	// see serveAction.
+	Page    string          `json:"p"`
 	Action  string          `json:"a"`
 	Element string          `json:"i"`
 	Detail  json.RawMessage `json:"d"`
 }
 
+// serveAction runs one action.
+//
+// The capability is a cookie now, which means the browser attaches it to any
+// request a page can cause — and that is exactly the property CSRF is built
+// on. What used to defend this endpoint was the session id being secret and
+// living in the body, which a hostile page could not know. That defence is
+// gone, so it is replaced by three that do not depend on it:
+//
+//  1. SameSite on the cookie. A cross-site POST is not a safe method, so under
+//     Lax the browser does not attach the cookie at all and the request
+//     arrives unauthenticated. This is the one that does the work.
+//  2. A content type of application/json. A cross-site form can only send
+//     text/plain, url-encoded or multipart without a preflight, and the
+//     preflight for JSON only succeeds for an origin AllowOrigin named. So a
+//     form cannot reach a handler even if a cookie were attached.
+//  3. The page id in the body. It is in the page's markup, which the same
+//     origin policy keeps a hostile page from reading, so it works as a
+//     double submit token — and it is checked against the cookie, so one
+//     without the other is refused.
+//
+// Any one of these is sufficient against the ordinary case. All three are
+// here because the cost is a header check and a lookup that was happening
+// anyway, and because the first depends on browser behaviour rather than on
+// anything this server controls.
 func (s *Server) serveAction(w http.ResponseWriter, r *http.Request) {
 	if !s.originAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	if !jsonContentType(r.Header.Get("Content-Type")) {
+		http.Error(w, "expected application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+	s.allowCORS(w, r)
+	addVary(w.Header(), "Cookie")
 
 	body := http.MaxBytesReader(w, r.Body, s.opts.MaxDetail)
 	defer body.Close()
@@ -146,10 +179,11 @@ func (s *Server) serveAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, ok := s.Session(req.Session)
+	sess, ok := s.sessionFor(r, req.Page)
 	if !ok {
-		// The session expired, or the id is wrong. Either way this page can no
-		// longer act, and the app should decide what to do about it.
+		// No cookie, an expired session, or a page this browser does not own.
+		// All answered the same way: telling them apart would say whether a
+		// page id exists, and nothing here needs that distinction.
 		http.Error(w, "unknown session", http.StatusNotFound)
 		return
 	}
@@ -183,10 +217,11 @@ func (s *Server) serveAction(w http.ResponseWriter, r *http.Request) {
 
 // originAllowed keeps a cross-site page from driving a session.
 //
-// The session id is already secret, so this is defence in depth rather than
-// the only thing standing in the way. A missing Origin is allowed: same-origin
-// GETs and some clients omit it, and rejecting those breaks more than it
-// protects.
+// A missing Origin is allowed. Every browser sends one on a POST, so a request
+// without it did not come from a page — and a non-browser client has no cookie
+// to send unless it was given one, at which point the origin of the request is
+// the least of the problems. Rejecting it would break server-to-server use and
+// every command-line reproduction of a bug.
 func (s *Server) originAllowed(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
@@ -195,9 +230,12 @@ func (s *Server) originAllowed(r *http.Request) bool {
 	if s.opts.AllowOrigin != nil {
 		return s.opts.AllowOrigin(origin, r)
 	}
-	u, err := url.Parse(origin)
-	if err != nil {
-		return false
-	}
-	return strings.EqualFold(u.Host, r.Host)
+	return sameOrigin(origin, r)
+}
+
+// jsonContentType reports whether the header names application/json, with or
+// without parameters.
+func jsonContentType(v string) bool {
+	media, _, err := mime.ParseMediaType(v)
+	return err == nil && media == "application/json"
 }

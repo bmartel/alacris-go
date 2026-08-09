@@ -22,7 +22,7 @@ func TestASlowSubscriberIsResyncedRatherThanSilentlyDropped(t *testing.T) {
 	srv := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	defer srv.Close()
 
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	// Subscribe, then never read: the channel fills and stays full.
 	patches, _, release, err := sess.subscribe()
@@ -83,7 +83,7 @@ func TestSessionsAreBounded(t *testing.T) {
 
 	var ids []string
 	for i := 0; i < max*10; i++ {
-		ids = append(ids, srv.NewSession().ID())
+		ids = append(ids, newSession(srv).ID())
 	}
 
 	if got := len(srv.Sessions()); got > max {
@@ -108,14 +108,14 @@ func TestEvictionPrefersDisconnectedSessions(t *testing.T) {
 
 	srv, ts := newTestServer(t, Options{MaxSessions: max})
 
-	attached := srv.NewSession()
-	frames, stop := stream(t, ts, attached.ID())
+	attached := newSession(srv)
+	frames, stop := stream(t, ts, attached)
 	defer stop()
 	waitConnected(t, attached)
 	_ = frames
 
 	for i := 0; i < max*4; i++ {
-		srv.NewSession()
+		newSession(srv)
 	}
 
 	if _, ok := srv.Session(attached.ID()); !ok {
@@ -130,7 +130,7 @@ func TestNewSessionAfterCloseIsInert(t *testing.T) {
 	srv := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	srv.Close()
 
-	sess := srv.NewSession()
+	sess := newSession(srv)
 	if !sess.Closed() {
 		t.Error("a session created after Close should already be closed")
 	}
@@ -152,8 +152,8 @@ func TestClosingAServerLeavesNoGoroutines(t *testing.T) {
 
 	for i := 0; i < 50; i++ {
 		srv := New(quiet)
-		srv.NewSession()
-		srv.NewSession()
+		newSession(srv)
+		newSession(srv)
 		srv.Close()
 	}
 
@@ -182,14 +182,14 @@ func goroutinesAfterSettling() int {
 // silently break every real request.
 func TestOriginRules(t *testing.T) {
 	srv, ts := newTestServer(t)
-	sess := srv.NewSession()
+	sess := newSession(srv)
 
 	ran := make(chan string, 8)
 	srv.On("act", func(c *Ctx) error {
 		ran <- c.Action
 		return nil
 	})
-	body := `{"s":"` + sess.ID() + `","a":"act","i":"","d":null}`
+	body := `{"p":"` + sess.ID() + `","a":"act","i":"","d":null}`
 
 	send := func(t *testing.T, origin string, want int) {
 		t.Helper()
@@ -197,6 +197,7 @@ func TestOriginRules(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		req.AddCookie(sessionCookie(sess))
 		req.Header.Set("Content-Type", "application/json")
 		if origin != "" {
 			req.Header.Set("Origin", origin)
@@ -236,11 +237,13 @@ func TestOriginRules(t *testing.T) {
 				return origin == "https://trusted.example"
 			},
 		})
-		csess := custom.NewSession()
+		csess := newSession(custom)
 		custom.On("act", func(c *Ctx) error { return nil })
 
 		req, _ := http.NewRequest(http.MethodPost, cts.URL+"/_alacris/live",
-			strings.NewReader(`{"s":"`+csess.ID()+`","a":"act","d":null}`))
+			strings.NewReader(`{"p":"`+csess.ID()+`","a":"act","d":null}`))
+		req.AddCookie(sessionCookie(csess))
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Origin", "https://trusted.example")
 		resp, err := cts.Client().Do(req)
 		if err != nil {

@@ -235,12 +235,12 @@ func TestScripts(t *testing.T) {
 		}
 	})
 
-	t.Run("live client carries its endpoint and session", func(t *testing.T) {
-		got := render(t, Scripts(Config{Live: true, Session: "s-1"}))
+	t.Run("live client carries its endpoint and page id", func(t *testing.T) {
+		got := render(t, Scripts(Config{Live: true, Page: "page-1"}))
 		for _, want := range []string{
 			`src="/_alacris/live.js"`,
 			`data-endpoint="/_alacris/live"`,
-			`data-session="s-1"`,
+			`data-page="page-1"`,
 		} {
 			if !strings.Contains(got, want) {
 				t.Errorf("missing %s in:\n%s", want, got)

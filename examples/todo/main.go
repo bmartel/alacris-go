@@ -148,7 +148,9 @@ func (a *app) routes() {
 
 // index renders the page and hands it a session.
 func (a *app) index(w http.ResponseWriter, r *http.Request) {
-	sess := a.live.NewSession()
+	// NewSession sets the cookie that authorises this browser, so it has to
+	// run before anything is written to w.
+	sess := a.live.NewSession(w, r)
 	sess.Set(filterKey{}, "all")
 
 	// A reconnecting browser has missed everything sent while it was away, and
@@ -164,7 +166,7 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 			Dev:     a.dev,
 			Modules: []string{"/web/components.js"},
 			Live:    true,
-			Session: sess.ID(),
+			Page:    sess.ID(),
 		},
 		Items:     a.list.Items(),
 		Filter:    "all",
@@ -172,8 +174,8 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// The session id is a capability: it must not be cached by anything
-	// between here and the browser it was made for.
+	// This response carries a Set-Cookie and a page id bound to it, so it is
+	// for one browser and must not be held by anything in between.
 	w.Header().Set("Cache-Control", "no-store, private")
 
 	if err := page(v).Render(r.Context(), w); err != nil {

@@ -48,6 +48,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	alacris "github.com/bmartel/alacris-go"
 )
 
 // Defaults for Options.
@@ -89,6 +91,30 @@ type Options struct {
 	// proxies from closing it. Defaults to DefaultHeartbeat.
 	Heartbeat time.Duration
 
+	// CookieName is the cookie the client token is stored in.
+	// Defaults to DefaultCookieName.
+	CookieName string
+
+	// CookiePath scopes the cookie so it is not sent with every request to the
+	// rest of the application. It has to cover the live endpoint. Defaults to
+	// alacris.DefaultBase; Mount sets it to match the base it is given.
+	CookiePath string
+
+	// CookieDomain is left empty for a host-only cookie, which is what you
+	// want unless the page and the live endpoint are on different subdomains.
+	CookieDomain string
+
+	// CookieSecure decides whether the cookie carries Secure. Defaults to
+	// SecureAuto, which sets it for requests that arrived over TLS.
+	CookieSecure Secure
+
+	// CookieSameSite defaults to http.SameSiteLaxMode, which is what stops a
+	// cross-site page from making the browser attach the cookie to a request
+	// it forged. Only weaken it to None when the page and the live endpoint
+	// are genuinely on different origins, and then only with Secure and an
+	// AllowOrigin that names the origins you trust.
+	CookieSameSite http.SameSite
+
 	// AllowOrigin reports whether an action may be accepted from this Origin.
 	// When nil, only same-origin requests and requests with no Origin header
 	// are accepted.
@@ -116,6 +142,19 @@ func (o *Options) fill() {
 	}
 	if o.Heartbeat <= 0 {
 		o.Heartbeat = DefaultHeartbeat
+	}
+	if o.CookieName == "" {
+		o.CookieName = DefaultCookieName
+	}
+	if o.CookiePath == "" {
+		o.CookiePath = alacris.DefaultBase
+	}
+	// Not http.SameSiteDefaultMode: that constant is 1, not the zero value, and
+	// it means "send no SameSite attribute at all" — which leaves the decision
+	// to whatever the browser defaults to today. The attribute is doing real
+	// work here, so it is always written.
+	if o.CookieSameSite == 0 {
+		o.CookieSameSite = http.SameSiteLaxMode
 	}
 	if o.Logger == nil {
 		o.Logger = slog.Default()
@@ -165,15 +204,22 @@ func New(opts ...Options) *Server {
 
 func (s *Server) now() time.Time { return s.opts.Now() }
 
-// NewSession creates a session for one page render.
+// NewSession creates a session for one page render, and gives the browser the
+// cookie that will authorise it.
+//
+// It needs the exchange because the session is bound to a client token, and
+// that token is a cookie: read from the request when the browser already has
+// one, minted and set on the response when it does not. Call it before
+// anything is written to w — a cookie cannot be set once the headers are out.
 //
 // The session's context is derived from context.Background rather than from
-// the request that created it: it has to outlive that request, because OnOpen
-// and every action handler run long after it has finished.
-func (s *Server) NewSession() *Session {
+// the request: it has to outlive it, because OnOpen and every action handler
+// run long after the render has finished.
+func (s *Server) NewSession(w http.ResponseWriter, r *http.Request) *Session {
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &Session{
-		id:       newSessionID(),
+		id:       newToken(),
+		client:   s.issueToken(w, r),
 		srv:      s,
 		ctx:      ctx,
 		cancel:   cancel,
@@ -250,12 +296,42 @@ func (s *Server) evict(candidates []*Session, n int) {
 	}
 }
 
-// Session looks up a session by id.
+// setCookiePath scopes the cookie to where the endpoints are mounted. Mount
+// calls it; it is only meaningful before anything is served.
+func (s *Server) setCookiePath(base string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.opts.CookiePath = base
+}
+
+// Session looks up a session by its page id.
+//
+// This is the unauthorised lookup, for server-side code that already knows
+// which page it means. Anything acting on a request has to go through
+// sessionFor, which also checks that the request's cookie owns the page.
 func (s *Server) Session(id string) (*Session, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	sess, ok := s.sessions[id]
 	return sess, ok
+}
+
+// sessionFor resolves the page a request is talking about, and reports whether
+// the request is allowed to.
+//
+// Both halves are required: the cookie proves which browser, the page id says
+// which of its pages. A page id on its own — out of an access log, say — names
+// a session it cannot reach.
+func (s *Server) sessionFor(r *http.Request, pageID string) (*Session, bool) {
+	token, ok := s.clientToken(r)
+	if !ok || pageID == "" {
+		return nil, false
+	}
+	sess, ok := s.Session(pageID)
+	if !ok || !sameToken(sess.client, token) {
+		return nil, false
+	}
+	return sess, true
 }
 
 // Sessions returns every live session, for broadcasting.
@@ -326,12 +402,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch name := lastSegment(r.URL.Path); {
 	case name == "live.js":
 		serveClient(w, r)
+	case name == "live" && r.Method == http.MethodOptions:
+		s.servePreflight(w, r)
 	case name == "live" && r.Method == http.MethodGet:
 		s.serveStream(w, r)
 	case name == "live" && r.Method == http.MethodPost:
 		s.serveAction(w, r)
 	case name == "live":
-		w.Header().Set("Allow", "GET, POST")
+		w.Header().Set("Allow", "GET, POST, OPTIONS")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	default:
 		http.NotFound(w, r)
@@ -346,11 +424,21 @@ func lastSegment(p string) string {
 }
 
 func (s *Server) serveStream(w http.ResponseWriter, r *http.Request) {
-	sess, ok := s.Session(r.URL.Query().Get("s"))
+	// The cookie is not sent cross-site under SameSite, so this normally fails
+	// closed for a hostile page before the origin check is reached. The check
+	// is still here because SameSite is a browser behaviour and this is an
+	// authorisation decision.
+	if !s.originAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	s.allowCORS(w, r)
+
+	sess, ok := s.sessionFor(r, r.URL.Query().Get("p"))
 	if !ok {
-		// An expired or unknown session is not an error the page can recover
-		// from by retrying, but EventSource will retry regardless; 404 keeps
-		// the log honest about which it was.
+		// Unknown page, expired session, or a page this browser does not own.
+		// They are answered the same way on purpose: distinguishing them would
+		// turn this endpoint into an oracle for which page ids exist.
 		http.Error(w, "unknown session", http.StatusNotFound)
 		return
 	}
@@ -369,6 +457,7 @@ func (s *Server) serveStream(w http.ResponseWriter, r *http.Request) {
 	defer release()
 
 	h := w.Header()
+	addVary(h, "Cookie")
 	h.Set("Content-Type", "text/event-stream")
 	h.Set("Cache-Control", "no-cache, no-transform")
 	h.Set("Connection", "keep-alive")
