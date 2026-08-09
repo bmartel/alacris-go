@@ -266,3 +266,11 @@ func TestScripts(t *testing.T) {
 		}
 	})
 }
+
+// renderString renders an element and returns its output, for tests that care
+// whether it was refused rather than what it produced.
+func renderString(c templ.Component) (string, error) {
+	var b bytes.Buffer
+	err := c.Render(templ.InitializeContext(context.Background()), &b)
+	return b.String(), err
+}

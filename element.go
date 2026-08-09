@@ -81,7 +81,22 @@ func (e *Element) Prop(name string, v any) *Element {
 	if !ok {
 		return e
 	}
-	return e.set(&e.props, AttrName(name), s)
+	return e.setProp(name, s)
+}
+
+// setProp converts a prop name to its attribute and checks it before it goes
+// anywhere near the start tag.
+//
+// The name is not escapable — it is written verbatim, because escaping it
+// would change which attribute it is. Generated wrappers pass literals, but
+// Props takes a map, and a map is the sort of thing that ends up holding data.
+func (e *Element) setProp(name, value string) *Element {
+	attr := AttrName(name)
+	if err := ValidAttrName(attr); err != nil {
+		e.fail(fmt.Errorf("prop %q on <%s>: %w", name, e.tag, err))
+		return e
+	}
+	return e.set(&e.props, attr, value)
 }
 
 // PropRaw sets a prop to an already-encoded attribute value, skipping the
@@ -89,7 +104,7 @@ func (e *Element) Prop(name string, v any) *Element {
 // type — a prop whose default is an object needs valid JSON here, and alacris
 // silently falls back to the default when JSON.parse throws.
 func (e *Element) PropRaw(name, value string) *Element {
-	return e.set(&e.props, AttrName(name), value)
+	return e.setProp(name, value)
 }
 
 // Props sets several props at once. Keys are sorted so output is stable.
@@ -251,8 +266,8 @@ func (e *Element) Slot(name string, c templ.Component) *Element {
 
 // SlotAs is Slot with a caller-chosen wrapper tag.
 func (e *Element) SlotAs(tag, name string, c templ.Component) *Element {
-	if err := ValidAttrName(tag); err != nil {
-		e.fail(fmt.Errorf("slot wrapper tag on <%s>: %w", e.tag, err))
+	if err := ValidElementName(tag); err != nil {
+		e.fail(fmt.Errorf("slot wrapper on <%s>: %w", e.tag, err))
 		return e
 	}
 	open := "<" + tag + ` slot="` + templ.EscapeString(name) + `">`

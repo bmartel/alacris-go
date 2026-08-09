@@ -50,19 +50,68 @@ func ValidTagName(name string) error {
 	return nil
 }
 
-// ValidAttrName rejects names that cannot be written into an HTML start tag
-// without changing its structure.
+// ValidAttrName reports whether name can be written into an HTML start tag.
+//
+// An attribute name is structure, not content: it goes into the tag verbatim,
+// because there is no escaping that would leave it meaning the same thing. So
+// this is an allowlist rather than a list of characters to avoid — a name that
+// is not recognisably a name is refused, and the caller finds out at render
+// rather than the browser finding out at parse.
+//
+// A leading '-' is permitted: AttrName produces one for a prop whose name
+// begins with a capital, matching define.js, and the element really is
+// listening for that attribute.
 func ValidAttrName(name string) error {
 	if name == "" {
 		return fmt.Errorf("alacris: empty attribute name")
 	}
-	for _, r := range name {
+	for i, r := range name {
 		switch {
-		case r <= 0x20, r == 0x7f:
-			return fmt.Errorf("alacris: attribute name %q contains a control character or space", name)
-		case r == '"', r == '\'', r == '>', r == '/', r == '=':
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r == '_', r == ':':
+		case r == '-':
+			// Allowed anywhere, including first — see above.
+		case i > 0 && (r >= '0' && r <= '9' || r == '.'):
+		default:
+			if i == 0 {
+				return fmt.Errorf("alacris: attribute name %q must start with a letter, '_', ':' or '-'", name)
+			}
 			return fmt.Errorf("alacris: attribute name %q contains an invalid character %q", name, r)
 		}
+	}
+	return nil
+}
+
+// rawTextElements do not escape their content the way every other element
+// does, so markup written inside one is not text — it is script, or style, or
+// something the parser treats specially.
+var rawTextElements = map[string]struct{}{
+	"script": {}, "style": {}, "textarea": {}, "title": {},
+	"iframe": {}, "noscript": {}, "noembed": {}, "noframes": {}, "xmp": {},
+	"plaintext": {},
+}
+
+// ValidElementName reports whether name can be written as a tag.
+//
+// Used for the wrapper a slot's content is placed in. Raw-text elements are
+// refused outright: a slot wrapper has no business being one, and content that
+// is escaped everywhere else would not be escaped inside it.
+func ValidElementName(name string) error {
+	if name == "" {
+		return fmt.Errorf("alacris: empty element name")
+	}
+	if c := name[0]; !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') {
+		return fmt.Errorf("alacris: element name %q must start with a letter", name)
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case r == '-', r == '_', r == '.':
+		default:
+			return fmt.Errorf("alacris: element name %q contains an invalid character %q", name, r)
+		}
+	}
+	if _, raw := rawTextElements[strings.ToLower(name)]; raw {
+		return fmt.Errorf("alacris: <%s> does not escape its content, so it cannot wrap slot content", name)
 	}
 	return nil
 }

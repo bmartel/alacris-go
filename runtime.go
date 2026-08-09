@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-	"sync"
 
 	"github.com/a-h/templ"
 )
@@ -59,33 +58,42 @@ func Assets() fs.FS {
 //
 //	mux.Handle("/_alacris/", alacris.RuntimeHandler())
 func RuntimeHandler() http.Handler {
-	return &runtimeHandler{fs: Assets()}
+	assets := map[string]*asset{}
+
+	// Read and hash everything once, here. The set of files is fixed at
+	// compile time, so caching on demand bought nothing and cost something:
+	// a miss was remembered too, which let a few thousand requests for
+	// made-up names grow a map that nothing ever emptied. A map built once
+	// and only read afterwards also needs no lock on the serving path.
+	entries, err := fs.ReadDir(Assets(), ".")
+	if err != nil {
+		panic(err) // the embedded tree is fixed at compile time
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".js") {
+			continue
+		}
+		body, err := fs.ReadFile(Assets(), name)
+		if err != nil {
+			panic(err)
+		}
+		sum := sha256.Sum256(body)
+		assets[name] = &asset{body: body, etag: `"` + hex.EncodeToString(sum[:16]) + `"`}
+	}
+
+	return &runtimeHandler{assets: assets}
 }
 
 type runtimeHandler struct {
-	fs    fs.FS
-	cache sync.Map // name -> *asset, nil for "not found"
+	// assets is written once by RuntimeHandler and only read afterwards, so
+	// it needs no synchronisation.
+	assets map[string]*asset
 }
 
 type asset struct {
 	body []byte
 	etag string
-}
-
-func (h *runtimeHandler) load(name string) (*asset, bool) {
-	if v, ok := h.cache.Load(name); ok {
-		a, _ := v.(*asset)
-		return a, a != nil
-	}
-	body, err := fs.ReadFile(h.fs, name)
-	if err != nil {
-		h.cache.Store(name, (*asset)(nil))
-		return nil, false
-	}
-	sum := sha256.Sum256(body)
-	a := &asset{body: body, etag: `"` + hex.EncodeToString(sum[:16]) + `"`}
-	h.cache.Store(name, a)
-	return a, true
 }
 
 func (h *runtimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -94,12 +102,7 @@ func (h *runtimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	name := path.Base(path.Clean("/" + r.URL.Path))
-	if !strings.HasSuffix(name, ".js") {
-		http.NotFound(w, r)
-		return
-	}
-	a, ok := h.load(name)
+	a, ok := h.assets[path.Base(path.Clean("/"+r.URL.Path))]
 	if !ok {
 		http.NotFound(w, r)
 		return
