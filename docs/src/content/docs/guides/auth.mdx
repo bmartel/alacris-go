@@ -1,0 +1,152 @@
+---
+title: Authentication and live sessions
+description: Binding a live session to a logged-in user, guarding actions, and cutting sessions off at logout.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The live layer authenticates a *browser page*: the cookie proves which browser,
+the page id says which page. It deliberately knows nothing about your users —
+`NewSession` takes no identity, and the live cookie is not your login cookie
+and does not expire with it. Connecting the two is application code, and it is
+three small patterns.
+
+<Aside type="danger" title="Registering an action makes it callable">
+  Any browser holding a valid live session can invoke **any registered
+  action**, with any element id and any detail — the `data-ala-on` wiring on
+  the page is a convenience, not an authorization. Whether the page rendered a
+  delete button has no bearing on whether `delete-account` can be posted.
+
+  So authorization lives in the handler, every time. Nothing about having
+  rendered a page once entitles it to keep acting as that user.
+</Aside>
+
+## Bind the user at render
+
+The page render is the one moment when your ordinary auth middleware and the
+live session are in the same place. Put the identity on the session there,
+under an unexported key type so nothing else can collide with it:
+
+```go
+type currentUserKey struct{}
+
+func (a *app) page(w http.ResponseWriter, r *http.Request) {
+    user, ok := a.auth.UserFrom(r)   // your middleware, your session store
+    if !ok {
+        http.Redirect(w, r, "/login", http.StatusSeeOther)
+        return
+    }
+
+    sess := a.live.NewSession(w, r)  // before anything is written to w
+    sess.Set(currentUserKey{}, user.ID)
+
+    // ... render the page with Config{Live: true, Page: sess.ID()}
+}
+```
+
+## Guard actions
+
+A handler re-derives the user from the session and — for anything that matters
+— re-checks that the login is still good. The live cookie outlives your auth
+cookie, so "this session belonged to Ada at render time" is not "Ada is still
+logged in now":
+
+```go
+var errUnauthenticated = errors.New("no signed-in user for this session")
+
+func (a *app) user(c *live.Ctx) (UserID, error) {
+    v, ok := c.Session.Get(currentUserKey{})
+    if !ok {
+        return "", errUnauthenticated
+    }
+    uid := v.(UserID)
+
+    // Ctx.Request is the action's own POST: your auth cookie rides on it,
+    // so the ordinary check works here too. This is what makes logout stick.
+    if !a.auth.StillValid(c.Request, uid) {
+        return "", errUnauthenticated
+    }
+    return uid, nil
+}
+
+live.On(srv, "delete-item", func(c *live.Ctx, d ui.ItemListRemoveDetail) error {
+    uid, err := a.user(c)
+    if err != nil {
+        return err   // logged server-side, a bare 500 to the page
+    }
+    return a.items.Delete(uid, d.ID)   // scoped to the user, not to the detail
+})
+```
+
+<Aside type="tip" title="Scope by user, not by what the page claims">
+  `c.Element` and the detail are client input. `a.items.Delete(uid, d.ID)`
+  is right; `a.items.Delete(d.OwnerID, d.ID)` trusts the browser to say whose
+  item it is deleting.
+</Aside>
+
+The `StillValid` check costs one session-store read per action. If an action is
+hot enough for that to matter, it is almost certainly not one that needs
+per-action revocation — read-only filters and cursors can skip it and rely on
+the render-time binding alone.
+
+## Cut sessions off at logout
+
+Re-checking on each action already means a logged-out user's next click fails.
+What it does not do is stop the *stream*: patches pushed by background work
+would keep flowing to a screen someone walked away from. If that matters —
+shared machines, sensitive dashboards — keep an index of the user's live
+sessions and end them at logout:
+
+```go
+type presence struct {
+    mu       sync.Mutex
+    byUser   map[UserID]map[*live.Session]struct{}
+}
+
+func (p *presence) add(uid UserID, s *live.Session) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+    if p.byUser[uid] == nil {
+        p.byUser[uid] = map[*live.Session]struct{}{}
+    }
+    p.byUser[uid][s] = struct{}{}
+}
+
+// At render, alongside the identity binding:
+sess.Set(currentUserKey{}, user.ID)
+p.add(user.ID, sess)
+
+// At logout:
+func (p *presence) logout(uid UserID) {
+    p.mu.Lock()
+    sessions := p.byUser[uid]
+    delete(p.byUser, uid)
+    p.mu.Unlock()
+
+    for s := range sessions {
+        s.Send(live.Reload())   // the reload lands on /login via your middleware
+        s.Close()
+    }
+}
+```
+
+The `Reload` before `Close` is what turns "the stream went quiet" into "the
+page navigated to the login screen": the reloaded request has no valid auth
+cookie, so your ordinary middleware redirects it. Closed sessions remove
+themselves from the server; entries in the index are reaped with the map
+delete at logout, and a session that expires on its own is just a dead pointer
+that `logout` closes harmlessly.
+
+## What not to build
+
+- **Do not put the user id in the page or the detail.** The session already
+  knows; anything the page sends can be edited in a console.
+- **Do not treat the live cookie as a login.** It authenticates a browser to
+  its own sessions and nothing else; two different users on one browser share
+  it by design, which is precisely why identity is bound per-session at
+  render.
+- **Do not gate at `NewSession` alone.** That checks login at render time;
+  actions arrive minutes or hours later. The render-time check decides what to
+  *render*; the per-action check decides what may *happen*.

@@ -68,6 +68,8 @@ export default defineConfig({
             { label: 'Live: props from the server', slug: 'guides/live-props', badge: 'Live' },
             { label: 'Live: actions from the page', slug: 'guides/live-actions', badge: 'Live' },
             { label: 'Sessions and reconnects', slug: 'guides/sessions' },
+            { label: 'Authentication', slug: 'guides/auth', badge: 'Live' },
+            { label: 'Testing live handlers', slug: 'guides/testing', badge: 'Live' },
             { label: 'Deploying', slug: 'guides/deploying' },
           ],
         },
