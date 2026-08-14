@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/a-h/templ"
+	alacris "github.com/bmartel/alacris-go"
 )
 
 // Op is the kind of change a Patch describes.
@@ -53,6 +55,53 @@ type Patch struct {
 	Key string `json:"k"`
 
 	Value any `json:"v,omitempty"`
+}
+
+// unsafePatch reports why a patch must not reach the browser, or "" when it is
+// fine.
+//
+// The client applies OpProp as el[key] = value and OpAttr as setAttribute, and
+// each has a small set of keys that turn a state write into script execution:
+// innerHTML as a "prop", an onclick attribute. The server is trusted, but the
+// key often comes from further away than the call site — a map built from user
+// input is the classic route — so the escalation is closed on both sides of
+// the wire: here, and again in the client.
+func unsafePatch(p Patch) string {
+	switch p.Op {
+	case OpProp:
+		switch p.Key {
+		case "innerHTML", "outerHTML":
+			return "it rewrites the element's markup rather than a component prop; use SetHTML for server-owned markup"
+		case "__proto__", "constructor", "prototype":
+			return "it rewrites the element's prototype chain rather than a component prop"
+		}
+	case OpAttr:
+		if err := alacris.ValidAttrName(p.Key); err != nil {
+			return "the attribute name is not valid: " + err.Error()
+		}
+		if isEventHandlerName(p.Key) {
+			return "an event handler attribute is script, not state"
+		}
+		if strings.EqualFold(p.Key, "srcdoc") {
+			return "srcdoc is a document, not state"
+		}
+	}
+	return ""
+}
+
+// isEventHandlerName mirrors the check the root package applies to rendered
+// attributes: "on" followed by nothing but letters.
+func isEventHandlerName(name string) bool {
+	if len(name) < 3 || (name[0] != 'o' && name[0] != 'O') || (name[1] != 'n' && name[1] != 'N') {
+		return false
+	}
+	for i := 2; i < len(name); i++ {
+		c := name[i]
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') {
+			return false
+		}
+	}
+	return true
 }
 
 // Prop writes a component prop.

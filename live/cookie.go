@@ -101,7 +101,7 @@ func (s *Server) issueToken(w http.ResponseWriter, r *http.Request) string {
 	http.SetCookie(w, &http.Cookie{
 		Name:     s.opts.CookieName,
 		Value:    token,
-		Path:     s.opts.CookiePath,
+		Path:     s.cookiePath(),
 		Domain:   s.opts.CookieDomain,
 		HttpOnly: true,
 		Secure:   s.secureCookie(r),

@@ -1,12 +1,14 @@
 package alacris
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/a-h/templ"
 )
@@ -96,6 +98,10 @@ func (e *Element) setProp(name, value string) *Element {
 		e.fail(fmt.Errorf("prop %q on <%s>: %w", name, e.tag, err))
 		return e
 	}
+	if isEventHandlerName(attr) {
+		e.fail(fmt.Errorf("prop %q on <%s>: %q is an event handler attribute, whose value the browser executes; a prop cannot use it", name, e.tag, attr))
+		return e
+	}
 	return e.set(&e.props, attr, value)
 }
 
@@ -143,6 +149,13 @@ func (e *Element) Attr(name string, v any) *Element {
 	}
 	if err := ValidAttrName(name); err != nil {
 		e.fail(fmt.Errorf("on <%s>: %w", e.tag, err))
+		return e
+	}
+	if isEventHandlerName(name) {
+		// An escaped value is no defence here: the browser executes a handler
+		// attribute's value as script, well-escaped or not. Attrs spreads maps,
+		// and a map is the sort of thing that ends up holding data.
+		e.fail(fmt.Errorf("attribute %q on <%s>: event handler attributes are script, not state; use On to wire events", name, e.tag))
 		return e
 	}
 	s, bare, ok, err := EncodeAttr(v)
@@ -328,6 +341,31 @@ func (e *Element) setBare(dst *[]kv, key string) *Element {
 	return e
 }
 
+// attrEscaper writes the same five replacements as templ.EscapeString
+// (html.EscapeString), but straight into a buffer, so a large JSON prop is not
+// copied a second time on its way to the start tag.
+var attrEscaper = strings.NewReplacer(
+	`&`, "&amp;",
+	`'`, "&#39;",
+	`<`, "&lt;",
+	`>`, "&gt;",
+	`"`, "&#34;",
+)
+
+// bufPool holds the buffers Render stages start tags in. A buffer that grew
+// past the cap is let go rather than pooled, so one oversized render does not
+// pin its memory for the life of the process.
+var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
+func getBuf() *bytes.Buffer { return bufPool.Get().(*bytes.Buffer) }
+
+func putBuf(b *bytes.Buffer) {
+	if b.Cap() <= 64<<10 {
+		b.Reset()
+		bufPool.Put(b)
+	}
+}
+
 // Render writes the element. Props come first, then class and style, then any
 // remaining attributes, so output is stable and diffable.
 func (e *Element) Render(ctx context.Context, w io.Writer) error {
@@ -335,15 +373,21 @@ func (e *Element) Render(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	var b strings.Builder
+	b := getBuf()
+	defer putBuf(b)
 	b.WriteByte('<')
 	b.WriteString(e.tag)
 	for _, p := range e.props {
-		writeAttr(&b, p)
+		writeAttr(b, p)
 	}
 	if len(e.classes) > 0 {
 		b.WriteString(` class="`)
-		b.WriteString(templ.EscapeString(strings.Join(e.classes, " ")))
+		for i, c := range e.classes {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			attrEscaper.WriteString(b, c)
+		}
 		b.WriteByte('"')
 	}
 	if len(e.styles) > 0 {
@@ -352,23 +396,28 @@ func (e *Element) Render(ctx context.Context, w io.Writer) error {
 			if i > 0 {
 				b.WriteByte(';')
 			}
-			b.WriteString(templ.EscapeString(s.key))
+			attrEscaper.WriteString(b, s.key)
 			b.WriteByte(':')
-			b.WriteString(templ.EscapeString(s.value))
+			attrEscaper.WriteString(b, s.value)
 		}
 		b.WriteByte('"')
 	}
 	for _, a := range e.attrs {
-		writeAttr(&b, a)
+		writeAttr(b, a)
 	}
 	if len(e.events) > 0 {
 		b.WriteString(` data-ala-on="`)
-		b.WriteString(templ.EscapeString(strings.Join(e.events, " ")))
+		for i, ev := range e.events {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			attrEscaper.WriteString(b, ev)
+		}
 		b.WriteByte('"')
 	}
 	b.WriteByte('>')
 
-	if _, err := io.WriteString(w, b.String()); err != nil {
+	if _, err := w.Write(b.Bytes()); err != nil {
 		return err
 	}
 
@@ -389,17 +438,21 @@ func (e *Element) Render(ctx context.Context, w io.Writer) error {
 	}
 
 	// Custom elements are never void; the closing tag is required.
-	_, err := io.WriteString(w, "</"+e.tag+">")
+	b.Reset()
+	b.WriteString("</")
+	b.WriteString(e.tag)
+	b.WriteByte('>')
+	_, err := w.Write(b.Bytes())
 	return err
 }
 
-func writeAttr(b *strings.Builder, a kv) {
+func writeAttr(b *bytes.Buffer, a kv) {
 	b.WriteByte(' ')
 	b.WriteString(a.key)
 	if a.bare {
 		return
 	}
 	b.WriteString(`="`)
-	b.WriteString(templ.EscapeString(a.value))
+	attrEscaper.WriteString(b, a.value)
 	b.WriteByte('"')
 }

@@ -19,6 +19,10 @@ const script = document.querySelector('script[data-page][data-endpoint]');
 const page = script?.dataset.page;
 const endpoint = script?.dataset.endpoint;
 
+// Recovery is on unless the page opts out with data-recover="off"
+// (alacris.Config.NoRecover). See recover() for what it does and why.
+const recoverEnabled = script?.dataset.recover !== 'off';
+
 // Trusted Types blocks assigning a string to innerHTML. Only SetHTML needs it,
 // and the markup is the server's own, so a pass-through policy is honest about
 // what is happening rather than pretending to sanitize.
@@ -32,8 +36,20 @@ if (window.trustedTypes?.createPolicy) {
 }
 const asHTML = (s) => (policy ? policy.createHTML(s) : s);
 
+// The connection lifecycle, announced as 'alacris:live' window events so a
+// page can show its own indicator: state is 'open', 'closed' (stream down;
+// the browser retries transient drops itself), 'recovering' (probing after a
+// permanent failure), 'reloading' (session gone; a fresh render is coming),
+// or 'error' (an action failed; carries action and status or error).
 const announce = (state, detail) =>
   window.dispatchEvent(new CustomEvent('alacris:live', { detail: { state, ...detail } }));
+
+// The keys that would turn a state write into script execution. The server
+// refuses to send them; refusing to apply them keeps that true even for a
+// frame that reached apply() some other way — the docs site drives apply()
+// directly, and a consumer copying that pattern should not inherit a sink.
+const blockedProps = new Set(['innerHTML', 'outerHTML', '__proto__', 'constructor', 'prototype']);
+const blockedAttr = (k) => /^on[a-z]+$/i.test(k) || String(k).toLowerCase() === 'srcdoc';
 
 /** Apply one patch. */
 function apply(p) {
@@ -46,10 +62,18 @@ function apply(p) {
       // define() puts an accessor for it on the element's prototype, and
       // writing it sets the signal directly. Values assigned before the
       // element upgrades are replayed by define()'s constructor.
+      if (blockedProps.has(p.k)) {
+        console.warn('alacris live: refusing to set "%s"; it is not a component prop', p.k);
+        break;
+      }
       el[p.k] = p.v;
       break;
 
     case 'a':
+      if (blockedAttr(p.k)) {
+        console.warn('alacris live: refusing to set attribute "%s"; it executes rather than describes', p.k);
+        break;
+      }
       if (p.v === null || p.v === undefined) el.removeAttribute(p.k);
       else el.setAttribute(p.k, String(p.v));
       break;
@@ -108,9 +132,146 @@ function send(action, id, detail) {
     // cross-origin request from an origin it was told to trust.
     credentials: 'include',
     body: JSON.stringify({ p: page, a: action, i: id, d: detail ?? null }),
-  }).then((r) => {
-    if (!r.ok) announce('error', { action, status: r.status });
-  }, (error) => announce('error', { action, error: String(error) }));
+  }).then(
+    async (r) => {
+      if (r.ok) return;
+      announce('error', { action, status: r.status });
+      // "unknown session" means this page's session no longer exists — the
+      // server restarted or the session expired. The stream will hit the same
+      // wall; start recovering now rather than waiting for it. A 404 for an
+      // unknown *action* has a different body and is a developer error, not a
+      // dead session.
+      if (r.status === 404 && (await r.text()).startsWith('unknown session')) recover();
+    },
+    (error) => announce('error', { action, error: String(error) }),
+  );
+}
+
+let source = null;
+let recovering = false;
+
+/** The stream URL for this page. */
+function streamURL() {
+  const url = new URL(endpoint, location.href);
+  url.searchParams.set('p', page);
+  return url;
+}
+
+/** Open the patch stream. EventSource retries transient drops on its own. */
+function connect() {
+  source = new EventSource(streamURL(), { withCredentials: true });
+  source.onopen = () => announce('open');
+  source.onerror = () => {
+    // CONNECTING means the browser is already retrying — a dropped
+    // connection, a heartbeat gap — and needs no help. CLOSED means the
+    // server answered and refused: the spec makes that failure permanent, so
+    // if anyone is going to get this page updating again, it is us.
+    if (source.readyState === EventSource.CLOSED) {
+      if (recoverEnabled) recover();
+      else announce('closed');
+    } else {
+      announce('closed');
+    }
+  };
+  source.onmessage = (e) => {
+    let patches;
+    try {
+      patches = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(patches)) return;
+    for (const p of patches) {
+      // One malformed patch must not take the rest of the frame with it.
+      try {
+        apply(p);
+      } catch (err) {
+        console.warn('alacris live: a patch failed to apply', p, err);
+      }
+    }
+  };
+}
+
+/**
+ * Get the page updating again after a permanent stream failure.
+ *
+ * Sessions live in the server's memory, so a restart or an expiry leaves this
+ * page holding an id the server has never heard of — and an EventSource that
+ * got a 404 will not retry. Probe the endpoint until the server answers:
+ *
+ *   - 200: the session still exists (the failure was something else) — attach
+ *     a fresh EventSource and carry on.
+ *   - 404: the server is up and the session is gone. The only way back to a
+ *     correct page is a fresh render, so reload — once. State the server held
+ *     for this page is gone either way; a reload is the honest outcome.
+ *   - unreachable, or a 5xx: the server is restarting or a proxy is holding
+ *     the fort. Keep probing, with backoff — this is the window where a dev
+ *     server is recompiling, and waiting it out is the whole point.
+ *   - any other status: something is misconfigured in a way probing will not
+ *     fix. Announce closed and stop.
+ */
+async function recover() {
+  if (recovering || !recoverEnabled) return;
+  recovering = true;
+  source?.close();
+  announce('recovering');
+
+  let delay = 500;
+  for (;;) {
+    let status = 0;
+    try {
+      const ctrl = new AbortController();
+      const r = await fetch(streamURL(), {
+        credentials: 'include',
+        headers: { accept: 'text/event-stream' },
+        signal: ctrl.signal,
+      });
+      status = r.status;
+      // Only the status matters; do not hold a second stream open.
+      ctrl.abort();
+    } catch {
+      // Unreachable: keep probing.
+    }
+    if (status === 200) {
+      recovering = false;
+      connect();
+      return;
+    }
+    if (status === 404) {
+      reloadOnce();
+      return;
+    }
+    if (status !== 0 && status < 500) {
+      announce('closed');
+      return;
+    }
+    await new Promise((r) => setTimeout(r, delay + Math.random() * 250));
+    delay = Math.min(delay * 2, 15_000);
+  }
+}
+
+/**
+ * Reload for a fresh session — unless this page already did that a moment
+ * ago, which means fresh sessions are dying too and reloading again would
+ * loop. sessionStorage is per-tab, which is exactly the scope a page id has.
+ */
+function reloadOnce() {
+  const KEY = 'alacris-live-reloaded';
+  let last = 0;
+  try {
+    last = Number(sessionStorage.getItem(KEY)) || 0;
+  } catch {
+    // Storage can be denied; recovering is still worth attempting.
+  }
+  if (Date.now() - last < 10_000) {
+    announce('closed');
+    return;
+  }
+  try {
+    sessionStorage.setItem(KEY, String(Date.now()));
+  } catch {}
+  announce('reloading');
+  location.reload();
 }
 
 const wired = new Set();
@@ -162,24 +323,10 @@ function start() {
     attributeFilter: ['data-ala-on'],
   });
 
-  const url = new URL(endpoint, location.href);
-  url.searchParams.set('p', page);
   // withCredentials sends the cookie, which is what actually authorises this.
-  const source = new EventSource(url, { withCredentials: true });
+  connect();
 
-  source.onopen = () => announce('open');
-  source.onerror = () => announce('closed'); // EventSource reconnects on its own
-  source.onmessage = (e) => {
-    let patches;
-    try {
-      patches = JSON.parse(e.data);
-    } catch {
-      return;
-    }
-    for (const p of patches) apply(p);
-  };
-
-  window.addEventListener('pagehide', () => source.close());
+  window.addEventListener('pagehide', () => source?.close());
 }
 
 if (page && endpoint) {

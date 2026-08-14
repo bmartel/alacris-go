@@ -42,12 +42,19 @@
 //
 // Action payloads are input like any other: bound to a Go type, size-limited,
 // and worth validating.
+//
+// Registering an action makes it callable: any browser holding a valid
+// session can invoke any registered action, with any element id and any
+// detail, regardless of what the page rendered. Authorisation is the
+// handler's job — check the session's own state (who this page belongs to,
+// what it may touch) inside the handler, not the wiring on the page.
 package live
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -210,6 +217,14 @@ func New(opts ...Options) *Server {
 
 func (s *Server) now() time.Time { return s.opts.Now() }
 
+// mustBeInitialized turns the nil-map panic a zero-value Server would produce
+// into one that names the fix.
+func (s *Server) mustBeInitialized() {
+	if s.stop == nil {
+		panic("live: a Server must be created with live.New, not a struct literal — a zero Server has no collector and no session table")
+	}
+}
+
 // NewSession creates a session for one page render, and gives the browser the
 // cookie that will authorise it.
 //
@@ -222,6 +237,7 @@ func (s *Server) now() time.Time { return s.opts.Now() }
 // the request: it has to outlive it, because OnOpen and every action handler
 // run long after the render has finished.
 func (s *Server) NewSession(w http.ResponseWriter, r *http.Request) *Session {
+	s.mustBeInitialized()
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &Session{
 		id:       newToken(),
@@ -308,6 +324,14 @@ func (s *Server) setCookiePath(base string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.opts.CookiePath = base
+}
+
+// cookiePath reads the path under the same lock setCookiePath writes it, so a
+// Mount racing an early NewSession is a defined read rather than a data race.
+func (s *Server) cookiePath() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.opts.CookiePath
 }
 
 // Session looks up a session by its page id.
@@ -499,10 +523,33 @@ func (s *Server) serveStream(w http.ResponseWriter, r *http.Request) {
 			if !open {
 				return
 			}
+			// Coalesce whatever else has already queued into this frame. A
+			// handler that makes several Set calls delivers several channel
+			// sends; merging them here turns that burst into one encode, one
+			// write and one flush, without changing what a handler that
+			// genuinely streams (patch, wait, patch) observes — an empty
+			// channel is left alone.
+			closed := false
+			for !closed {
+				select {
+				case more, ok := <-patches:
+					if !ok {
+						closed = true
+						break
+					}
+					frame = append(frame, more...)
+					continue
+				default:
+				}
+				break
+			}
 			if !writeFrame(w, frame, s.opts.Logger) {
 				return
 			}
 			flusher.Flush()
+			if closed {
+				return
+			}
 
 		case <-beat.C:
 			if _, err := w.Write([]byte(": ping\n\n")); err != nil {
@@ -522,7 +569,15 @@ func writeFrame(w http.ResponseWriter, patches []Patch, log *slog.Logger) bool {
 		return true
 	}
 	// json.Marshal escapes newlines, so the payload is always one SSE line.
-	if _, err := fmt.Fprintf(w, "data: %s\n\n", body); err != nil {
+	// Three plain writes land in net/http's own buffer; fmt's verb machinery
+	// bought nothing on the hottest write path.
+	if _, err := io.WriteString(w, "data: "); err != nil {
+		return false
+	}
+	if _, err := w.Write(body); err != nil {
+		return false
+	}
+	if _, err := io.WriteString(w, "\n\n"); err != nil {
 		return false
 	}
 	return true

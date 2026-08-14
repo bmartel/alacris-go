@@ -1,13 +1,13 @@
 package live
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"mime"
 	"net/http"
-	"strings"
 )
 
 // A Ctx carries one action from the browser to its handler.
@@ -44,7 +44,7 @@ func (c *Ctx) Bind(v any) error {
 	if len(c.Detail) == 0 || string(c.Detail) == "null" {
 		return nil
 	}
-	dec := json.NewDecoder(strings.NewReader(string(c.Detail)))
+	dec := json.NewDecoder(bytes.NewReader(c.Detail))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return fmt.Errorf("live: action %q: %w", c.Action, err)
@@ -63,7 +63,15 @@ func (c *Ctx) Handle() Handle { return c.Session.Element(c.Element) }
 type Handler func(*Ctx) error
 
 // On registers a server-wide handler for an action.
+//
+// Registration is the whole precondition: any browser holding a valid session
+// can invoke any registered action by name, with any element id and detail it
+// likes — the data-ala-on wiring on the page is a convenience, not an
+// authorisation. A handler that does something sensitive must check for
+// itself that this session may do it, and must not trust Ctx.Element or the
+// detail to describe what the page really rendered.
 func (s *Server) On(action string, h Handler) {
+	s.mustBeInitialized()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.actions[action] = h
@@ -103,6 +111,40 @@ func bind[T any](h func(*Ctx, T) error) Handler {
 		}
 		return h(c, detail)
 	}
+}
+
+// ErrNoAction is returned by Dispatch when nothing handles the action.
+var ErrNoAction = errors.New("live: no handler for action")
+
+// Dispatch runs the handler registered for action on this session — the
+// session-scoped one when it exists, the server-wide one otherwise — exactly
+// as an incoming POST would, minus the transport: no origin, cookie or
+// content-type checks, because the caller is the server's own code, which
+// holds the session and needs no capability to prove it.
+//
+// It is what the livetest package invokes handlers through, and the way to
+// trigger an action from server-side code — a queue consumer, a timer —
+// in the same code path the browser uses. r becomes Ctx.Request; nil is
+// allowed and yields a minimal synthetic request, so handlers that only read
+// Ctx.Context still work.
+func (s *Session) Dispatch(r *http.Request, action, element string, detail json.RawMessage) error {
+	handler, ok := s.handlerFor(action)
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrNoAction, action)
+	}
+	if r == nil {
+		var err error
+		if r, err = http.NewRequest(http.MethodPost, "/", nil); err != nil {
+			return err
+		}
+	}
+	return handler(&Ctx{
+		Session: s,
+		Action:  action,
+		Element: element,
+		Detail:  detail,
+		Request: r,
+	})
 }
 
 func (s *Session) handlerFor(action string) (Handler, bool) {

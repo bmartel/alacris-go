@@ -1,6 +1,8 @@
 package alacris
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"embed"
@@ -21,7 +23,7 @@ var assetFS embed.FS
 
 // RuntimeVersion is the version of the alacris npm package vendored in
 // assets/. Regenerate with `go generate ./...` after bumping it.
-const RuntimeVersion = "0.2.2"
+const RuntimeVersion = "0.3.0"
 
 // TrustedTypesPolicy is the Trusted Types policy name alacris registers for
 // template parsing. Under a trusted-types CSP directive it has to be allowed.
@@ -78,11 +80,29 @@ func RuntimeHandler() http.Handler {
 		if err != nil {
 			panic(err)
 		}
-		sum := sha256.Sum256(body)
-		assets[name] = &asset{body: body, etag: `"` + hex.EncodeToString(sum[:16]) + `"`}
+		assets[name] = newAsset(body)
 	}
 
 	return &runtimeHandler{assets: assets}
+}
+
+// newAsset hashes and pre-compresses one served file. Compressing here, once,
+// costs a few milliseconds at startup and saves re-compressing (or shipping
+// identity-encoded script, 3-4x the bytes) on every request after it.
+func newAsset(body []byte) *asset {
+	sum := sha256.Sum256(body)
+	tag := hex.EncodeToString(sum[:16])
+	a := &asset{body: body, etag: `"` + tag + `"`}
+
+	var buf bytes.Buffer
+	gz, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+	if _, err := gz.Write(body); err == nil && gz.Close() == nil && buf.Len() < len(body) {
+		a.gzBody = buf.Bytes()
+		// A distinct ETag per representation: RFC 9110 wants a strong
+		// validator to identify the exact bytes, and these differ.
+		a.gzETag = `"` + tag + `-gz"`
+	}
+	return a
 }
 
 type runtimeHandler struct {
@@ -92,8 +112,10 @@ type runtimeHandler struct {
 }
 
 type asset struct {
-	body []byte
-	etag string
+	body   []byte
+	etag   string
+	gzBody []byte
+	gzETag string
 }
 
 func (h *runtimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -109,17 +131,68 @@ func (h *runtimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	head := w.Header()
 	head.Set("Content-Type", "text/javascript; charset=utf-8")
-	SetCacheHeaders(head, r, a.etag)
-	if match := r.Header.Get("If-None-Match"); match != "" && strings.Contains(match, a.etag) {
+	// The body is executable script; nosniff pins the declared type even for a
+	// client that would rather guess.
+	head.Set("X-Content-Type-Options", "nosniff")
+
+	body, etag := a.body, a.etag
+	if a.gzBody != nil {
+		head.Set("Vary", "Accept-Encoding")
+		if AcceptsGzip(r) {
+			body, etag = a.gzBody, a.gzETag
+			head.Set("Content-Encoding", "gzip")
+		}
+	}
+
+	SetCacheHeaders(head, r, etag)
+	if MatchETag(r.Header.Get("If-None-Match"), etag) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	head.Set("Content-Length", itoa(len(a.body)))
+	head.Set("Content-Length", itoa(len(body)))
 	w.WriteHeader(http.StatusOK)
 	if r.Method == http.MethodHead {
 		return
 	}
-	_, _ = w.Write(a.body)
+	_, _ = w.Write(body)
+}
+
+// AcceptsGzip reports whether the request says gzip is an acceptable content
+// coding. A quality of zero is a refusal, not an acceptance.
+func AcceptsGzip(r *http.Request) bool {
+	for _, part := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
+		coding, q, hasQ := strings.Cut(strings.TrimSpace(part), ";")
+		if coding != "gzip" && coding != "*" {
+			continue
+		}
+		if hasQ {
+			if v, ok := strings.CutPrefix(strings.TrimSpace(q), "q="); ok && strings.TrimLeft(v, "0.") == "" {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// MatchETag reports whether an If-None-Match header matches etag. Unlike a
+// substring check it honours the header's real grammar: a comma-separated
+// list, an optional W/ weakness prefix, and "*" matching anything.
+func MatchETag(ifNoneMatch, etag string) bool {
+	if ifNoneMatch == "" || etag == "" {
+		return false
+	}
+	for _, part := range strings.Split(ifNoneMatch, ",") {
+		part = strings.TrimSpace(part)
+		if part == "*" {
+			return true
+		}
+		// A weak comparison is the correct one for If-None-Match.
+		if strings.TrimPrefix(part, "W/") == etag {
+			return true
+		}
+	}
+	return false
 }
 
 // SetCacheHeaders applies the caching policy for a served asset.
@@ -133,11 +206,24 @@ func (h *runtimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // asset safe to cache for a year: a new version is a new URL.
 func SetCacheHeaders(h http.Header, r *http.Request, etag string) {
 	h.Set("ETag", etag)
-	if r.URL.Query().Get("v") != "" {
+	if hasVersionParam(r.URL.RawQuery) {
 		h.Set("Cache-Control", "public, max-age=31536000, immutable")
 		return
 	}
 	h.Set("Cache-Control", "public, no-cache")
+}
+
+// hasVersionParam reports whether the query string carries a non-empty v=,
+// without building the map r.URL.Query allocates on every call.
+func hasVersionParam(rawQuery string) bool {
+	for rawQuery != "" {
+		var part string
+		part, rawQuery, _ = strings.Cut(rawQuery, "&")
+		if k, v, _ := strings.Cut(part, "="); k == "v" && v != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func itoa(n int) string {
@@ -184,6 +270,14 @@ type Config struct {
 
 	// Endpoint is where the live client connects. Defaults to Base + "live".
 	Endpoint string
+
+	// NoRecover turns off the live client's automatic recovery. By default,
+	// when the patch stream fails permanently — the server restarted, the
+	// session expired — the client probes the endpoint until the server
+	// answers, reattaches if the session survived, and reloads the page once
+	// for a fresh session if it did not. Set NoRecover when the application
+	// listens for 'alacris:live' window events and owns that decision itself.
+	NoRecover bool
 
 	// Nonce is the CSP nonce for the emitted script tags. When empty, the
 	// nonce carried on the context by templ.WithNonce is used.
@@ -277,9 +371,13 @@ func (c Config) Scripts() templ.Component {
 		}
 
 		if c.Live {
+			recoverAttr := ""
+			if c.NoRecover {
+				recoverAttr = ` data-recover="off"`
+			}
 			b.WriteString(`<script type="module" src="` + templ.EscapeString(c.asset(AssetLive)) + `"` +
 				` data-endpoint="` + templ.EscapeString(c.endpoint()) + `"` +
-				` data-page="` + templ.EscapeString(c.Page) + `"` + nonceAttr + `></script>`)
+				` data-page="` + templ.EscapeString(c.Page) + `"` + recoverAttr + nonceAttr + `></script>`)
 		}
 
 		_, err = io.WriteString(w, b.String())

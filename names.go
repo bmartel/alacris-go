@@ -81,6 +81,24 @@ func ValidAttrName(name string) error {
 	return nil
 }
 
+// isEventHandlerName reports whether name is shaped like an HTML event handler
+// attribute: "on" followed by nothing but letters. Handler attributes are the
+// one class of attribute whose value is executed rather than read, so escaping
+// the value does not help — a handler with a well-escaped body still runs.
+// Names like "on-line" or "one-two" are not handlers and pass.
+func isEventHandlerName(name string) bool {
+	if len(name) < 3 || (name[0] != 'o' && name[0] != 'O') || (name[1] != 'n' && name[1] != 'N') {
+		return false
+	}
+	for i := 2; i < len(name); i++ {
+		c := name[i]
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') {
+			return false
+		}
+	}
+	return true
+}
+
 // rawTextElements do not escape their content the way every other element
 // does, so markup written inside one is not text — it is script, or style, or
 // something the parser treats specially.

@@ -160,6 +160,7 @@ func (h Handle) Props(props map[string]any) {
 // making every call site handle that would put error checks around code whose
 // only correct response is to carry on.
 func (s *Session) Send(patches ...Patch) {
+	patches = s.vetted(patches)
 	if len(patches) == 0 {
 		return
 	}
@@ -180,6 +181,32 @@ func (s *Session) Send(patches ...Patch) {
 	if !s.deliver(sub, out) {
 		s.resync()
 	}
+}
+
+// vetted drops any patch whose key would let a state write execute script —
+// see unsafePatch. The common case is that nothing is dropped, and it costs
+// one scan and no allocation.
+func (s *Session) vetted(patches []Patch) []Patch {
+	bad := -1
+	for i := range patches {
+		if unsafePatch(patches[i]) != "" {
+			bad = i
+			break
+		}
+	}
+	if bad < 0 {
+		return patches
+	}
+	out := make([]Patch, 0, len(patches)-1)
+	for i := range patches {
+		if reason := unsafePatch(patches[i]); reason != "" {
+			s.srv.opts.Logger.Error("alacris live: dropping a patch that could execute script",
+				"session", s.id, "op", string(patches[i].Op), "key", patches[i].Key, "reason", reason)
+			continue
+		}
+		out = append(out, patches[i])
+	}
+	return out
 }
 
 // take decides, under the lock, whether patches go out now or wait.
@@ -230,14 +257,22 @@ func (s *Session) resync() {
 		s.connected = false
 		s.lastSeen = s.srv.now()
 	}
+	hasOpen := s.onOpen != nil
 	s.mu.Unlock()
 
 	if sub == nil {
 		return
 	}
 	close(sub)
-	s.srv.opts.Logger.Warn("alacris live: subscriber fell behind, ending the stream so it reconnects",
-		"session", s.id)
+	if hasOpen {
+		s.srv.opts.Logger.Warn("alacris live: subscriber fell behind, ending the stream so it reconnects",
+			"session", s.id)
+	} else {
+		// The dropped frame is gone and nothing will restate it — this is the
+		// silently-stale-page bug, caught at the moment it happens.
+		s.srv.opts.Logger.Warn("alacris live: subscriber fell behind and no OnOpen is registered to restate state on reconnect; the page may now be stale",
+			"session", s.id)
+	}
 }
 
 // Batch coalesces every patch made inside fn into one frame, so the browser
@@ -290,8 +325,29 @@ func (s *Session) Close() {
 	s.srv.remove(s.id)
 }
 
+// Subscribe attaches a programmatic subscriber in place of a browser: OnOpen
+// runs, and every Send after that is a frame on the channel. backlog is
+// whatever was buffered while nothing was attached — it precedes the channel's
+// frames chronologically, which is why it is handed over rather than queued.
+// Release detaches; the channel also closes when the session ends or another
+// subscriber (a real browser included) replaces this one.
+//
+// This is the seam the livetest package records through, and it is equally
+// the way to bridge patches onto a transport this package does not provide.
+// It carries a browser's obligations too: a subscriber that stops draining is
+// treated exactly like a slow browser — the session drops it and relies on
+// OnOpen to restate state to whoever attaches next.
+func (s *Session) Subscribe() (frames <-chan []Patch, backlog []Patch, release func(), err error) {
+	return s.subscribe()
+}
+
 // subscribe attaches a browser. The returned channel is closed when the
 // session ends or another connection replaces this one.
+//
+// The channel's capacity is the synchronous-delivery contract Subscribe and
+// the livetest recorder rely on: Send completes its buffered channel send
+// before returning, so once an action handler has returned, its frames are in
+// the channel — reading them needs no waiting and no races.
 func (s *Session) subscribe() (<-chan []Patch, []Patch, func(), error) {
 	s.mu.Lock()
 	if s.closed {
@@ -313,12 +369,16 @@ func (s *Session) subscribe() (<-chan []Patch, []Patch, func(), error) {
 
 	backlog := s.pending
 	s.pending = nil
+	dropped := s.dropped
 	s.dropped = false
 	onOpen := s.onOpen
 	s.mu.Unlock()
 
 	if onOpen != nil {
 		onOpen(s)
+	} else if dropped {
+		s.srv.opts.Logger.Warn("alacris live: patches were dropped while no browser was attached and no OnOpen is registered to restate them; the page may be stale",
+			"session", s.id)
 	}
 
 	release := func() {

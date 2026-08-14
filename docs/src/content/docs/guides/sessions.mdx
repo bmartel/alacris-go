@@ -161,6 +161,53 @@ That is deliberate. The page it was for is gone, and making every call site
 handle that would put error checks around code whose only correct response is to
 carry on.
 
+## When the session is gone: recovery
+
+Sessions live in the server's memory, so a restart — a deploy, a dev-loop
+rebuild — forgets all of them, and an expired session is forgotten on purpose.
+An open page is then holding a page id the server has never heard of, and the
+`EventSource` spec makes the resulting non-200 response a **permanent**
+failure: the browser will never retry it.
+
+The live client recovers on its own. When the stream fails permanently, or an
+action comes back `404 unknown session`, it probes the endpoint with backoff:
+
+- **Server unreachable, or answering 5xx** — keep probing. This is the window
+  where a dev server is recompiling; waiting it out is the point.
+- **200** — the session still exists; attach a fresh stream and carry on.
+- **404** — the server is up and the session is gone. The state the server
+  held for this page is gone with it, so the client reloads the page **once**
+  for a fresh render and a fresh session. If fresh sessions are dying too, it
+  stops rather than loop.
+
+In development this is the difference between "restart, and every tab catches
+up by itself" and "restart, and every tab is silently dead."
+
+Each step announces itself as an `alacris:live` window event — `state` is
+`open`, `closed`, `recovering`, `reloading`, or `error` — so a page can show a
+connection indicator:
+
+```js
+window.addEventListener('alacris:live', (e) => {
+  document.body.dataset.live = e.detail.state;
+});
+```
+
+An application that wants to own the decision — show a banner instead of
+reloading, say — turns recovery off and listens for the events itself:
+
+```go
+alacris.Config{Live: true, Page: sess.ID(), NoRecover: true}
+```
+
+<Aside type="note" title="A reload is the honest outcome">
+  The session's state cannot be rebuilt without a render, and only your
+  handlers know how to render. Recovery does not pretend otherwise: it gets
+  the server's newest answer onto the screen, at the cost of client-only state
+  — which is exactly what a user's manual refresh would have done, minus the
+  user noticing the page was dead first.
+</Aside>
+
 ## Two connections to one session
 
 A reload can open the new stream before the old one has finished dying. The

@@ -65,11 +65,26 @@ func (s *Server) servePreflight(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// sameOrigin reports whether origin names the host this request was sent to.
+// sameOrigin reports whether origin names the origin this request was sent to.
+//
+// The scheme is part of an origin, so it is compared too: http://example.test
+// and https://example.test are different origins, and treating them as one
+// would let a plaintext page (or whoever is impersonating one) drive a TLS
+// endpoint. Browsers enforce the same split ("schemeful same-site"); an
+// authorisation decision should not be looser than the thing it authorises.
 func sameOrigin(origin string, r *http.Request) bool {
 	u, err := url.Parse(origin)
 	if err != nil || u.Host == "" {
 		return false
 	}
-	return strings.EqualFold(u.Host, r.Host)
+	return strings.EqualFold(u.Host, r.Host) && strings.EqualFold(u.Scheme, requestScheme(r))
+}
+
+// requestScheme reports the scheme the client used, trusting a proxy's
+// X-Forwarded-Proto the same way the cookie's Secure decision does.
+func requestScheme(r *http.Request) string {
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		return "https"
+	}
+	return "http"
 }
