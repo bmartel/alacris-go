@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.3.0](https://github.com/bmartel/alacris-go/compare/v0.2.0...v0.3.0) (2026-08-14)
+
+### Features
+
+* **gen:** emit typed live patch handles ([2f641a6](https://github.com/bmartel/alacris-go/commit/2f641a6e3cf50e51735b0f9b301000cd66089cb8))
+* **live:** hardening, hot-path performance, and dead-session recovery ([3ae429e](https://github.com/bmartel/alacris-go/commit/3ae429eaf892e6106c3227cc6773ec8c9c7ab772))
+* **live:** livetest, so action handlers are unit-testable ([f16a88c](https://github.com/bmartel/alacris-go/commit/f16a88c5795a9cf607d09314bc815c66de9ecf8d))
+* **vendor:** vendor alacris 0.3.0 and automate staying current ([8a22d1f](https://github.com/bmartel/alacris-go/commit/8a22d1f7644bb6973aad9a18a2ca38fd9386823a))
+
+### Bug Fixes
+
+* **gen:** refuse manifest strings that are more than what they claim to be ([ced05f3](https://github.com/bmartel/alacris-go/commit/ced05f3cbd00092c365e205fdce83e1e3b61517f))
+
 ## [0.2.0](https://github.com/bmartel/alacris-go/compare/v0.1.2...v0.2.0) (2026-08-09)
 
 ### ⚠ BREAKING CHANGES
