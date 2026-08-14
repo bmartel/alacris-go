@@ -3,10 +3,21 @@ package gen
 import (
 	"encoding/json"
 	"fmt"
+	goparser "go/parser"
+	gotoken "go/token"
 	"io"
 	"sort"
 	"strings"
 )
+
+// validGoExpr reports whether s parses as exactly one Go expression — which
+// covers type syntax too, since every type the manifest can name is also a
+// valid expression production. Trailing tokens, statements and declarations
+// all fail, which is the point.
+func validGoExpr(s string) bool {
+	_, err := goparser.ParseExpr(s)
+	return err == nil
+}
 
 // ManifestVersion is the schema version written into a manifest file.
 const ManifestVersion = 1
@@ -191,6 +202,15 @@ func (m *Manifest) Validate() error {
 		}
 		goNames[name] = c.Tag
 
+		// The goName, goType and goDefault strings are written into the
+		// generated file verbatim, so anything that is not the single
+		// identifier or expression it claims to be is refused here rather
+		// than smuggled into Go source. gofmt would catch invalid Go; this
+		// catches valid Go that is more than what the field means.
+		if c.GoName != "" && !gotoken.IsIdentifier(c.GoName) {
+			errs = append(errs, fmt.Sprintf("%s: goName %q is not a Go identifier", where, c.GoName))
+		}
+
 		fields := map[string]string{}
 		for _, p := range c.Props {
 			if p.Name == "" {
@@ -199,6 +219,14 @@ func (m *Manifest) Validate() error {
 			}
 			if p.GoType == "" {
 				errs = append(errs, fmt.Sprintf("%s: <%s>.%s has no Go type", where, c.Tag, p.Name))
+			} else if !validGoExpr(p.GoType) {
+				errs = append(errs, fmt.Sprintf("%s: <%s>.%s: goType %q is not a type", where, c.Tag, p.Name, p.GoType))
+			}
+			if p.GoName != "" && !gotoken.IsIdentifier(p.GoName) {
+				errs = append(errs, fmt.Sprintf("%s: <%s>.%s: goName %q is not a Go identifier", where, c.Tag, p.Name, p.GoName))
+			}
+			if p.GoDefault != "" && !validGoExpr(p.GoDefault) {
+				errs = append(errs, fmt.Sprintf("%s: <%s>.%s: goDefault %q is not an expression", where, c.Tag, p.Name, p.GoDefault))
 			}
 			f := p.Field()
 			if prev, dup := fields[f]; dup {
@@ -217,6 +245,23 @@ func (m *Manifest) Validate() error {
 				errs = append(errs, fmt.Sprintf("%s: <%s> declares @fires %s twice", where, c.Tag, e.Name))
 			}
 			events[e.Name] = true
+			if e.GoType != "" && !validGoExpr(e.GoType) {
+				errs = append(errs, fmt.Sprintf("%s: <%s> @fires %s: goType %q is not a type", where, c.Tag, e.Name, e.GoType))
+			}
+			for _, f := range e.Detail {
+				if f.GoType != "" && !validGoExpr(f.GoType) {
+					errs = append(errs, fmt.Sprintf("%s: <%s> @fires %s.%s: goType %q is not a type", where, c.Tag, e.Name, f.Name, f.GoType))
+				}
+			}
+		}
+
+		for _, imp := range c.Imports {
+			if imp.Alias != "" && !gotoken.IsIdentifier(imp.Alias) {
+				errs = append(errs, fmt.Sprintf("%s: <%s>: import alias %q is not a Go identifier", where, c.Tag, imp.Alias))
+			}
+			if strings.ContainsAny(imp.Path, "\"`\n\r") {
+				errs = append(errs, fmt.Sprintf("%s: <%s>: import path %q is not an import path", where, c.Tag, imp.Path))
+			}
 		}
 	}
 
