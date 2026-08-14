@@ -78,6 +78,7 @@ type commonFlags struct {
 	strip    string
 	optional string
 	imp      string
+	live     bool
 }
 
 func (c *commonFlags) register(fs *flag.FlagSet) {
@@ -87,6 +88,8 @@ func (c *commonFlags) register(fs *flag.FlagSet) {
 	fs.StringVar(&c.optional, "optional", string(gen.OptionalZero),
 		"how props with a non-zero default are represented: zero or pointer")
 	fs.StringVar(&c.imp, "import", gen.DefaultImport, "import path of the alacris runtime package")
+	fs.BoolVar(&c.live, "live", true,
+		"also generate typed live patch handles (imports the live package; -live=false to omit)")
 }
 
 func (c *commonFlags) options() (gen.Options, error) {
@@ -110,6 +113,7 @@ func (c *commonFlags) options() (gen.Options, error) {
 		Optional:    gen.Optional(c.optional),
 		StripPrefix: c.strip,
 		RelativeTo:  c.out,
+		Live:        c.live,
 	}, nil
 }
 

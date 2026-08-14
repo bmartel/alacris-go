@@ -217,7 +217,10 @@ func (a *app) handlers() {
 			return fmt.Errorf("unknown filter %q", d.Filter)
 		}
 		c.Session.Set(filterKey{}, d.Filter)
-		c.Session.Element(todosID).Set("filter", d.Filter)
+		// The generated handle patches with compile-checked prop names; a
+		// renamed prop in the component fails this build instead of writing a
+		// property nobody reads.
+		ui.TodoListElement(c.Session, todosID).SetFilter(d.Filter)
 		return nil
 	})
 
@@ -244,9 +247,10 @@ func (a *app) push(s *live.Session) {
 	// One frame, so the list and the count land together rather than in two
 	// paints.
 	s.Batch(func() {
-		s.Element(todosID).Set("items", items)
+		todos := ui.TodoListElement(s, todosID)
+		todos.SetItems(items)
 		if f, ok := filter.(string); ok {
-			s.Element(todosID).Set("filter", f)
+			todos.SetFilter(f)
 		}
 		if err := s.Element(countsID).SetHTML(ctx, ui.ChipSlotDefault,
 			chipText(view{remaining: a.list.Remaining()}.RemainingLabel())); err != nil {

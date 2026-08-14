@@ -5,6 +5,7 @@ package ui
 import (
 	alacris "github.com/bmartel/alacris-go"
 	todo "github.com/bmartel/alacris-go/examples/todo/model"
+	live "github.com/bmartel/alacris-go/live"
 )
 
 // ChipTag is the name of the <ala-chip> custom element.
@@ -52,6 +53,28 @@ func Chip(p ChipProps) *alacris.Element {
 	}
 	return e
 }
+
+// ChipHandle patches a rendered <ala-chip> over a live session.
+//
+// Each setter writes one component prop — one property write, one DOM update on
+// the page. Obtain one with ChipElement.
+type ChipHandle struct {
+	handle live.Handle
+}
+
+// ChipElement addresses the <ala-chip> rendered with this id, for
+// patching its props with compile-checked names instead of strings:
+//
+//	ChipElement(c.Session, "id").SetTone(v)
+func ChipElement(s *live.Session, id string) ChipHandle {
+	return ChipHandle{handle: s.Element(id)}
+}
+
+// Handle returns the untyped handle, for attributes, classes and slot HTML.
+func (h ChipHandle) Handle() live.Handle { return h.handle }
+
+// SetTone writes the tone prop.
+func (h ChipHandle) SetTone(v string) { h.handle.Set("tone", v) }
 
 // CounterTag is the name of the <ala-counter> custom element.
 const CounterTag = "ala-counter"
@@ -104,6 +127,31 @@ func Counter(p CounterProps) *alacris.Element {
 	}
 	return e
 }
+
+// CounterHandle patches a rendered <ala-counter> over a live session.
+//
+// Each setter writes one component prop — one property write, one DOM update on
+// the page. Obtain one with CounterElement.
+type CounterHandle struct {
+	handle live.Handle
+}
+
+// CounterElement addresses the <ala-counter> rendered with this id, for
+// patching its props with compile-checked names instead of strings:
+//
+//	CounterElement(c.Session, "id").SetStart(v)
+func CounterElement(s *live.Session, id string) CounterHandle {
+	return CounterHandle{handle: s.Element(id)}
+}
+
+// Handle returns the untyped handle, for attributes, classes and slot HTML.
+func (h CounterHandle) Handle() live.Handle { return h.handle }
+
+// SetStart writes the start prop.
+func (h CounterHandle) SetStart(v int) { h.handle.Set("start", v) }
+
+// SetStep writes the step prop.
+func (h CounterHandle) SetStep(v int) { h.handle.Set("step", v) }
 
 // TodoListTag is the name of the <ala-todo-list> custom element.
 const TodoListTag = "ala-todo-list"
@@ -200,3 +248,31 @@ func TodoList(p TodoListProps) *alacris.Element {
 	}
 	return e
 }
+
+// TodoListHandle patches a rendered <ala-todo-list> over a live session.
+//
+// Each setter writes one component prop — one property write, one DOM update on
+// the page. Obtain one with TodoListElement.
+type TodoListHandle struct {
+	handle live.Handle
+}
+
+// TodoListElement addresses the <ala-todo-list> rendered with this id, for
+// patching its props with compile-checked names instead of strings:
+//
+//	TodoListElement(c.Session, "id").SetItems(v)
+func TodoListElement(s *live.Session, id string) TodoListHandle {
+	return TodoListHandle{handle: s.Element(id)}
+}
+
+// Handle returns the untyped handle, for attributes, classes and slot HTML.
+func (h TodoListHandle) Handle() live.Handle { return h.handle }
+
+// SetItems writes the items prop.
+func (h TodoListHandle) SetItems(v []todo.Item) { h.handle.Set("items", v) }
+
+// SetFilter writes the filter prop.
+func (h TodoListHandle) SetFilter(v string) { h.handle.Set("filter", v) }
+
+// SetBusy writes the busy prop.
+func (h TodoListHandle) SetBusy(v bool) { h.handle.Set("busy", v) }

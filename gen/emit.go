@@ -54,6 +54,18 @@ type Options struct {
 	// produce different bytes for the same components, and a check step
 	// reports a difference that is not one.
 	RelativeTo string
+
+	// Live also generates a typed patch handle per component, so live updates
+	// are written with the same compile-checked names as rendering:
+	//
+	//	ui.TodoListElement(c.Session, "todos").SetItems(items)
+	//
+	// It makes the generated package import the live package.
+	Live bool
+
+	// LiveImport is the import path of the live package. Defaults to
+	// Import + "/live".
+	LiveImport string
 }
 
 // A File is one generated Go source file.
@@ -70,6 +82,9 @@ func Generate(m *Manifest, opts Options) ([]File, error) {
 	}
 	if opts.Import == "" {
 		opts.Import = DefaultImport
+	}
+	if opts.LiveImport == "" {
+		opts.LiveImport = opts.Import + "/live"
 	}
 	if opts.Optional == "" {
 		opts.Optional = OptionalZero
@@ -251,6 +266,9 @@ func emitFile(components []Component, opts Options) ([]byte, error) {
 
 	w.line("import (")
 	w.line("\talacris %s", strconv.Quote(opts.Import))
+	if opts.Live {
+		w.line("\tlive %s", strconv.Quote(opts.LiveImport))
+	}
 	paths := make([]string, 0, len(imports))
 	for p := range imports {
 		paths = append(paths, p)
@@ -407,7 +425,54 @@ value deliberately, set it with Prop on the returned element.`
 	w.line("\treturn e")
 	w.line("}")
 
+	if opts.Live {
+		emitHandle(w, c, name)
+	}
+
 	return nil
+}
+
+// emitHandle writes the typed live handle for one component: the other half
+// of the type-safety story. Rendering already goes through generated names;
+// this gives server-driven patches the same treatment, so a renamed prop is a
+// compile error rather than a property write nobody reads.
+func emitHandle(w *writer, c Component, name string) {
+	w.blank()
+	w.doc(fmt.Sprintf(`%sHandle patches a rendered <%s> over a live session.
+
+Each setter writes one component prop — one property write, one DOM update on
+the page. Obtain one with %sElement.`, name, c.Tag, name))
+	w.line("type %sHandle struct {", name)
+	w.line("\thandle live.Handle")
+	w.line("}")
+
+	w.blank()
+	elementDoc := fmt.Sprintf(`%sElement addresses the <%s> rendered with this id, for
+patching its props with compile-checked names instead of strings`, name, c.Tag)
+	if len(c.Props) > 0 {
+		elementDoc += fmt.Sprintf(":\n\n\t%sElement(c.Session, \"id\").Set%s(v)", name, c.Props[0].Field())
+	} else {
+		elementDoc += "."
+	}
+	w.doc(elementDoc)
+	w.line("func %sElement(s *live.Session, id string) %sHandle {", name, name)
+	w.line("\treturn %sHandle{handle: s.Element(id)}", name)
+	w.line("}")
+
+	w.blank()
+	w.doc(`Handle returns the untyped handle, for attributes, classes and slot HTML.`)
+	w.line("func (h %sHandle) Handle() live.Handle { return h.handle }", name)
+
+	for _, p := range c.Props {
+		w.blank()
+		doc := fmt.Sprintf("Set%s writes the %s prop.", p.Field(), p.Name)
+		if p.Deprecated != "" {
+			doc += "\n\nDeprecated: " + p.Deprecated
+		}
+		w.doc(doc)
+		w.line("func (h %sHandle) Set%s(v %s) { h.handle.Set(%s, v) }",
+			name, p.Field(), p.GoType, strconv.Quote(p.Name))
+	}
 }
 
 // slotIdent is the constant name for a slot; the default slot has no name of
