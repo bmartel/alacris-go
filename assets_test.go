@@ -18,11 +18,11 @@ import (
 // means `go run ./internal/vendorjs` needs running and RuntimeVersion needs
 // bumping, which is exactly the moment to check the changelog.
 var vendoredHashes = map[string]string{
-	"alacris.js":     "624569d4f6888e7f3f77222c3f7abde70a45ff733a82ca2d4b477cc92cc2bab1",
-	"alacris.dev.js": "336bfcd350e788b44b9d10c55be3b193972a4cebeda093c0fec855ab35651764",
-	"store.js":       "1de9821cd7d9663aa8f1b139f2373a16df73f2cb248192faf8c3fb9d66ab2e99",
-	"context.js":     "4515dfdff5bb66e2430799c55d9327e7510bf94ba594de033c7d3522731d6411",
-	"signal.js":      "6f8d7672dbd9b754f06b9b7c77bb1f97021374d2173a94205246b04904260e52",
+	"alacris.js":     "4a01a83b08d6a1a59da73b3f0d02b5c8f3e1c4fb528720924fccf3c2a83ec5cd",
+	"alacris.dev.js": "d222b06a7a6f8f5e4c6056fc57e6a9c490beddd93763ce012d509072f007f6ab",
+	"store.js":       "e670d6bd36ad92069424718cd0f841322b6fc82283edab3ac6d1a9e883883024",
+	"context.js":     "30ef84ce7edbaa30ff59a7d212f90a670da573cfd4e5d6d9ed5acf513be3d51d",
+	"signal.js":      "3ceac06dbe4efed9ec9360d0a35d7e53428f7ea113fe01685b8d442bb8a73948",
 }
 
 func TestVendoredAssets(t *testing.T) {

@@ -1,0 +1,94 @@
+# Keeps the vendored alacris runtime in step with upstream.
+#
+# The module ships a copy of the JavaScript so a Go project needs no npm; the
+# cost is that the copy goes stale silently. CI's `vendorjs -check` catches
+# drift from the *pinned* version — this workflow is the other half: it
+# notices a *new* version, vendors it with `vendorjs -bump` (which verifies
+# the tarball against the registry's integrity hash and rewrites
+# RuntimeVersion and the pinned test hashes), proves the module still works
+# against it — unit, race and real-browser tests — and opens a PR. The human
+# judgement left is reviewing that PR against upstream's changelog.
+name: Vendor sync
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # weekly, Monday 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Bump to the latest published runtime
+        id: bump
+        run: |
+          go run ./internal/vendorjs -bump
+          version=$(sed -n 's/.*RuntimeVersion = "\(.*\)".*/\1/p' runtime.go)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "alacris@$version is already vendored and current"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The new runtime has to earn the bump: the same gates a hand-made
+      # change passes, including the browser suite — a runtime release is
+      # exactly the change most likely to break real-DOM behaviour that the
+      # Go tests cannot see.
+      - name: Test
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          go build ./...
+          go vet ./...
+          go test -race ./...
+
+      - name: Browser tests
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          cd e2e
+          npm ci
+          npx playwright install --with-deps chromium
+          go build -o /dev/null ../examples/todo
+          npx playwright test
+
+      - name: Open a pull request
+        if: steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: vendor/alacris-${{ steps.bump.outputs.version }}
+          delete-branch: true
+          commit-message: |
+            chore(vendor): vendor alacris ${{ steps.bump.outputs.version }}
+
+            Vendored by the vendor-sync workflow: tarball verified against the
+            registry's dist.integrity, RuntimeVersion and the pinned hashes
+            rewritten by `vendorjs -bump`, unit + race + browser suites green.
+          title: 'chore(vendor): alacris ${{ steps.bump.outputs.version }}'
+          body: |
+            Upstream published alacris **${{ steps.bump.outputs.version }}**; this PR vendors it.
+
+            Everything mechanical is already done and proven:
+
+            - tarball verified against the registry's `dist.integrity` before a byte was written
+            - `RuntimeVersion` and the `vendoredHashes` pins rewritten by `vendorjs -bump`
+            - `go test -race ./...` and the Playwright browser suite pass against the new runtime
+
+            What is left is judgement: skim the [upstream changes](https://github.com/bmartel/alacris/releases)
+            for anything the JS review notes should know about (new DOM sinks,
+            Trusted Types changes, attribute coercion changes) before merging.

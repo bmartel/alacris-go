@@ -137,15 +137,24 @@ function write(s, v) {
 function flush() {
   if (flushing) return;
   flushing = 1;
+  let err, thrown = 0;
   try {
     for (let i = 0; i < queue.length; i++) {
       const n = queue[i];
-      if (!n.d && n.st) update(n);
+      if (!n.d && n.st) try {
+        update(n);
+      } catch (e) {
+        if (!thrown) {
+          thrown = 1;
+          err = e;
+        }
+      }
     }
   } finally {
     queue.length = 0;
     flushing = 0;
   }
+  if (thrown) throw err;
 }
 function signal(value, eq) {
   const s = node(null, value, 0, eq);
@@ -193,6 +202,9 @@ function batch(fn) {
   } finally {
     if (!--batching) flush();
   }
+}
+function tracking() {
+  return obs !== null;
 }
 function untrack(fn) {
   const p = obs;
@@ -316,8 +328,8 @@ function adoptGlobal(...styles) {
   return () => {
     const built = added.map((s) => s instanceof Sheet ? s.sheet : s);
     for (let i = 0; i < added.length; i++) {
-      const at = globals.indexOf(added[i]);
-      if (at > -1) globals.splice(at, 1);
+      const at2 = globals.indexOf(added[i]);
+      if (at2 > -1) globals.splice(at2, 1);
     }
     for (const target of roots) {
       if (target.adoptedStyleSheets)
@@ -531,14 +543,32 @@ function compile(strings, ns) {
     }
   }
   for (let i = 0; i < drop.length; i++) drop[i].remove();
-  const at = /* @__PURE__ */ new Map();
-  const w2 = doc.createTreeWalker(el.content, 129);
-  let idx = -1;
-  while (node2 = w2.nextNode()) at.set(node2, ++idx);
-  for (let i = 0; i < targets.length; i += 2) parts[targets[i]].i = at.get(targets[i + 1]);
-  parts.sort((a, b) => a.i - b.i);
+  for (let i = 0; i < targets.length; i += 2) {
+    const pth = [];
+    for (let n2 = targets[i + 1]; n2 !== el.content; n2 = n2.parentNode) {
+      let k = 0, c = n2.parentNode.firstChild;
+      while (c !== n2) {
+        k++;
+        c = c.nextSibling;
+      }
+      pth.push(k);
+    }
+    pth.reverse();
+    parts[targets[i]].pth = pth;
+  }
+  for (let i = 0; i < parts.length; i++)
+    if (parts[i].pth === void 0)
+      throw new SyntaxError("alacris: a binding inside raw text (<script>/<style>/<textarea>/<title>) or a nested <template> is not supported \u2014 bind .value / .textContent instead");
   for (let i = 0; i < parts.length; i++) if (parts[i].t === ATTR) prepare(parts[i]);
   return { e: el, p: parts };
+}
+function at(n, pth) {
+  for (let i = 0; i < pth.length; i++) {
+    let k = pth[i];
+    n = n.firstChild;
+    while (k--) n = n.nextSibling;
+  }
+  return n;
 }
 function tplOf(t) {
   let c = cache2.get(t.s);
@@ -612,7 +642,7 @@ function prepare(p) {
   if (n === "class") {
     p.set = (el, v) => {
       const t = classText(v);
-      t ? el.setAttribute("class", t) : el.removeAttribute("class");
+      t ? el.className = t : el.removeAttribute("class");
     };
     return p;
   }
@@ -621,15 +651,15 @@ function prepare(p) {
     return p;
   }
   if (c === 46) {
-    const k = n.slice(1);
+    const k2 = n.slice(1);
     p.set = (el, v) => {
-      el[k] = v;
+      el[k2] = v;
     };
     return p;
   }
   if (c === 63) {
-    const k = n.slice(1);
-    p.set = (el, v) => el.toggleAttribute(k, !!v);
+    const k2 = n.slice(1);
+    p.set = (el, v) => el.toggleAttribute(k2, !!v);
     return p;
   }
   if (n === "ref") {
@@ -639,7 +669,14 @@ function prepare(p) {
     };
     return p;
   }
-  p.set = (el, v) => v == null || v === false ? el.removeAttribute(n) : el.setAttribute(n, v === true ? "" : v);
+  const k = n.replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
+  p.set = (el, v) => {
+    if (el.tagName.includes("-") && !n.startsWith("data-") && !n.startsWith("aria-")) {
+      el[k] = v;
+      return;
+    }
+    v == null || v === false ? el.removeAttribute(n) : el.setAttribute(n, v === true ? "" : v);
+  };
   return p;
 }
 var Inst = class {
@@ -647,20 +684,17 @@ var Inst = class {
     this.c = c;
     this.rt = rt;
     const f = this.f = c.e.content.cloneNode(true);
-    const w = doc.createTreeWalker(f, 129);
     const ps = c.p, ts = this.t = [], ds = this.d = [];
-    let idx = -1, node2 = null;
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i];
-      while (idx < p.i) {
-        node2 = w.nextNode();
-        idx++;
-      }
+      const node2 = at(f, p.pth);
       if (p.t === ATTR) {
         if (p.dl) delegate(rt, p.dl);
         ts.push(p.wrap ? p.mk(node2) : node2);
+      } else if (p.t === SOLE) {
+        ts.push(node2);
       } else {
-        ts.push(p.t === SOLE ? new Sole(node2, rt) : new Child(node2, node2.nextSibling, rt));
+        ts.push(new Child(node2, node2.nextSibling, rt));
       }
       ds.push(null);
     }
@@ -696,6 +730,24 @@ var Inst = class {
         p.set(target, v);
         continue;
       }
+      if (p.t === SOLE) {
+        if (typeof v === "function") {
+          ds[i] = live(ds[i], () => {
+            const x = v(), cur = ts[i];
+            if (cur.set) {
+              cur.set(x);
+              return;
+            }
+            if (writeText(cur, x)) return;
+            (ts[i] = new Sole(cur, this.rt)).set(x);
+          });
+        } else {
+          ds[i] = kill(ds[i]);
+          if (target.set) target.set(v);
+          else if (!writeText(target, v)) (ts[i] = new Sole(target, this.rt)).set(v);
+        }
+        continue;
+      }
       if (typeof v === "function") {
         ds[i] = live(ds[i], attr ? () => p.set(target, v()) : () => target.set(v()));
       } else {
@@ -716,6 +768,22 @@ var Inst = class {
     }
   }
 };
+var writeText = (el, v) => {
+  if (v == null || v === false || v === true) {
+    el.textContent = "";
+    return 1;
+  }
+  const t = typeof v;
+  if (t === "string") {
+    el.textContent = v;
+    return 1;
+  }
+  if (t === "number") {
+    el.textContent = "" + v;
+    return 1;
+  }
+  return 0;
+};
 var Sole = class {
   constructor(el, rt) {
     this.el = el;
@@ -725,19 +793,7 @@ var Sole = class {
   }
   set(v) {
     if (this.c) return this.c.set(v);
-    if (v == null || v === false || v === true) {
-      this.el.textContent = "";
-      return;
-    }
-    const t = typeof v;
-    if (t === "string") {
-      this.el.textContent = v;
-      return;
-    }
-    if (t === "number") {
-      this.el.textContent = "" + v;
-      return;
-    }
+    if (writeText(this.el, v)) return;
     this.el.textContent = "";
     const s = comment(), e = comment();
     this.el.append(s, e);
@@ -763,7 +819,7 @@ var Child = class _Child {
     this.k = void 0;
   }
   set(v) {
-    if (v == null || v === false || v === "") return this.clear();
+    if (v == null || typeof v === "boolean" || v === "") return this.clear();
     if (v instanceof Tpl) return this.tpl(v);
     if (Array.isArray(v)) return this.list(v);
     if (v.__e) return this.each(v);
@@ -888,6 +944,27 @@ var Child = class _Child {
 function each(source, render2, key) {
   return { __e: 1, s: source, r: render2, k: key };
 }
+function lis(arr) {
+  const len = arr.length, pred = new Array(len), seq = [];
+  for (let i = 0; i < len; i++) {
+    const v2 = arr[i];
+    if (!v2) continue;
+    let lo = 0, hi = seq.length;
+    while (lo < hi) {
+      const mid = lo + hi >> 1;
+      if (arr[seq[mid]] < v2) lo = mid + 1;
+      else hi = mid;
+    }
+    if (lo > 0) pred[i] = seq[lo - 1];
+    seq[lo] = i;
+  }
+  let u = seq.length, v = seq[u - 1];
+  while (u-- > 0) {
+    seq[u] = v;
+    v = pred[v];
+  }
+  return seq;
+}
 var Each = class {
   constructor(child, spec) {
     this.c = child;
@@ -969,16 +1046,21 @@ var Each = class {
     }
     const rows = new Array(n);
     const used = p ? new Uint8Array(p) : null;
+    const oldIdx = new Array(n);
+    let moved = 0;
     let s = 0;
     while (s < p && s < n && this.keyOf(prev[s], s) === this.keyOf(next[s], s)) {
       rows[s] = old[s];
       used[s] = 1;
+      oldIdx[s] = s + 1;
       s++;
     }
     let pe = p - 1, ne = n - 1;
     while (pe >= s && ne >= s && this.keyOf(prev[pe], pe) === this.keyOf(next[ne], ne)) {
       rows[ne] = old[pe];
       used[pe] = 1;
+      oldIdx[ne] = pe + 1;
+      if (ne !== pe) moved = 1;
       pe--;
       ne--;
     }
@@ -992,6 +1074,8 @@ var Each = class {
           rows[i] = old[j];
           used[j] = 1;
           seen.delete(k);
+          oldIdx[i] = j + 1;
+          if (i !== j) moved = 1;
         }
       }
     }
@@ -1010,6 +1094,8 @@ var Each = class {
     const parent = this.c.e.parentNode;
     let ref = this.c.e;
     let batch2 = null;
+    const seq = moved ? lis(oldIdx) : null;
+    let si = seq ? seq.length - 1 : -1;
     for (let i = n - 1; i >= 0; i--) {
       const row = rows[i];
       if (row.g) {
@@ -1023,7 +1109,10 @@ var Each = class {
         batch2 = null;
         ref = f;
       }
-      if (row.l.nextSibling !== ref) this.move(row, parent, ref);
+      if (seq) {
+        if (si < 0 || i !== seq[si]) this.move(row, parent, ref);
+        else si--;
+      }
       ref = row.f;
     }
     if (batch2) parent.insertBefore(batch2, ref);
@@ -1104,8 +1193,8 @@ function define(name, opts) {
         target = this._t = shadow ? this.attachShadow({ mode: shadow }) : this;
         const styleRoot = this._sr = shadow ? target : this.getRootNode();
         if (styles) applyStyles(styleRoot, styles);
-        trackRoot(styleRoot);
       }
+      trackRoot(this._sr);
       this._d = root(() => {
         this._r = render(setup(this.props, this), target);
       });
@@ -1157,6 +1246,7 @@ export {
   root,
   signal,
   svg,
+  tracking,
   untrack,
   vars
 };
