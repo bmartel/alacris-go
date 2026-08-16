@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.4.0](https://github.com/bmartel/alacris-go/compare/v0.3.0...v0.4.0) (2026-08-16)
+
+### Features
+
+* ship Alacris UI as typed Material Design 3 components ([de98acf](https://github.com/bmartel/alacris-go/commit/de98acf3857d3aa6123ba8dd73ada70f6822ff55))
+
 ## [0.3.0](https://github.com/bmartel/alacris-go/compare/v0.2.0...v0.3.0) (2026-08-14)
 
 ### Features
