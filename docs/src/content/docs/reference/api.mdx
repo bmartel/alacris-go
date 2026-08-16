@@ -1,6 +1,6 @@
 ---
 title: Go API
-description: Every exported type and function across the three packages, with the one-line reason each exists.
+description: Every exported type and function across the alacris, gen, live, and ui packages, with the one-line reason each exists.
 sidebar:
   order: 1
 ---
@@ -61,16 +61,17 @@ import alacris "github.com/bmartel/alacris-go"
 | `Assets() fs.FS` | The vendored files, for your own asset pipeline. |
 | `SetCacheHeaders(http.Header, *http.Request, etag string)` | The caching policy: immutable when the URL is versioned, revalidated otherwise. |
 | `RuntimeVersion` | The alacris version vendored in this module. |
+| `UIVersion` | The `@alacris/ui` version vendored in `assets/ui/`. |
 | `TrustedTypesPolicy` | `"alacris"` — allow it under a trusted-types CSP. |
 | `DefaultBase` | `"/_alacris/"`. |
-| `AssetCore`, `AssetCoreDev`, `AssetStore`, `AssetContext`, `AssetSignal`, `AssetLive` | Served file names. |
+| `AssetCore`, `AssetCoreDev`, `AssetStore`, `AssetContext`, `AssetSignal`, `AssetLive`, `AssetUI`, `AssetUITheme` | Served file names. |
 
 ### Page setup
 
 | | |
 | --- | --- |
-| `Config` | Base, Dev, Modules, Imports, Live, Page, Endpoint, Nonce, Version. |
-| `Scripts(Config) templ.Component` | The import map, your modules, and the live client. Goes in `<head>`. |
+| `Config` | Base, Dev, Modules, Imports, Live, Page, Endpoint, Nonce, Version, UI, Theme. |
+| `Scripts(Config) templ.Component` | The import map, your modules, the UI bootstrap, and the live client. Goes in `<head>`. |
 | `(Config) ImportMap() map[string]string` | The specifiers it produces, for a bundler or a test. |
 | `Pending` | The stylesheet that hides elements until they are defined. |
 
@@ -81,6 +82,24 @@ import alacris "github.com/bmartel/alacris-go"
 | `Vars(names ...string) VarSet` | A contract from full property names — what generated code uses. |
 | `NewVarSet(prefix string, keys ...string) VarSet` | A contract from a prefix and camelCase keys, mirroring `vars()`. |
 | `(VarSet) Name(key) string`, `Names() []string`, `Apply(*Element, map[string]string)` | The contract, and applying it. |
+| `Theme`, `ThemeColors`, `ThemeOverrides` | The `applyTheme` config, set on `Config.Theme`. |
+
+## Package `ui`
+
+```go
+import "github.com/bmartel/alacris-go/ui"
+```
+
+Typed wrappers for every Alacris UI component, generated from the vendored
+sources. Enable the JavaScript with `alacris.Config{UI: true}`. See
+[Alacris UI](/alacris-go/guides/alacris-ui/).
+
+| | |
+| --- | --- |
+| `Button`, `TextField`, `Dialog`, … | One constructor per tag. |
+| `Tags` / `Pending()` | For `alacris.Pending`. |
+| `ButtonVars`, … | Per-component theming contracts. |
+| `ButtonElement(sess, id)` | Typed live handles. |
 
 ## Package `gen`
 

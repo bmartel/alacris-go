@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -24,6 +25,9 @@ var assetFS embed.FS
 // RuntimeVersion is the version of the alacris npm package vendored in
 // assets/. Regenerate with `go generate ./...` after bumping it.
 const RuntimeVersion = "0.3.0"
+
+// UIVersion is the version of the @alacris/ui package vendored in assets/ui/.
+const UIVersion = "0.2.0"
 
 // TrustedTypesPolicy is the Trusted Types policy name alacris registers for
 // template parsing. Under a trusted-types CSP directive it has to be allowed.
@@ -37,6 +41,8 @@ const (
 	AssetContext = "context.js"
 	AssetSignal  = "signal.js"
 	AssetLive    = "live.js"
+	AssetUI      = "ui/index.js"
+	AssetUITheme = "ui/theme/index.js"
 )
 
 // DefaultBase is where the runtime is expected to be mounted.
@@ -67,20 +73,22 @@ func RuntimeHandler() http.Handler {
 	// a miss was remembered too, which let a few thousand requests for
 	// made-up names grow a map that nothing ever emptied. A map built once
 	// and only read afterwards also needs no lock on the serving path.
-	entries, err := fs.ReadDir(Assets(), ".")
-	if err != nil {
-		panic(err) // the embedded tree is fixed at compile time
-	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".js") {
-			continue
+	err := fs.WalkDir(Assets(), ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(name, ".js") {
+			return nil
 		}
 		body, err := fs.ReadFile(Assets(), name)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		assets[name] = newAsset(body)
+		return nil
+	})
+	if err != nil {
+		panic(err) // the embedded tree is fixed at compile time
 	}
 
 	return &runtimeHandler{assets: assets}
@@ -118,14 +126,33 @@ type asset struct {
 	gzETag string
 }
 
+// lookup finds a vendored asset by the longest path suffix that matches a
+// known file. That is what makes the handler mount-point agnostic for both
+// flat names (`alacris.js`) and the UI tree (`ui/theme/index.js`) without
+// needing http.StripPrefix — and without remembering names it was asked for.
+func (h *runtimeHandler) lookup(reqPath string) *asset {
+	name := strings.TrimPrefix(path.Clean("/"+reqPath), "/")
+	for name != "" {
+		if a, ok := h.assets[name]; ok {
+			return a
+		}
+		slash := strings.IndexByte(name, '/')
+		if slash < 0 {
+			return nil
+		}
+		name = name[slash+1:]
+	}
+	return nil
+}
+
 func (h *runtimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	a, ok := h.assets[path.Base(path.Clean("/"+r.URL.Path))]
-	if !ok {
+	a := h.lookup(r.URL.Path)
+	if a == nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -288,6 +315,15 @@ type Config struct {
 	// revalidating it. Any string that changes with a deploy works: a release
 	// tag, a build id, a commit.
 	Version string
+
+	// UI loads Alacris UI — every Material Design 3 component, the token
+	// system, and applyTheme. The typed wrappers live in the ui subpackage.
+	//
+	// A zero Theme still applies the default Material scheme (seed #e8ad18,
+	// Google Sans Flex, light/dark from the OS). Set Theme to re-skin the
+	// page; every component follows because they consume system tokens.
+	UI    bool
+	Theme Theme
 }
 
 // asset returns the URL for one served file.
@@ -330,6 +366,16 @@ func (c Config) ImportMap() map[string]string {
 		"alacris/context": c.asset(AssetContext),
 		"alacris/signal":  c.asset(AssetSignal),
 	}
+	if c.UI {
+		// The UI source imports @alacris/core; mapping it onto the same
+		// bytes as `alacris` is what keeps one reactive graph on the page.
+		imports["@alacris/core"] = imports["alacris"]
+		imports["@alacris/ui"] = c.asset(AssetUI)
+		imports["@alacris/ui/theme"] = c.asset(AssetUITheme)
+		imports["@alacris/ui/motion"] = c.asset("ui/motion/index.js")
+		imports["@alacris/ui/tokens"] = c.asset("ui/tokens/index.js")
+		imports["@alacris/ui/components/"] = c.base() + "ui/components/"
+	}
 	for k, v := range c.Imports {
 		imports[k] = v
 	}
@@ -365,6 +411,24 @@ func (c Config) Scripts() templ.Component {
 		b.WriteString(`<script type="importmap"` + nonceAttr + `>`)
 		b.Write(body)
 		b.WriteString("</script>")
+
+		if c.UI {
+			themeJSON, err := json.Marshal(c.Theme.wire())
+			if err != nil {
+				return err
+			}
+			b.WriteString(`<script type="module"` + nonceAttr + `>`)
+			b.WriteString(`import { applyTheme, setScheme } from '@alacris/ui/theme';`)
+			b.WriteString(`import '@alacris/ui';`)
+			b.WriteString(`applyTheme(`)
+			b.Write(themeJSON)
+			b.WriteByte(')')
+			b.WriteByte(';')
+			if s := c.Theme.scheme(); s == "light" || s == "dark" {
+				b.WriteString(`setScheme(` + strconv.Quote(s) + `);`)
+			}
+			b.WriteString("</script>")
+		}
 
 		for _, m := range c.Modules {
 			b.WriteString(`<script type="module" src="` + templ.EscapeString(m) + `"` + nonceAttr + `></script>`)

@@ -109,5 +109,22 @@
       "ala-todo-list"
     ],
     "note": "What a generated wrapper expands to."
+  },
+  {
+    "id": "ui-button",
+    "go": "return ui.Button(ui.ButtonProps{Variant: \"tonal\"}).Text(\"Save\")",
+    "html": "\u003cui-button variant=\"tonal\"\u003eSave\u003c/ui-button\u003e",
+    "pretty": "\u003cui-button variant=\"tonal\"\u003eSave\u003c/ui-button\u003e",
+    "tags": [
+      "ui-button"
+    ],
+    "note": "Every Alacris UI tag has a typed wrapper in github.com/bmartel/alacris-go/ui."
+  },
+  {
+    "id": "ui-theme",
+    "go": "return alacris.Scripts(alacris.Config{\n\tUI: true,\n\tTheme: alacris.Theme{\n\t\tSeed:   \"#0b57d0\",\n\t\tScheme: \"dark\",\n\t},\n})",
+    "html": "\u003cscript type=\"importmap\"\u003e{\"imports\":{\"@alacris/core\":\"/_alacris/alacris.js\",\"@alacris/ui\":\"/_alacris/ui/index.js\",\"@alacris/ui/components/\":\"/_alacris/ui/components/\",\"@alacris/ui/motion\":\"/_alacris/ui/motion/index.js\",\"@alacris/ui/theme\":\"/_alacris/ui/theme/index.js\",\"@alacris/ui/tokens\":\"/_alacris/ui/tokens/index.js\",\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\u003c/script\u003e\u003cscript type=\"module\"\u003eimport { applyTheme, setScheme } from '@alacris/ui/theme';import '@alacris/ui';applyTheme({\"seed\":\"#0b57d0\"});setScheme(\"dark\");\u003c/script\u003e",
+    "pretty": "\u003cscript type=\"importmap\"\u003e\n  {\"imports\":{\"@alacris/core\":\"/_alacris/alacris.js\",\"@alacris/ui\":\"/_alacris/ui/index.js\",\"@alacris/ui/components/\":\"/_alacris/ui/components/\",\"@alacris/ui/motion\":\"/_alacris/ui/motion/index.js\",\"@alacris/ui/theme\":\"/_alacris/ui/theme/index.js\",\"@alacris/ui/tokens\":\"/_alacris/ui/tokens/index.js\",\"alacris\":\"/_alacris/alacris.js\",\"alacris/context\":\"/_alacris/context.js\",\"alacris/signal\":\"/_alacris/signal.js\",\"alacris/store\":\"/_alacris/store.js\"}}\n\u003c/script\u003e\n\u003cscript type=\"module\"\u003e\n  import { applyTheme, setScheme } from '@alacris/ui/theme';import '@alacris/ui';applyTheme({\"seed\":\"#0b57d0\"});setScheme(\"dark\");\n\u003c/script\u003e",
+    "note": "Config.UI loads the design system; Theme re-skins every component at once."
   }
 ]

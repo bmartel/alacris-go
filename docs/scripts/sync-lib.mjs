@@ -4,6 +4,7 @@
 // If the docs ever drift from the module, the demos break loudly instead of
 // quietly documenting something that no longer exists.
 import { cp, mkdir, rm, readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const sources = [
@@ -25,16 +26,30 @@ for (const source of sources) {
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
-for (const source of sources) {
-  const dir = fileURLToPath(source.from);
-  for (const name of await readdir(dir)) {
-    if (!source.only(name)) continue;
-    await cp(dir + name, out + name);
+/** Recursively copy .js files, preserving the directory tree under assets/ui/. */
+async function copyJs(from, to, only) {
+  await mkdir(to, { recursive: true });
+  let n = 0;
+  for (const entry of await readdir(from, { withFileTypes: true })) {
+    const src = join(from, entry.name);
+    const dest = join(to, entry.name);
+    if (entry.isDirectory()) {
+      n += await copyJs(src, dest, only);
+      continue;
+    }
+    if (!only(entry.name)) continue;
+    await cp(src, dest);
+    n++;
   }
+  return n;
 }
 
-const files = (await readdir(out)).sort();
-console.log(`  docs: synced ${files.length} files into public/lib — ${files.join(', ')}`);
+let total = 0;
+for (const source of sources) {
+  total += await copyJs(fileURLToPath(source.from), out, source.only);
+}
+
+console.log(`  docs: synced ${total} files into public/lib`);
 
 // public/AGENTS.md is not synced from anywhere. It is the drop-in file a
 // project using this library curls, and it is committed where Astro serves it

@@ -77,7 +77,7 @@ import GoExample from '../../../components/GoExample.astro';
 - main.go
 - **web/**
   - components.js  every `define()` call, one module
-- **ui/**  generated wrappers — see [Generating wrappers](/alacris-go/guides/codegen/)
+- **internal/components/**  generated app wrappers — see [Generating wrappers](/alacris-go/guides/codegen/)
   - components_gen.go
   - alacris_gen.go
 - **views/**
@@ -148,5 +148,7 @@ alacris.Config{Dev: !isProduction}
 
 - [Your first component](/alacris-go/start/first-component/) — the full loop,
   including generated wrappers.
+- [Alacris UI](/alacris-go/guides/alacris-ui/) — sixty-eight Material Design 3
+  components, vendored and typed. One flag.
 - [Rendering elements](/alacris-go/guides/rendering/) — the `Element` API in
   full.

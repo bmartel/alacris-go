@@ -157,10 +157,15 @@ alacris-go: with -strip "ala-", <ala-todo-item> and <todo-item> both generate To
 
 `@goname` settles it.
 
+Do not generate your own wrappers into a package also named `ui` if you import
+[`github.com/bmartel/alacris-go/ui`](/alacris-go/guides/alacris-ui/) — that is
+the design system. Put app wrappers in `./internal/components` (or similar),
+or alias one of the imports.
+
 ## In your build
 
 ```go title="main.go"
-//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui -strip ala-
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./internal/components -strip ala-
 //go:generate go run github.com/a-h/templ/cmd/templ@latest generate
 ```
 
@@ -170,7 +175,7 @@ In CI, check instead:
 
 ```yaml
 - name: Generated wrappers are up to date
-  run: go run ./cmd/alacris-go check ./web -o ./ui -strip ala-
+  run: go run ./cmd/alacris-go check ./web -o ./internal/components -strip ala-
 ```
 
 `check` compares byte for byte and reports what differs, including files left
@@ -187,7 +192,7 @@ the directory you run from, so the same command works locally and in CI.
 <FileTree>
 - web/
   - components.js  your `define()` calls
-- ui/  generated — do not edit
+- internal/components/  generated app wrappers — do not edit
   - components_gen.go
   - alacris_gen.go  `Tags`, package docs
 - alacris.components.json  optional, only for what the scanner cannot read

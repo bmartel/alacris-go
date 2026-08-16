@@ -8,9 +8,10 @@
 *.md     text eol=lf
 *.yml    text eol=lf
 
-# The vendored alacris runtime is byte-pinned by assets_test.go, so git must
-# not touch it at all. This rule is last on purpose: for attributes, the last
-# matching pattern wins, and it has to beat the *.js rule above.
+# The vendored alacris runtime and @alacris/ui sources are byte-pinned by
+# assets_test.go, so git must not touch them at all. This rule is last on
+# purpose: for attributes, the last matching pattern wins, and it has to beat
+# the *.js rule above.
 /assets/** -text
 
 # Generated Go is checked in and diffed by `alacris-go check`; collapsing it in

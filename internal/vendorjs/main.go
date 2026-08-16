@@ -1,5 +1,5 @@
-// Command vendorjs refreshes the vendored alacris runtime in assets/ from the
-// npm registry.
+// Command vendorjs refreshes the vendored alacris runtime and @alacris/ui
+// sources in assets/ from the npm registry.
 //
 // The Go module ships a copy of the JavaScript so that a Go project needs no
 // npm at all. A vendored copy drifts unless refreshing it is one command and
@@ -8,17 +8,17 @@
 //
 // Usage:
 //
-//	go run ./internal/vendorjs             # the version in RuntimeVersion
-//	go run ./internal/vendorjs -v 0.3.0    # a specific version
+//	go run ./internal/vendorjs             # versions in RuntimeVersion / UIVersion
+//	go run ./internal/vendorjs -v 0.3.0    # a specific alacris version
+//	go run ./internal/vendorjs -ui 0.2.0   # a specific @alacris/ui version
 //	go run ./internal/vendorjs -check      # verify assets/ matches, change nothing
-//	go run ./internal/vendorjs -bump       # vendor the latest release and rewrite
-//	                                       # RuntimeVersion and the pinned hashes
+//	go run ./internal/vendorjs -bump       # vendor the latest releases and rewrite
+//	                                       # RuntimeVersion, UIVersion and the hashes
 //
 // -bump is the whole upgrade in one command, which is what lets a scheduled
 // workflow keep the vendored copy in step with upstream: it resolves the
-// latest published version (or -v), writes the assets, and updates both
-// places that pin them — RuntimeVersion in runtime.go and vendoredHashes in
-// assets_test.go — so the only remaining human judgement is reviewing the PR.
+// latest published versions (or -v / -ui), writes the assets, and updates the
+// pins — so the only remaining human judgement is reviewing the PR.
 package main
 
 import (
@@ -61,10 +61,11 @@ func main() {
 	log.SetPrefix("vendorjs: ")
 
 	var (
-		version = flag.String("v", "", "alacris version to vendor (default: RuntimeVersion)")
-		check   = flag.Bool("check", false, "report differences without writing")
-		bump    = flag.Bool("bump", false, "vendor the latest release (or -v) and rewrite RuntimeVersion and the pinned hashes")
-		dir     = flag.String("dir", "assets", "output directory")
+		version   = flag.String("v", "", "alacris version to vendor (default: RuntimeVersion)")
+		uiVersion = flag.String("ui", "", "@alacris/ui version to vendor (default: UIVersion)")
+		check     = flag.Bool("check", false, "report differences without writing")
+		bump      = flag.Bool("bump", false, "vendor the latest releases and rewrite version pins and hashes")
+		dir       = flag.String("dir", "assets", "output directory")
 	)
 	flag.Parse()
 
@@ -72,24 +73,48 @@ func main() {
 		log.Fatal("-check and -bump contradict each other; pick one")
 	}
 
-	current, err := runtimeVersion()
+	current, err := pinnedVersion(versionRE, "RuntimeVersion")
 	if err != nil {
 		log.Fatal(err)
 	}
-	target := *version
-	if target == "" {
+	currentUI, err := pinnedVersion(uiVersionRE, "UIVersion")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	coreTarget := *version
+	if coreTarget == "" {
 		if *bump {
-			target = "latest"
+			coreTarget = "latest"
 		} else {
-			target = current
+			coreTarget = current
+		}
+	}
+	uiTarget := *uiVersion
+	if uiTarget == "" {
+		if *bump {
+			uiTarget = "latest"
+		} else {
+			uiTarget = currentUI
 		}
 	}
 
-	files, resolved, err := fetch(target)
+	coreFiles, resolved, err := fetch("alacris", coreTarget, corePick, wantedNames())
 	if err != nil {
 		log.Fatal(err)
 	}
-	*version = resolved
+	uiFiles, uiResolved, err := fetch("@alacris/ui", uiTarget, uiPick, []string{"ui/index.js", "LICENSE.alacris-ui"})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	files := map[string][]byte{}
+	for k, v := range coreFiles {
+		files[k] = v
+	}
+	for k, v := range uiFiles {
+		files[k] = v
+	}
 
 	names := make([]string, 0, len(files))
 	for name := range files {
@@ -104,66 +129,158 @@ func main() {
 		old, err := os.ReadFile(dst)
 		same := err == nil && string(old) == string(body)
 		sum := sha256.Sum256(body)
+		label := name
+		if len(label) > 40 {
+			label = label[:37] + "..."
+		}
 		switch {
 		case same:
-			fmt.Printf("  ok       %-18s %s\n", name, hex.EncodeToString(sum[:8]))
+			fmt.Printf("  ok       %-40s %s\n", label, hex.EncodeToString(sum[:8]))
 		case *check:
 			changed++
-			fmt.Printf("  DIFFERS  %-18s %s\n", name, hex.EncodeToString(sum[:8]))
+			fmt.Printf("  DIFFERS  %-40s %s\n", label, hex.EncodeToString(sum[:8]))
 		default:
+			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+				log.Fatal(err)
+			}
 			if err := os.WriteFile(dst, body, 0o644); err != nil {
 				log.Fatal(err)
 			}
 			changed++
-			fmt.Printf("  wrote    %-18s %s\n", name, hex.EncodeToString(sum[:8]))
+			fmt.Printf("  wrote    %-40s %s\n", label, hex.EncodeToString(sum[:8]))
+		}
+	}
+
+	if !*check {
+		if err := pruneStale(*dir, uiFiles); err != nil {
+			log.Fatal(err)
 		}
 	}
 
 	if *check && changed > 0 {
-		log.Fatalf("%d vendored file(s) differ from alacris@%s", changed, *version)
+		log.Fatalf("%d vendored file(s) differ from alacris@%s / @alacris/ui@%s", changed, resolved, uiResolved)
 	}
 
 	if *bump {
-		if err := rewritePins(*version, files); err != nil {
+		if err := rewritePins(resolved, uiResolved, files); err != nil {
 			log.Fatal(err)
 		}
-		if *version == current && changed == 0 {
-			fmt.Printf("\nalacris@%s is already vendored and current\n", current)
+		if resolved == current && uiResolved == currentUI && changed == 0 {
+			fmt.Printf("\nalacris@%s and @alacris/ui@%s are already vendored and current\n", current, currentUI)
 		} else {
-			fmt.Printf("\nbumped alacris %s -> %s; RuntimeVersion and assets_test.go updated\n", current, *version)
+			fmt.Printf("\nbumped alacris %s -> %s, @alacris/ui %s -> %s; pins updated\n",
+				current, resolved, currentUI, uiResolved)
 		}
 		return
 	}
 	if !*check && changed > 0 {
-		fmt.Printf("\nvendored alacris@%s — update RuntimeVersion and the hashes in assets_test.go\n", *version)
+		if err := rewriteHashMap(files); err != nil {
+			log.Fatal(err)
+		}
+		if err := gofmtFile("assets_test.go"); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("\nvendored alacris@%s and @alacris/ui@%s; hashes updated\n", resolved, uiResolved)
 	}
 }
 
-// rewritePins updates the two places that pin the vendored bytes, so a bump
-// is one command rather than a command plus two hand edits that can be
-// forgotten or mistyped — mistyped being the dangerous one, since a hash
-// copied wrong is a pin on nothing.
-func rewritePins(version string, files map[string][]byte) error {
-	if err := rewrite("runtime.go", versionRE, `RuntimeVersion = "`+version+`"`); err != nil {
-		return err
+func wantedNames() []string {
+	var names []string
+	for _, n := range wanted {
+		names = append(names, n)
 	}
-	for name, body := range files {
-		if name == "LICENSE.alacris" {
-			continue
+	return names
+}
+
+func corePick(p string) (string, bool) {
+	name, ok := wanted[p]
+	return name, ok
+}
+
+func uiPick(p string) (string, bool) {
+	p = path.Clean(p)
+	if p == "package/LICENSE" {
+		return "LICENSE.alacris-ui", true
+	}
+	const prefix = "package/src/"
+	if !strings.HasPrefix(p, prefix) {
+		return "", false
+	}
+	rel := strings.TrimPrefix(p, prefix)
+	if rel == "" {
+		return "", false
+	}
+	return path.Join("ui", rel), true
+}
+
+func pruneStale(assetsDir string, uiFiles map[string][]byte) error {
+	uiDir := filepath.Join(assetsDir, "ui")
+	keep := map[string]bool{}
+	for name := range uiFiles {
+		if rest, ok := strings.CutPrefix(name, "ui/"); ok {
+			keep[filepath.FromSlash(rest)] = true
 		}
-		sum := sha256.Sum256(body)
-		re, err := regexp.Compile(`"` + regexp.QuoteMeta(name) + `":\s*"[0-9a-f]{64}"`)
+	}
+	if _, err := os.Stat(uiDir); os.IsNotExist(err) {
+		return nil
+	}
+	return filepath.WalkDir(uiDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		repl := `"` + name + `": "` + hex.EncodeToString(sum[:]) + `"`
-		if err := rewrite("assets_test.go", re, repl); err != nil {
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(uiDir, p)
+		if err != nil {
 			return err
 		}
+		if keep[rel] {
+			return nil
+		}
+		fmt.Printf("  removed  %s\n", filepath.ToSlash(filepath.Join("ui", rel)))
+		return os.Remove(p)
+	})
+}
+
+// rewritePins updates the places that pin the vendored bytes, so a bump is
+// one command rather than a command plus hand edits that can be forgotten
+// or mistyped — mistyped being the dangerous one, since a hash copied wrong
+// is a pin on nothing.
+func rewritePins(version, uiVersion string, files map[string][]byte) error {
+	if err := rewrite("runtime.go", versionRE, `RuntimeVersion = "`+version+`"`); err != nil {
+		return err
 	}
-	// The hash replacements do not preserve the map's alignment; leave the
-	// file the way gofmt would, so the bump does not trip the format check.
+	if err := rewrite("runtime.go", uiVersionRE, `UIVersion = "`+uiVersion+`"`); err != nil {
+		return err
+	}
+	if err := rewriteHashMap(files); err != nil {
+		return err
+	}
 	return gofmtFile("assets_test.go")
+}
+
+func rewriteHashMap(files map[string][]byte) error {
+	var b strings.Builder
+	b.WriteString("var vendoredHashes = map[string]string{\n")
+	names := make([]string, 0, len(files))
+	for name := range files {
+		if strings.HasPrefix(name, "LICENSE") {
+			continue
+		}
+		if !strings.HasSuffix(name, ".js") {
+			continue
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		sum := sha256.Sum256(files[name])
+		fmt.Fprintf(&b, "\t%q: %q,\n", name, hex.EncodeToString(sum[:]))
+	}
+	b.WriteString("}")
+	re := regexp.MustCompile(`var vendoredHashes = map\[string\]string\{(?s:.*?)\}`)
+	return rewrite("assets_test.go", re, b.String())
 }
 
 func gofmtFile(path string) error {
@@ -213,27 +330,32 @@ func verifyDist(raw []byte, integrity, shasum string) error {
 	return fmt.Errorf("the registry offered no dist.integrity or dist.shasum to verify the tarball against")
 }
 
-var versionRE = regexp.MustCompile(`RuntimeVersion = "([^"]+)"`)
+var (
+	versionRE   = regexp.MustCompile(`RuntimeVersion = "([^"]+)"`)
+	uiVersionRE = regexp.MustCompile(`UIVersion = "([^"]+)"`)
+)
 
-func runtimeVersion() (string, error) {
+func pinnedVersion(re *regexp.Regexp, name string) (string, error) {
 	src, err := os.ReadFile("runtime.go")
 	if err != nil {
-		return "", fmt.Errorf("reading runtime.go for RuntimeVersion: %w", err)
+		return "", fmt.Errorf("reading runtime.go for %s: %w", name, err)
 	}
-	m := versionRE.FindSubmatch(src)
+	m := re.FindSubmatch(src)
 	if m == nil {
-		return "", fmt.Errorf("RuntimeVersion not found in runtime.go")
+		return "", fmt.Errorf("%s not found in runtime.go", name)
 	}
 	return string(m[1]), nil
 }
 
+func runtimeVersion() (string, error) { return pinnedVersion(versionRE, "RuntimeVersion") }
+
 // fetch downloads and verifies one published version. version may be a
 // dist-tag like "latest"; resolved is always the concrete version number the
 // registry answered with.
-func fetch(version string) (files map[string][]byte, resolved string, err error) {
+func fetch(pkg, version string, pick func(string) (string, bool), required []string) (files map[string][]byte, resolved string, err error) {
 	client := &http.Client{Timeout: 60 * time.Second}
 
-	metaURL := "https://registry.npmjs.org/alacris/" + version
+	metaURL := "https://registry.npmjs.org/" + pkg + "/" + version
 	resp, err := client.Get(metaURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("fetching %s: %w", metaURL, err)
@@ -254,7 +376,7 @@ func fetch(version string) (files map[string][]byte, resolved string, err error)
 		return nil, "", fmt.Errorf("decoding registry metadata: %w", err)
 	}
 	if meta.Dist.Tarball == "" {
-		return nil, "", fmt.Errorf("no tarball for alacris@%s", version)
+		return nil, "", fmt.Errorf("no tarball for %s@%s", pkg, version)
 	}
 	resolved = meta.Version
 	if resolved == "" {
@@ -279,7 +401,7 @@ func fetch(version string) (files map[string][]byte, resolved string, err error)
 		return nil, "", fmt.Errorf("reading tarball: %w", err)
 	}
 	if err := verifyDist(raw, meta.Dist.Integrity, meta.Dist.Shasum); err != nil {
-		return nil, "", fmt.Errorf("alacris@%s: %w", version, err)
+		return nil, "", fmt.Errorf("%s@%s: %w", pkg, version, err)
 	}
 
 	gz, err := gzip.NewReader(bytes.NewReader(raw))
@@ -301,12 +423,10 @@ func fetch(version string) (files map[string][]byte, resolved string, err error)
 		if hdr.Typeflag != tar.TypeReg {
 			continue
 		}
-		name, ok := wanted[path.Clean(hdr.Name)]
+		name, ok := pick(path.Clean(hdr.Name))
 		if !ok {
 			continue
 		}
-		// The published tarball is small; a limit keeps a hostile one from
-		// exhausting memory.
 		body, err := io.ReadAll(io.LimitReader(tr, 4<<20))
 		if err != nil {
 			return nil, "", fmt.Errorf("reading %s: %w", hdr.Name, err)
@@ -315,14 +435,14 @@ func fetch(version string) (files map[string][]byte, resolved string, err error)
 	}
 
 	var missing []string
-	for _, name := range wanted {
+	for _, name := range required {
 		if _, ok := out[name]; !ok {
 			missing = append(missing, name)
 		}
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return nil, "", fmt.Errorf("alacris@%s is missing %s", version, strings.Join(missing, ", "))
+		return nil, "", fmt.Errorf("%s@%s is missing %s", pkg, version, strings.Join(missing, ", "))
 	}
 	return out, resolved, nil
 }

@@ -90,3 +90,22 @@ is a page id, which reaches nothing without the cookie.
 
 Patches, actions, `OnOpen`, batching, the handler API, and every prop-encoding
 rule. A page that worked before behaves identically once it compiles.
+
+## Adding Alacris UI
+
+Additive. Set `Config.UI: true` and import
+[`github.com/bmartel/alacris-go/ui`](/alacris-go/guides/alacris-ui/). Existing
+pages are unchanged until that flag is set.
+
+If you already generate wrappers into a package named `ui`, alias one of the
+imports — the design system took that path:
+
+```go
+import (
+    m3 "github.com/bmartel/alacris-go/ui"
+    "example.com/app/ui" // your generated wrappers
+)
+```
+
+New projects should generate app wrappers somewhere else
+(`./internal/components`) and import the design system as `ui`.

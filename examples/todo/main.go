@@ -8,6 +8,8 @@
 //   - the components are written in JavaScript, in web/components.js, because
 //     setup() runs in the browser;
 //   - ui/ is generated from them by alacris-go, so the props are typed;
+//   - Alacris UI is on because Config.UI is set — Material components next to
+//     the app's own, sharing one reactive graph;
 //   - the list itself lives here, in Go, and reaches the page as prop writes.
 //
 // Nothing in the request path renders component internals. The server renders
@@ -164,6 +166,7 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 	v := view{
 		Config: alacris.Config{
 			Dev:     a.dev,
+			UI:      true,
 			Modules: []string{"/web/components.js"},
 			Live:    true,
 			Page:    sess.ID(),

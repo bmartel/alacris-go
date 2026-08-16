@@ -36,6 +36,7 @@ type docTag struct {
 // parseDoc strips comment markers and splits a doc comment into its
 // description and its tags. line is the source line the comment starts on.
 func parseDoc(raw string, line int) docBlock {
+	raw = strings.TrimSpace(raw)
 	raw = strings.TrimPrefix(raw, "/**")
 	raw = strings.TrimSuffix(raw, "*/")
 
@@ -47,6 +48,8 @@ func parseDoc(raw string, line int) docBlock {
 
 	for i, l := range strings.Split(raw, "\n") {
 		text := strings.TrimSpace(l)
+		text = strings.TrimPrefix(text, "//")
+		text = strings.TrimSpace(text)
 		text = strings.TrimPrefix(text, "*")
 		text = strings.TrimSpace(text)
 
@@ -158,6 +161,13 @@ func goType(expr string) (string, error) {
 	e = strings.TrimSuffix(e, "=")
 	e = strings.TrimSpace(e)
 
+	if strings.Contains(e, "|") {
+		// A union (`string | number`) has no single Go type. any lets the
+		// caller pass whichever alternative they mean; EncodeProp still
+		// types the value they actually send.
+		return "any", nil
+	}
+
 	if inner, ok := strings.CutSuffix(e, "[]"); ok {
 		elem, err := goType(inner)
 		if err != nil {
@@ -194,6 +204,8 @@ func goType(expr string) (string, error) {
 		return "bool", nil
 	case "object":
 		return "map[string]any", nil
+	case "array":
+		return "[]any", nil
 	case "any", "*", "unknown", "json":
 		return "any", nil
 	}
@@ -209,11 +221,15 @@ func cutGeneric(e, name string) (string, bool) {
 }
 
 // isObjectType reports whether an expression is an inline object type such as
-// "{name: string, count: number}" rather than a named type.
+// "{name: string, count: number}" or the unbraced "name: string" form
+// splitType returns, rather than a named type.
 func isObjectType(expr string) bool {
 	e := strings.TrimSpace(expr)
 	if strings.HasPrefix(e, "go:") {
 		return false
+	}
+	if strings.HasPrefix(e, "{") && strings.HasSuffix(e, "}") {
+		return true
 	}
 	return strings.Contains(e, ":")
 }
@@ -231,13 +247,21 @@ func parseObjectType(expr string) ([]Field, error) {
 			continue
 		}
 		name, typ, found := strings.Cut(part, ":")
-		if !found {
-			return nil, fmt.Errorf("field %q needs a type, as name: type", part)
-		}
 		name = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(name), "?"))
+		if name == "" {
+			continue
+		}
+		if !found {
+			// "{ value }" — a named field whose type was not given.
+			out = append(out, Field{Name: name, GoType: "any"})
+			continue
+		}
 		gt, err := goType(typ)
 		if err != nil {
-			return nil, fmt.Errorf("field %q: %w", name, err)
+			// A union, a quoted literal, anything we do not have a Go type
+			// for: keep the field and say any rather than drop the event.
+			out = append(out, Field{Name: name, GoType: "any"})
+			continue
 		}
 		out = append(out, Field{Name: name, GoType: gt})
 	}

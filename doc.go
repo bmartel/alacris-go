@@ -51,6 +51,10 @@
 // "the server changed something" compiles to a single property write and a
 // single DOM node update, with no HTML on the wire and no morphing.
 //
+// Alacris UI ships in the ui subpackage: sixty-eight Material Design 3
+// components, enabled with Config.UI. A zero Config.Theme still applies the
+// Material default scheme.
+//
 // # Content Security Policy
 //
 // alacris registers a Trusted Types policy named by TrustedTypesPolicy for
@@ -65,3 +69,4 @@
 package alacris
 
 //go:generate go run ./internal/vendorjs
+//go:generate go run ./internal/genui

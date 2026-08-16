@@ -3,6 +3,7 @@ package main
 import (
 	alacris "github.com/bmartel/alacris-go"
 	"github.com/bmartel/alacris-go/examples/todo/ui"
+	m3 "github.com/bmartel/alacris-go/ui"
 )
 
 // page is the whole document.
@@ -21,6 +22,7 @@ templ page(v view) {
 			// is built in the browser, so without this the page paints empty
 			// shells first and then fills them in.
 			@alacris.Pending{Tags: ui.Tags}
+			@m3.Pending()
 			// The import map has to come before any module import.
 			@alacris.Scripts(v.Config)
 			@styles()

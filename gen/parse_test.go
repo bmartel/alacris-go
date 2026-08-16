@@ -244,6 +244,67 @@ define('x-y', { props: { a: [] }, setup });`,
 	}
 }
 
+func TestParseUIFileHeader(t *testing.T) {
+	src := `
+// <ui-button> — the Material common button.
+//
+// @prop  {string}  variant='filled' — filled | tonal | outlined
+// @prop  {boolean} disabled=false
+// @event (native click bubbles; no custom event)
+// @event change — pressed; detail: { value }
+// @slot  (default) — label
+// @slot  icon, trailing — icons
+//
+import { define, vars } from '@alacris/core';
+
+const t = vars('ui-button', {
+  height: '40px',
+  filledBg: sys.color.primary,
+});
+
+define('ui-button', {
+  props: { variant: 'filled', disabled: false },
+  setup,
+});
+`
+	cs, err := ParseSource("ui-button.js", src)
+	if err != nil {
+		t.Fatalf("ParseSource: %v", err)
+	}
+	if len(cs) != 1 {
+		t.Fatalf("found %d components, want 1", len(cs))
+	}
+	c := cs[0]
+	if !strings.Contains(c.Doc, "Material common button") {
+		t.Errorf("doc = %q", c.Doc)
+	}
+	byName := map[string]Prop{}
+	for _, p := range c.Props {
+		byName[p.Name] = p
+	}
+	if got := byName["variant"].Doc; !strings.Contains(got, "filled") {
+		t.Errorf("variant doc = %q", byName["variant"].Doc)
+	}
+	if len(c.Events) != 1 || c.Events[0].Name != "change" {
+		t.Errorf("events = %+v", c.Events)
+	}
+	if len(c.Events[0].Detail) != 1 || c.Events[0].Detail[0].Name != "value" {
+		t.Errorf("change detail = %+v", c.Events[0].Detail)
+	}
+	if len(c.Slots) != 3 || c.Slots[0].Name != "" || c.Slots[1].Name != "icon" || c.Slots[2].Name != "trailing" {
+		t.Errorf("slots = %+v", c.Slots)
+	}
+	wantVars := map[string]bool{"--ui-button-height": true, "--ui-button-filled-bg": true}
+	if len(c.CSSProps) != 2 {
+		t.Errorf("css props = %+v", c.CSSProps)
+	}
+	for _, p := range c.CSSProps {
+		if !wantVars[p.Name] {
+			t.Errorf("unexpected css prop %q", p.Name)
+		}
+	}
+}
+
 func TestParseDocAssociation(t *testing.T) {
 	// A doc comment belongs to what follows it, and only until the next
 	// statement boundary.

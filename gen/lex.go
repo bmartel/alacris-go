@@ -115,8 +115,33 @@ func (l *lexer) next() (token, error) {
 
 		switch {
 		case c == '/' && l.peekAt(1) == '/':
-			for l.pos < len(l.src) && l.src[l.pos] != '\n' {
-				l.pos++
+			// A run of // lines is a doc comment when it carries @tags or
+			// spans more than one line — the shape Alacris UI uses at the
+			// top of each component file. A single // line without tags is
+			// an ordinary comment and must stay invisible, or a trailing
+			// `const x = 1; // note` would attach to the next define().
+			start, startLine := l.pos, l.line
+			lines, hasTag := 0, false
+			for l.pos < len(l.src) && l.src[l.pos] == '/' && l.peekAt(1) == '/' {
+				lines++
+				l.pos += 2
+				lineStart := l.pos
+				for l.pos < len(l.src) && l.src[l.pos] != '\n' {
+					l.pos++
+				}
+				if strings.Contains(l.src[lineStart:l.pos], "@") {
+					hasTag = true
+				}
+				if l.pos < len(l.src) && l.src[l.pos] == '\n' {
+					l.line++
+					l.pos++
+				}
+				for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t') {
+					l.pos++
+				}
+			}
+			if lines >= 2 || hasTag {
+				return token{kind: tDoc, text: l.src[start:l.pos], val: l.src[start:l.pos], line: startLine, off: start}, nil
 			}
 			continue
 

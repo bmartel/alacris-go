@@ -259,6 +259,39 @@ func TestScripts(t *testing.T) {
 		}
 	})
 
+	t.Run("nonce reaches the UI bootstrap too", func(t *testing.T) {
+		ctx := templ.WithNonce(templ.InitializeContext(context.Background()), "n0nce")
+		var b bytes.Buffer
+		if err := Scripts(Config{Modules: []string{"/app.js"}, Live: true, UI: true}).Render(ctx, &b); err != nil {
+			t.Fatal(err)
+		}
+		if n := strings.Count(b.String(), `nonce="n0nce"`); n != 4 {
+			t.Errorf("nonce on %d of 4 script tags:\n%s", n, b.String())
+		}
+	})
+
+	t.Run("UI import map and bootstrap", func(t *testing.T) {
+		got := render(t, Scripts(Config{UI: true, Theme: Theme{Seed: "#0b57d0", Scheme: "dark"}}))
+		for _, want := range []string{
+			`"@alacris/core":"/_alacris/alacris.js"`,
+			`"@alacris/ui":"/_alacris/ui/index.js"`,
+			`"@alacris/ui/theme":"/_alacris/ui/theme/index.js"`,
+			`import { applyTheme, setScheme } from '@alacris/ui/theme'`,
+			`import '@alacris/ui'`,
+			`applyTheme({`,
+			`"seed":"#0b57d0"`,
+			`setScheme("dark")`,
+		} {
+			if !strings.Contains(got, want) {
+				t.Errorf("missing %s in:\n%s", want, got)
+			}
+		}
+		// The UI module has to come after the import map and before app modules.
+		if i, j := strings.Index(got, "importmap"), strings.Index(got, "@alacris/ui'"); i < 0 || j < 0 || i > j {
+			t.Error("import map must precede the UI bootstrap")
+		}
+	})
+
 	t.Run("import map cannot be closed by an entry", func(t *testing.T) {
 		got := render(t, Scripts(Config{Imports: map[string]string{"x": `</script><script>alert(1)`}}))
 		if strings.Contains(got, "</script><script>alert") {

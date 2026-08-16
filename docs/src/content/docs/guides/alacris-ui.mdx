@@ -1,0 +1,131 @@
+---
+title: Alacris UI
+description: Sixty-eight Material Design 3 components, vendored and typed, with a theme engine that re-skins the page from Go.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import GoExample from '../../../components/GoExample.astro';
+
+Alacris UI is the design system that ships with this module: sixty-eight
+custom elements, a three-tier token system, and a theme engine. **Material
+Design 3 is the default. Your design system is the point.** Every visual
+decision flows through tokens you can override — from "change the brand
+colour" (one field) to "this is no longer Material at all".
+
+The JavaScript is vendored next to the alacris runtime. A Go project still
+needs no npm.
+
+## One flag
+
+```go
+mux.Handle("/_alacris/", alacris.RuntimeHandler())
+```
+
+```templ
+<head>
+    @ui.Pending()
+    @alacris.Scripts(alacris.Config{
+        UI:      true,
+        Version: buildRevision,
+    })
+</head>
+```
+
+`Config.UI` does three things:
+
+1. Adds `@alacris/core`, `@alacris/ui`, and the theme/motion/tokens specifiers
+   to the import map. `@alacris/core` points at the same bytes as `alacris`,
+   so the page has one reactive graph.
+2. Loads every component and calls `applyTheme` with Material defaults.
+3. Leaves your own `Modules` to run afterwards, so app components and the
+   design system share the runtime.
+
+Hide the tags until they upgrade:
+
+```templ
+@ui.Pending()
+```
+
+`ui.Pending()` is `alacris.Pending{Tags: ui.Tags}` — every Alacris UI tag.
+
+## Render a component
+
+```go
+import "github.com/bmartel/alacris-go/ui"
+```
+
+<GoExample id="ui-button" title="A Material button from Go" live={false} />
+
+The wrappers are generated from the vendored sources. A renamed prop, a new
+slot, a theming token — regenerate and the Go side moves with it. Do not edit
+`ui/*_gen.go`.
+
+If you also generate wrappers for *your* components, put those in a different
+package (`./internal/components`, `./webui`) so the names do not collide. The
+design system is `github.com/bmartel/alacris-go/ui`.
+
+## Re-theme the page
+
+A zero `Theme` is Material's default seed (`#e8ad18`), Google Sans Flex, and
+light/dark from the OS. One colour re-skins everything:
+
+<GoExample id="ui-theme" title="A seed, a whole scheme" live={false} />
+
+```go
+alacris.Config{
+    UI: true,
+    Theme: alacris.Theme{
+        Seed:   "#0b57d0",
+        Scheme: "dark", // or "light", or "" / "auto" to follow the OS
+    },
+}
+```
+
+Three places to intervene, from broadest to narrowest:
+
+1. **Re-theme the system** — `Config.Theme`. Every component follows. Dark
+   mode is generated automatically.
+2. **Re-skin one component type** — `ui-button { --ui-button-radius: 4px; }`
+   in your stylesheet, or `ui.ButtonVars` from Go for a single instance.
+3. **Reach inside one instance** — `ui-dialog::part(surface) { … }`.
+
+`Theme.Colors` names palettes directly when a seed is not enough
+(`Primary`, `Tertiary`, `Error`, …). `Radius` and `Motion` are pointers so
+`0` (square corners, instant motion) is distinct from "unset". `Density` is
+`0`, `-1` or `-2`. `Typography` is a preset (`"google-sans-flex"`,
+`"google-sans"`, `"roboto"`, `"system"`) or a CSS family.
+
+<Aside type="tip" title="Fonts">
+  The default face is Google Sans Flex, loaded from Google Fonts by
+  `applyTheme`. Set `LoadFonts` to `false` when you self-host, or pick
+  `Typography: "system"` to skip the network.
+</Aside>
+
+## Your components next to it
+
+`Config.UI` does not replace writing your own `define()` calls. App-specific
+elements still live in your module; generate their wrappers into a package
+that is not also named `ui` unless you alias one of the imports.
+
+```templ
+@ui.Button(ui.ButtonProps{Variant: "filled"}) { Save }
+@app.TodoList(app.TodoListProps{Items: items}).ID("todos")
+```
+
+The import map already has `alacris` for your module and `@alacris/core` for
+the design system, pointing at the same file.
+
+## What is on the page
+
+| | |
+| --- | --- |
+| `ui.Button`, `ui.TextField`, `ui.Dialog`, … | Every tag in `@alacris/ui`. |
+| `ui.Tags` / `ui.Pending()` | For `alacris.Pending`. |
+| `ui.ButtonVars`, … | Per-component theming contracts. |
+| `ui.ButtonElement(sess, id)` | Typed live handles. |
+| `alacris.Theme` | The `applyTheme` config, on `Config`. |
+
+The catalog of what each element does lives with the JavaScript:
+[Alacris UI](https://bmartel.github.io/alacris/ui/).

@@ -56,6 +56,12 @@ browser, so it stays in JavaScript; everything around it can be typed.
      wrote   ui/alacris_gen.go
    ```
 
+   <Aside type="note">
+     If you also import the [Alacris UI](/alacris-go/guides/alacris-ui/) design
+     system (`github.com/bmartel/alacris-go/ui`), generate *your* wrappers into
+     a different package — `./internal/components` is the usual choice.
+   </Aside>
+
 3. **Read what you got.**
 
    ```go title="ui/components_gen.go"
@@ -147,3 +153,5 @@ alacris-go check ./web -o ./ui
   two rules that exist because of sharp edges in the runtime.
 - [Generating wrappers](/alacris-go/guides/codegen/) — every JSDoc tag, and the
   manifest escape hatch for components the scanner cannot read.
+- [Alacris UI](/alacris-go/guides/alacris-ui/) — sixty-eight Material components
+  that ship with the module, so you do not have to write a button.

@@ -64,9 +64,10 @@ func ParseSource(name, src string) ([]Component, error) {
 	}
 
 	var (
-		out    []Component
-		docTok token
-		hasDoc bool
+		out        []Component
+		docTok     token
+		hasDoc     bool
+		documented = map[string]bool{}
 	)
 
 	for i := 0; i < len(p.toks); i++ {
@@ -104,9 +105,7 @@ func ParseSource(name, src string) ([]Component, error) {
 				if err := applyDoc(&c, parseDoc(docTok.val, docTok.line)); err != nil {
 					return nil, fmt.Errorf("%s:%d: <%s>: %w", name, docTok.line, c.Tag, err)
 				}
-			}
-			if err := inferProps(&c); err != nil {
-				return nil, fmt.Errorf("%s: <%s>: %w", c.Source, c.Tag, err)
+				documented[c.Tag] = true
 			}
 			out = append(out, c)
 		}
@@ -116,6 +115,26 @@ func ParseSource(name, src string) ([]Component, error) {
 			i = p.pos - 1
 		}
 		hasDoc = false
+	}
+
+	// Alacris UI (and anything that follows its conventions) puts the
+	// component's documentation in a // block at the top of the file, then
+	// imports and helpers, then define(). That block is not "straight after"
+	// the call, so the usual association misses it. One define() per file is
+	// the rule those sources follow; with more than one, which component the
+	// header describes would be a guess.
+	if leading, ok := leadingFileDoc(src); ok && len(out) == 1 && !documented[out[0].Tag] {
+		if err := applyDoc(&out[0], leading); err != nil {
+			return nil, fmt.Errorf("%s: <%s>: %w", name, out[0].Tag, err)
+		}
+	}
+
+	applyVarsCalls(src, out)
+
+	for i := range out {
+		if err := inferProps(&out[i]); err != nil {
+			return nil, fmt.Errorf("%s: <%s>: %w", out[i].Source, out[i].Tag, err)
+		}
 	}
 
 	return out, nil
@@ -245,9 +264,12 @@ func applyDoc(c *Component, doc docBlock) error {
 	}
 
 	for _, t := range doc.all("fires", "event") {
-		e, err := parseEventTag(t)
+		e, skip, err := parseEventTag(t)
 		if err != nil {
 			return fmt.Errorf("@fires: %w", err)
+		}
+		if skip {
+			continue
 		}
 		c.Events = append(c.Events, e)
 	}
@@ -261,11 +283,7 @@ func applyDoc(c *Component, doc docBlock) error {
 	}
 
 	for _, t := range doc.all("slot") {
-		name, rest, _ := strings.Cut(t.text, " ")
-		if strings.HasPrefix(name, "-") { // "@slot - the default slot"
-			name, rest = "", t.text
-		}
-		c.Slots = append(c.Slots, Slot{Name: name, Doc: trimDash(rest)})
+		c.Slots = append(c.Slots, parseSlotTag(t)...)
 	}
 
 	return nil
@@ -273,7 +291,7 @@ func applyDoc(c *Component, doc docBlock) error {
 
 func applyPropDoc(c *Component, t docTag) error {
 	typ, rest, hasType := splitType(t.text)
-	name, desc, _ := strings.Cut(rest, " ")
+	name, desc := splitPropIdent(rest)
 	if name == "" {
 		return fmt.Errorf("line %d: no prop name", t.line)
 	}
@@ -334,7 +352,7 @@ func parseCSSPropTag(t docTag) (CSSProp, error) {
 	return p, nil
 }
 
-func parseEventTag(t docTag) (Event, error) {
+func parseEventTag(t docTag) (Event, bool, error) {
 	text := strings.TrimSpace(t.text)
 
 	var (
@@ -347,7 +365,12 @@ func parseEventTag(t docTag) (Event, error) {
 	}
 	name, rest, _ := strings.Cut(text, " ")
 	if name == "" {
-		return e, fmt.Errorf("line %d: no event name", t.line)
+		return e, false, fmt.Errorf("line %d: no event name", t.line)
+	}
+	if !isEventName(name) {
+		// "@event (native click bubbles; no custom event)" is a note, not
+		// an event the generator can name.
+		return e, true, nil
 	}
 	e.Name = name
 
@@ -359,22 +382,27 @@ func parseEventTag(t docTag) (Event, error) {
 	}
 	e.Doc = trimDash(rest)
 
+	if typ == "" {
+		typ = detailTypeFromDoc(e.Doc)
+	}
+
 	switch {
 	case typ == "":
 	case isObjectType(typ):
 		fields, err := parseObjectType(typ)
 		if err != nil {
-			return e, fmt.Errorf("line %d: %s: %w", t.line, e.Name, err)
+			// Keep the event; a detail we cannot type is still worth a constant.
+			break
 		}
 		e.Detail = fields
 	default:
 		gt, err := goType(typ)
 		if err != nil {
-			return e, fmt.Errorf("line %d: %s: %w", t.line, e.Name, err)
+			break
 		}
 		e.GoType = gt
 	}
-	return e, nil
+	return e, false, nil
 }
 
 // inferProps fills in each prop's kind, Go type and default from the value in
@@ -496,4 +524,268 @@ func unquote(s string) string {
 // SortComponents orders components by tag.
 func SortComponents(c []Component) {
 	sort.SliceStable(c, func(i, j int) bool { return c[i].Tag < c[j].Tag })
+}
+
+// leadingFileDoc reads a documentation block at the start of a source file —
+// the // header Alacris UI puts above its imports. ok is false when there
+// isn't one, or when it has no @tags (a license banner is not a component doc).
+func leadingFileDoc(src string) (docBlock, bool) {
+	src = strings.TrimPrefix(src, bom)
+	i := 0
+	for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') {
+		i++
+	}
+	if i >= len(src) {
+		return docBlock{}, false
+	}
+	start := i
+	switch {
+	case strings.HasPrefix(src[i:], "/**"):
+		end := strings.Index(src[i+3:], "*/")
+		if end < 0 {
+			return docBlock{}, false
+		}
+		i += 3 + end + 2
+	case strings.HasPrefix(src[i:], "//"):
+		for i < len(src) {
+			for i < len(src) && (src[i] == ' ' || src[i] == '\t') {
+				i++
+			}
+			if !strings.HasPrefix(src[i:], "//") {
+				break
+			}
+			for i < len(src) && src[i] != '\n' {
+				i++
+			}
+			if i < len(src) && src[i] == '\n' {
+				i++
+			}
+		}
+	default:
+		return docBlock{}, false
+	}
+	raw := src[start:i]
+	if !strings.Contains(raw, "@") {
+		return docBlock{}, false
+	}
+	return parseDoc(raw, 1), true
+}
+
+// splitPropIdent pulls a prop name off a @prop tag body, accepting the
+// `name='default'` spelling Alacris UI uses in file headers.
+func splitPropIdent(rest string) (name, desc string) {
+	rest = strings.TrimSpace(rest)
+	i := 0
+	if i < len(rest) && isIdentStart(rune(rest[i])) {
+		i++
+		for i < len(rest) && isIdentPart(rune(rest[i])) {
+			i++
+		}
+	}
+	if i == 0 {
+		return "", rest
+	}
+	name = rest[:i]
+	rest = strings.TrimSpace(rest[i:])
+	if strings.HasPrefix(rest, "=") {
+		rest = skipJSDefault(strings.TrimSpace(rest[1:]))
+	}
+	return name, rest
+}
+
+// skipJSDefault consumes a default written after `name=` in a @prop tag and
+// returns whatever follows it (usually the description).
+func skipJSDefault(s string) string {
+	if s == "" {
+		return s
+	}
+	switch s[0] {
+	case '\'', '"', '`':
+		q := s[0]
+		for i := 1; i < len(s); i++ {
+			if s[i] == '\\' {
+				i++
+				continue
+			}
+			if s[i] == q {
+				return strings.TrimSpace(s[i+1:])
+			}
+		}
+		return ""
+	case '[', '{', '(':
+		open, close := s[0], byte(map[byte]byte{'[': ']', '{': '}', '(': ')'}[s[0]])
+		depth := 0
+		for i := 0; i < len(s); i++ {
+			switch s[i] {
+			case open:
+				depth++
+			case close:
+				depth--
+				if depth == 0 {
+					return strings.TrimSpace(s[i+1:])
+				}
+			}
+		}
+		return ""
+	default:
+		i := 0
+		for i < len(s) {
+			if s[i] == ' ' || s[i] == '\t' || strings.HasPrefix(s[i:], "—") || strings.HasPrefix(s[i:], " - ") {
+				break
+			}
+			i++
+		}
+		return strings.TrimSpace(s[i:])
+	}
+}
+
+// parseSlotTag reads @slot, including UI spellings: `(default)`, several names
+// on one line, and an em-dash before the description.
+func parseSlotTag(t docTag) []Slot {
+	names, doc := splitTagNames(t.text)
+	if len(names) == 0 {
+		return []Slot{{Name: "", Doc: doc}}
+	}
+	out := make([]Slot, 0, len(names))
+	for _, n := range names {
+		if n == "" || n == "(default)" {
+			out = append(out, Slot{Name: "", Doc: doc})
+			continue
+		}
+		out = append(out, Slot{Name: n, Doc: doc})
+	}
+	return out
+}
+
+func splitTagNames(text string) (names []string, doc string) {
+	text = strings.TrimSpace(text)
+	if text == "" || strings.HasPrefix(text, "-") {
+		return nil, trimDash(text)
+	}
+	body, doc := text, ""
+	if i := strings.Index(text, "—"); i >= 0 {
+		body, doc = strings.TrimSpace(text[:i]), trimDash(text[i+len("—"):])
+	} else if i := strings.Index(text, " - "); i >= 0 {
+		body, doc = strings.TrimSpace(text[:i]), trimDash(text[i+3:])
+	}
+	if body == "" || body == "(default)" {
+		return nil, doc
+	}
+	for _, part := range strings.Split(body, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		names = append(names, part)
+	}
+	return names, doc
+}
+
+func isEventName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z':
+		case i > 0 && ((c >= '0' && c <= '9') || c == '-'):
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// detailTypeFromDoc finds `detail: { ... }` in a free-form event description.
+func detailTypeFromDoc(doc string) string {
+	lower := strings.ToLower(doc)
+	i := strings.Index(lower, "detail:")
+	if i < 0 {
+		i = strings.Index(lower, "detail ")
+		if i < 0 {
+			return ""
+		}
+	}
+	rest := strings.TrimSpace(doc[i:])
+	if _, after, ok := strings.Cut(strings.ToLower(rest), "detail:"); ok {
+		rest = strings.TrimSpace(after)
+	} else {
+		rest = strings.TrimSpace(rest[len("detail"):])
+	}
+	typ, _, ok := splitType(rest)
+	if !ok {
+		return ""
+	}
+	return "{" + typ + "}"
+}
+
+// applyVarsCalls reads vars('prefix', { key: ... }) calls in src and, for any
+// component that has no @cssprop tags, fills the contract from the keys.
+func applyVarsCalls(src string, cs []Component) {
+	byTag := map[string]*Component{}
+	for i := range cs {
+		byTag[cs[i].Tag] = &cs[i]
+	}
+	found := varsCalls(src)
+	for prefix, keys := range found {
+		c, ok := byTag[prefix]
+		if !ok {
+			if len(cs) == 1 && len(found) == 1 {
+				c = &cs[0]
+			} else {
+				continue
+			}
+		}
+		if len(c.CSSProps) > 0 || len(keys) == 0 {
+			continue
+		}
+		for _, k := range keys {
+			c.CSSProps = append(c.CSSProps, CSSProp{
+				Name: "--" + prefix + "-" + attrName(k),
+			})
+		}
+	}
+}
+
+func varsCalls(src string) map[string][]string {
+	p, err := newParser("", src)
+	if err != nil {
+		return nil
+	}
+	out := map[string][]string{}
+	for i := 0; i < len(p.toks); i++ {
+		t := p.toks[i]
+		if t.kind != tIdent || t.val != "vars" || !p.at(i+1).is("(") {
+			continue
+		}
+		if p.at(i - 1).is(".") {
+			continue
+		}
+		p.pos = i + 2
+		if p.cur().kind != tString {
+			continue
+		}
+		prefix := p.cur().val
+		p.advance()
+		if !p.cur().is(",") {
+			continue
+		}
+		p.advance()
+		if !p.cur().is("{") {
+			continue
+		}
+		obj, err := p.parseObject()
+		if err != nil {
+			continue
+		}
+		var keys []string
+		for _, m := range obj.obj {
+			keys = append(keys, m.key)
+		}
+		if len(keys) > 0 {
+			out[prefix] = keys
+		}
+	}
+	return out
 }

@@ -50,6 +50,9 @@ jobs:
       - name: Generated wrappers are up to date
         run: go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-
 
+      - name: Alacris UI wrappers are up to date
+        run: go run ./internal/genui -check
+
       # Every example on the docs site is rendered by this program and
       # committed, so the site can be built without a Go toolchain. The copy is
       # only worth anything if something checks it.

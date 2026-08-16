@@ -35,7 +35,9 @@ curl -o AGENTS.alacris.md https://bmartel.github.io/alacris/AGENTS.md
 
 - The model: shadow content is client-rendered, every prop crosses as an
   attribute, a prop is a signal.
-- Project layout, and that `ui/` is generated and must not be edited.
+- Project layout, and that generated wrappers must not be edited. App wrappers
+  go in a package that is not named `ui` — that path is the Alacris UI design
+  system.
 - The encoding rules, including the two that look odd — booleans always written
   out, and `*bool` for a default of `true`.
 - The live layer: `OnOpen` is not optional, details are user input, the session

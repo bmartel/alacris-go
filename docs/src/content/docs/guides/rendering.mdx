@@ -130,8 +130,10 @@ no size. The page paints, then reflows when the module lands.
 
 <GoExample id="pending" live={false} />
 
-`ui.Tags` is generated, so the list cannot fall behind the components. The
-declaration defaults to `visibility: hidden`; pass `Style` to choose another.
+`ui.Tags` is generated, so the list cannot fall behind the components. For
+Alacris UI, `ui.Pending()` (from `github.com/bmartel/alacris-go/ui`) is the
+same list for every design-system tag. The declaration defaults to
+`visibility: hidden`; pass `Style` to choose another.
 
 ```go
 alacris.Pending{

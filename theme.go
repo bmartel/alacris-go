@@ -172,3 +172,127 @@ func (p Pending) Render(ctx context.Context, w io.Writer) error {
 	_, err := io.WriteString(w, b.String())
 	return err
 }
+
+// Theme is the Go form of @alacris/ui's applyTheme config. A zero Theme with
+// Config.UI still applies Material Design 3 defaults: seed #e8ad18, Google
+// Sans Flex, density 0, and light/dark following the OS.
+//
+// Re-theming is one stylesheet write. Every component consumes system tokens,
+// so a new seed (or an explicit primary) re-skins the page without touching
+// a component.
+type Theme struct {
+	// Seed is the single colour a whole scheme is grown from. Ignored for a
+	// role that Colors names explicitly.
+	Seed string
+
+	// Colors names key palettes directly. Any subset is fine; omitted roles
+	// are derived from Seed (or the Material default).
+	Colors ThemeColors
+
+	// Typography is a preset name ("google-sans-flex", "google-sans",
+	// "roboto", "system") or a CSS font family. Empty keeps Google Sans Flex.
+	Typography string
+
+	// Radius multiplies the Material shape scale. nil keeps 1; 0 is square;
+	// 2 is extra round. A pointer so 0 is distinct from "unset".
+	Radius *float64
+
+	// Motion multiplies durations. nil keeps 1; 0 is instant.
+	Motion *float64
+
+	// Density is 0, -1 or -2. nil keeps 0.
+	Density *int
+
+	// Scheme pins light or dark, or "auto" (the default) to follow the OS.
+	Scheme string
+
+	// LoadFonts is whether applyTheme injects the theme's typeface stylesheet.
+	// nil means yes. Set to false when faces are self-hosted or already on
+	// the page.
+	LoadFonts *bool
+
+	// Overrides are raw token writes, applied last. Keys are token names
+	// without the `--ui-` prefix (`color-primary`, `radius-md`).
+	Overrides ThemeOverrides
+}
+
+// ThemeColors is the explicit-palette form of Theme.Seed. Empty fields are
+// derived.
+type ThemeColors struct {
+	Primary, Secondary, Tertiary  string
+	Neutral, NeutralVariant       string
+	Error, Success, Warning, Info string
+}
+
+// ThemeOverrides are last-write token maps, matching createTheme's
+// `overrides: { common, light, dark }`.
+type ThemeOverrides struct {
+	Common map[string]string
+	Light  map[string]string
+	Dark   map[string]string
+}
+
+func (t Theme) scheme() string { return strings.ToLower(strings.TrimSpace(t.Scheme)) }
+
+// wire is the JSON shape applyTheme / createTheme accept.
+func (t Theme) wire() map[string]any {
+	out := map[string]any{}
+	if t.Seed != "" {
+		out["seed"] = t.Seed
+	}
+	if colors := t.Colors.wire(); len(colors) > 0 {
+		out["colors"] = colors
+	}
+	if t.Typography != "" {
+		out["typography"] = t.Typography
+	}
+	if t.Radius != nil {
+		out["shape"] = map[string]float64{"radius": *t.Radius}
+	}
+	if t.Motion != nil {
+		out["motion"] = map[string]float64{"scale": *t.Motion}
+	}
+	if t.Density != nil {
+		out["density"] = *t.Density
+	}
+	if t.LoadFonts != nil && !*t.LoadFonts {
+		out["loadFonts"] = false
+	}
+	if ov := t.Overrides.wire(); len(ov) > 0 {
+		out["overrides"] = ov
+	}
+	return out
+}
+
+func (c ThemeColors) wire() map[string]string {
+	out := map[string]string{}
+	put := func(k, v string) {
+		if v != "" {
+			out[k] = v
+		}
+	}
+	put("primary", c.Primary)
+	put("secondary", c.Secondary)
+	put("tertiary", c.Tertiary)
+	put("neutral", c.Neutral)
+	put("neutralVariant", c.NeutralVariant)
+	put("error", c.Error)
+	put("success", c.Success)
+	put("warning", c.Warning)
+	put("info", c.Info)
+	return out
+}
+
+func (o ThemeOverrides) wire() map[string]map[string]string {
+	out := map[string]map[string]string{}
+	if len(o.Common) > 0 {
+		out["common"] = o.Common
+	}
+	if len(o.Light) > 0 {
+		out["light"] = o.Light
+	}
+	if len(o.Dark) > 0 {
+		out["dark"] = o.Dark
+	}
+	return out
+}

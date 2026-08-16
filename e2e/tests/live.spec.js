@@ -236,3 +236,12 @@ test('a page id without the cookie is refused', async ({ page, browser }) => {
   expect(response.status()).toBe(404);
   await clean.close();
 });
+
+test('Alacris UI is on the page', async ({ page }) => {
+  // Config.UI loads every design-system tag. The example's own components
+  // still come from /web/components.js; this only asserts the vendored UI
+  // module registered, which is the claim go test cannot reach.
+  await expect
+    .poll(() => page.evaluate(() => !!customElements.get('ui-button')))
+    .toBe(true);
+});

@@ -28,6 +28,7 @@ events over SSE and POST).
 - [Props and encoding](https://bmartel.github.io/alacris-go/guides/props/): The encoding table, booleans, the safe-integer limit, attribute naming, custom types.
 - [Generating wrappers](https://bmartel.github.io/alacris-go/guides/codegen/): What the generator emits, what it refuses to guess, the manifest escape hatch, naming.
 - [Theming](https://bmartel.github.io/alacris-go/guides/theming/): Custom properties, VarSet contracts, @cssprop, what inline CSS is refused.
+- [Alacris UI](https://bmartel.github.io/alacris-go/guides/alacris-ui/): Sixty-eight Material Design 3 components, vendored and typed, and a theme engine driven from Go.
 - [Live: props from the server](https://bmartel.github.io/alacris-go/guides/live-props/): Sessions, Handle.Set, batching, broadcasting, and when SetHTML is the right tool.
 - [Live: actions from the page](https://bmartel.github.io/alacris-go/guides/live-actions/): Forwarding CustomEvents to typed Go handlers, per-session handlers, error handling.
 - [Sessions and reconnects](https://bmartel.github.io/alacris-go/guides/sessions/): The cookie that carries the capability, the page id that does not, OnOpen, buffering, TTL, per-page state.
@@ -35,7 +36,7 @@ events over SSE and POST).
 
 ## Reference
 
-- [Go API](https://bmartel.github.io/alacris-go/reference/api/): Every exported type and function across the three packages.
+- [Go API](https://bmartel.github.io/alacris-go/reference/api/): Every exported type and function across the alacris, gen, live, and ui packages.
 - [CLI](https://bmartel.github.io/alacris-go/reference/cli/): generate, check and manifest, with every flag.
 - [JSDoc tags](https://bmartel.github.io/alacris-go/reference/jsdoc/): @prop, @fires, @slot, @cssprop, @goname, @goimport, and the type vocabulary.
 - [Wire protocol](https://bmartel.github.io/alacris-go/reference/wire-protocol/): Endpoints, SSE frame format, the five patch operations, the action payload.

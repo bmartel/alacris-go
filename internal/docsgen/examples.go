@@ -5,6 +5,7 @@ import (
 
 	"github.com/a-h/templ"
 	alacris "github.com/bmartel/alacris-go"
+	"github.com/bmartel/alacris-go/ui"
 )
 
 // Every example on the documentation site lives in this file.
@@ -114,6 +115,20 @@ func examplePending() templ.Component {
 	return alacris.Pending{Tags: []string{"user-card", "ala-chip"}}
 }
 
+func exampleUIButton() templ.Component {
+	return ui.Button(ui.ButtonProps{Variant: "tonal"}).Text("Save")
+}
+
+func exampleUITheme() templ.Component {
+	return alacris.Scripts(alacris.Config{
+		UI: true,
+		Theme: alacris.Theme{
+			Seed:   "#0b57d0",
+			Scheme: "dark",
+		},
+	})
+}
+
 // --8<-- generated wrappers -------------------------------------------------
 
 func exampleGenerated() templ.Component {
@@ -169,6 +184,11 @@ var catalogue = []example{
 
 	{id: "generated", fn: "exampleGenerated", tags: []string{"ala-todo-list"},
 		note: "What a generated wrapper expands to."},
+
+	{id: "ui-button", fn: "exampleUIButton", tags: []string{"ui-button"},
+		note: "Every Alacris UI tag has a typed wrapper in github.com/bmartel/alacris-go/ui."},
+	{id: "ui-theme", fn: "exampleUITheme",
+		note: "Config.UI loads the design system; Theme re-skins every component at once."},
 }
 
 // render dispatches an example by function name. It is written out by hand
@@ -200,6 +220,10 @@ func render(fn string) templ.Component {
 		return examplePending()
 	case "exampleGenerated":
 		return exampleGenerated()
+	case "exampleUIButton":
+		return exampleUIButton()
+	case "exampleUITheme":
+		return exampleUITheme()
 	}
 	return nil
 }

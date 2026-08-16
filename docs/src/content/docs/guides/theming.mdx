@@ -159,3 +159,10 @@ ala-chip           { --chip-bg: #ececf2; --chip-fg: #333 }
 
 Reach for `Apply` when the value is genuinely per-element and comes from data —
 a category colour, a progress percentage — rather than from design.
+
+## The design system
+
+[Alacris UI](/alacris-go/guides/alacris-ui/) is the page-level version of the
+same idea. `Config.Theme` writes one stylesheet of system tokens; every
+component consumes them, so a seed colour re-skins the page without touching
+an element. Per-component `ui.ButtonVars` and `::part` still work on top.

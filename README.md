@@ -43,7 +43,9 @@ go get github.com/bmartel/alacris-go
 ```
 
 The alacris runtime is vendored into the module and served from Go, so a Go
-project needs no npm at all.
+project needs no npm at all. Alacris UI — sixty-eight Material Design 3
+components — is vendored the same way. `Config.UI` turns it on; the typed
+wrappers live in [`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui).
 
 ## What the server can and cannot render
 
@@ -109,8 +111,10 @@ mux.Handle("/_alacris/", alacris.RuntimeHandler())
 ```
 
 `Scripts` writes the import map (`alacris`, `alacris/store`, `alacris/context`,
-`alacris/signal`) and your module entry points. It belongs in `<head>`: an
-import map has to precede the first module import it applies to.
+`alacris/signal`) and your module entry points. Set `Config.UI` to also load
+Alacris UI (`@alacris/core` points at the same bytes as `alacris`, so the page
+has one reactive graph). It belongs in `<head>`: an import map has to precede
+the first module import it applies to.
 
 ### 2. Generating typed wrappers
 

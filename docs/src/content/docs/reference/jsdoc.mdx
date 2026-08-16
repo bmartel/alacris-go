@@ -32,6 +32,11 @@ The description above the tags becomes the constructor's doc comment.
   (`export const Card = define(...)` is fine). A block further away, or one
   separated by another statement, belongs to something else and is ignored — so
   a stray comment cannot silently become a component's documentation.
+
+  A `//` header at the top of a file is also read when the file contains a
+  single `define()` — that is how [Alacris UI](/alacris-go/guides/alacris-ui/)
+  documents its components. The block is ignored unless it contains `@` tags
+  (a license banner is not a component doc).
 </Aside>
 
 ## The tags
