@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.5.0](https://github.com/bmartel/alacris-go/compare/v0.4.0...v0.5.0) (2026-08-17)
+
+### Features
+
+* **examples:** turn the todo fixture into a live Kanban board ([2e7542b](https://github.com/bmartel/alacris-go/commit/2e7542b2f95e785fe2cdb7dbd6ec01ee0dd6adfc))
+
 ## [0.4.0](https://github.com/bmartel/alacris-go/compare/v0.3.0...v0.4.0) (2026-08-16)
 
 ### Features
