@@ -112,6 +112,32 @@ define('user-card', { props: { name: 'anon' }, setup });`, Options{})
 	}
 }
 
+// A prop's JSDoc description is untrusted: it can come from a third-party
+// component a project wraps with `generate`. A newline in it must never escape
+// the doc comment and land as top-level Go, or wrapping a hostile component
+// would inject code that runs at the consumer's build time.
+func TestGenerateDoesNotLetDocCommentsInjectCode(t *testing.T) {
+	got := generate(t, `
+define('x-evil', {
+  props: {
+    /**
+     * a friendly widget
+     * } func pwned() { panic("injected") } var _ = struct{ x int
+     */
+    foo: [],
+  },
+  setup,
+});`, Options{})
+
+	// The payload survives, but only ever as comment text.
+	mustContain(t, got, "// } func pwned()")
+	for _, line := range strings.Split(got, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "func pwned(") {
+			t.Fatalf("injected func escaped the doc comment into top-level Go:\n%s", got)
+		}
+	}
+}
+
 func TestGenerateStripPrefix(t *testing.T) {
 	got := generate(t, `define('ala-counter', { props: { start: 0 }, setup });`,
 		Options{StripPrefix: "ala-"})
