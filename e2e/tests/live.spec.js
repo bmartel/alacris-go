@@ -14,55 +14,61 @@ import { test, expect } from '@playwright/test';
  * instead, the thing being tested has stopped being the thing people copy.
  */
 
-const LIST = '#todos';
-const NEW_TODO = 'input[aria-label="New todo"]';
+const LIST = '#board';
 
-/** Wait for the custom element to upgrade and render its rows. */
+/** Wait for the custom element to upgrade and render its cards. */
 async function ready(page) {
   await page.waitForFunction(() => {
-    const el = document.getElementById('todos');
-    return !!el?.shadowRoot?.querySelector('ul');
+    const el = document.getElementById('board');
+    return !!el?.shadowRoot?.querySelector('ui-card');
   });
 }
 
-/** The visible row text, read through the shadow root. */
+function todoLane(page) {
+  return page.locator(LIST).locator('[data-column="todo"]');
+}
+
+/** The visible card titles, read from the board. */
 function rows(page) {
   return page.evaluate(() =>
-    [...document.getElementById('todos').shadowRoot.querySelectorAll('li .text')].map(
-      (n) => n.textContent,
+    [...document.getElementById('board').shadowRoot.querySelectorAll('ui-card')].map(
+      (n) => n.getAttribute('data-text') || n.querySelector('.title')?.textContent?.trim() || '',
     ),
   );
 }
 
 /**
- * Stamp every current row so it can be recognised afterwards.
+ * Stamp every current card so it can be recognised afterwards.
  *
  * An expando survives a node being moved and does not survive it being
  * rebuilt, which is precisely the distinction under test.
  */
 function markRows(page) {
   return page.evaluate(() => {
-    const sr = document.getElementById('todos').shadowRoot;
-    [...sr.querySelectorAll('li')].forEach((li, i) => {
+    const sr = document.getElementById('board').shadowRoot;
+    [...sr.querySelectorAll('ui-card')].forEach((li, i) => {
       li.dataset.e2eMark = `row-${i}`;
     });
-    return sr.querySelectorAll('li').length;
+    return sr.querySelectorAll('ui-card').length;
   });
 }
 
 function readMarks(page) {
   return page.evaluate(() =>
-    [...document.getElementById('todos').shadowRoot.querySelectorAll('li')].map(
+    [...document.getElementById('board').shadowRoot.querySelectorAll('ui-card')].map(
       (li) => li.dataset.e2eMark ?? null,
     ),
   );
 }
 
-/** Add a todo through the component, the way a user would. */
-async function addTodo(page, text) {
+/** Add a card through the component, the way a user would. */
+async function addCard(page, text) {
   const before = (await rows(page)).length;
-  await page.locator(`${LIST} ${NEW_TODO}`).fill(text);
-  await page.locator(`${LIST} ${NEW_TODO}`).press('Enter');
+  const todo = todoLane(page);
+  await todo.getByRole('button', { name: 'Add a card' }).click();
+  const input = todo.getByRole('textbox', { name: 'Add a card' });
+  await input.fill(text);
+  await input.press('Enter');
   await expect
     .poll(async () => (await rows(page)).length, { timeout: 5000 })
     .toBe(before + 1);
@@ -77,20 +83,32 @@ test('a server-driven update moves rows instead of rebuilding them', async ({ pa
   // This is the one that catches an `each` placed inside a conditional
   // template, which rebuilds every row on every change and quietly undoes the
   // whole point of the update path.
-  await addTodo(page, 'identity check');
+  await addCard(page, 'identity check');
 
   const marked = await markRows(page);
   expect(marked).toBeGreaterThan(1);
 
-  // Toggle a row through the full round trip: click -> event -> POST ->
-  // handler -> items prop -> SSE frame -> DOM.
-  await page.locator(`${LIST} li input[type=checkbox]`).first().check();
+  await page.evaluate(() => {
+    const board = document.getElementById('board');
+    const todo = board.items.filter((it) => it.column === 'todo');
+    const last = todo[todo.length - 1];
+    board.dispatchEvent(
+      new CustomEvent('move', {
+        bubbles: true,
+        composed: true,
+        detail: { id: last.id, column: 'todo', index: 0 },
+      }),
+    );
+  });
 
   await expect
-    .poll(async () => (await page.evaluate(() => document.getElementById('todos').items))[0].done, {
-      timeout: 5000,
-    })
-    .toBe(true);
+    .poll(async () => {
+      const todo = (await page.evaluate(() => document.getElementById('board').items)).filter(
+        (it) => it.column === 'todo',
+      );
+      return todo[0]?.text;
+    }, { timeout: 5000 })
+    .toBe('identity check');
 
   const marks = await readMarks(page);
   expect(marks).toHaveLength(marked);
@@ -103,25 +121,42 @@ test('a server-driven update moves rows instead of rebuilding them', async ({ pa
 test('an update leaves focus and a half-typed draft alone', async ({ page }) => {
   const draft = 'half typed';
 
-  const input = page.locator(`${LIST} ${NEW_TODO}`);
+  const todo = todoLane(page);
+  await todo.getByRole('button', { name: 'Add a card' }).click();
+  const input = todo.getByRole('textbox', { name: 'Add a card' });
   await input.fill(draft);
   // Put the caret in the middle: an update that replaced the node would lose
   // the position even if it somehow preserved the value.
   await page.evaluate(() => {
-    const el = document.getElementById('todos').shadowRoot.querySelector('form input');
+    const field = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="todo"] ui-text-field');
+    const el = field.shadowRoot.querySelector('input');
     el.focus();
     el.setSelectionRange(4, 4);
   });
 
-  // Change the list underneath the user.
-  await page.locator(`${LIST} li input[type=checkbox]`).first().check();
+  // Reorder a card in another lane without moving focus into it.
+  await page.evaluate(() => {
+    const board = document.getElementById('board');
+    const it = board.items.find((c) => c.column === 'doing') || board.items[0];
+    board.dispatchEvent(
+      new CustomEvent('move', {
+        bubbles: true,
+        composed: true,
+        detail: { id: it.id, column: 'done', index: 0 },
+      }),
+    );
+  });
   await page.waitForTimeout(500);
 
   const state = await page.evaluate(() => {
-    const sr = document.getElementById('todos').shadowRoot;
-    const el = sr.querySelector('form input');
+    const field = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="todo"] ui-text-field');
+    const el = field.shadowRoot.querySelector('input');
     return {
-      focused: sr.activeElement === el,
+      focused: field.shadowRoot.activeElement === el,
       value: el.value,
       caret: el.selectionStart,
     };
@@ -139,10 +174,10 @@ test('every open page stays in step without polling', async ({ context, page }) 
 
   const before = await rows(page);
   const text = `from the second tab ${Date.now()}`;
-  await addTodo(second, text);
+  await addCard(second, text);
 
   // The first page was never touched.
-  await expect.poll(async () => (await rows(page)).at(-1), { timeout: 5000 }).toBe(text);
+  await expect.poll(async () => (await rows(page)).includes(text), { timeout: 5000 }).toBe(true);
   expect((await rows(page)).length).toBe(before.length + 1);
 
   await second.close();
@@ -150,19 +185,16 @@ test('every open page stays in step without polling', async ({ context, page }) 
 
 test('server-rendered slot content is replaced, not appended', async ({ page }) => {
   // SetHTML replaces the children assigned to one slot. Appending instead is a
-  // failure that reads as "3 left4 left" — which is how the encoding bug that
+  // failure that duplicates the stamp — which is how the encoding bug that
   // caused it was found.
-  // textContent, not innerText: the chip sits inside an uppercased heading, and
-  // innerText would return what CSS renders rather than what the server sent.
-  const remaining = () => page.locator('#remaining').textContent();
+  const stamps = () => page.locator('#members [data-cards]');
+  expect(await stamps().count()).toBe(1);
+  const before = await stamps().getAttribute('data-cards');
 
-  const before = await remaining();
-  expect(before).toMatch(/^\d+ left$/);
+  await addCard(page, 'slot check');
 
-  await addTodo(page, 'slot check');
-
-  await expect.poll(remaining, { timeout: 5000 }).not.toBe(before);
-  expect(await remaining()).toMatch(/^\d+ left$/);
+  await expect.poll(() => stamps().getAttribute('data-cards'), { timeout: 5000 }).not.toBe(before);
+  expect(await stamps().count()).toBe(1);
 });
 
 test('the page works before the module arrives', async ({ browser }) => {
@@ -177,7 +209,7 @@ test('the page works before the module arrives', async ({ browser }) => {
   expect(response.status()).toBe(200);
 
   const html = await page.content();
-  expect(html).toContain('<ala-todo-list');
+  expect(html).toContain('<ala-board');
   expect(html).toContain('slot="empty"');
   // Props are in the markup, not in a hydration payload.
   expect(html).toMatch(/items="\[\{/);
@@ -237,11 +269,242 @@ test('a page id without the cookie is refused', async ({ page, browser }) => {
   await clean.close();
 });
 
+test('a card can be reordered in its lane', async ({ page }) => {
+  const before = await page.evaluate(() =>
+    document
+      .getElementById('board')
+      .items.filter((it) => it.column === 'todo')
+      .map((it) => it.text),
+  );
+  expect(before.length).toBeGreaterThan(1);
+
+  const from = await page.evaluate(() => {
+    const cards = [
+      ...document
+        .getElementById('board')
+        .shadowRoot.querySelectorAll('[data-column="todo"] .card'),
+    ];
+    const r = cards[1].getBoundingClientRect();
+    return { x: r.x + 40, y: r.y + 16 };
+  });
+  const to = await page.evaluate(() => {
+    const r = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="todo"] .card')
+      .getBoundingClientRect();
+    return { x: r.x + 40, y: r.y + 8 };
+  });
+
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect
+    .poll(
+      async () => {
+        const todo = (await page.evaluate(() => document.getElementById('board').items)).filter(
+          (it) => it.column === 'todo',
+        );
+        return todo[0]?.text;
+      },
+      { timeout: 5000 },
+    )
+    .toBe(before[1]);
+});
+
+test('a card can be dragged into another lane', async ({ page }) => {
+  const title = await page.evaluate(
+    () =>
+      document
+        .getElementById('board')
+        .shadowRoot.querySelector('[data-column="todo"] .card').dataset.text,
+  );
+
+  const from = await page.evaluate(() => {
+    const r = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="todo"] .card')
+      .getBoundingClientRect();
+    return { x: r.x + 40, y: r.y + 16 };
+  });
+  const to = await page.evaluate(() => {
+    const r = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="doing"]')
+      .getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + 120 };
+  });
+
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect
+    .poll(
+      async () => {
+        const items = await page.evaluate(() => document.getElementById('board').items);
+        return items.find((it) => it.text === title)?.column;
+      },
+      { timeout: 5000 },
+    )
+    .toBe('doing');
+});
+
+test('a list title can be renamed in place', async ({ page }) => {
+  const n = await markRows(page);
+  const doing = page.locator(LIST).locator('[data-column="doing"]');
+  await doing.getByRole('button', { name: 'Doing' }).click();
+  const input = doing.getByRole('textbox', { name: 'List title' });
+  await input.fill('In progress');
+  await input.press('Enter');
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').columns)).find(
+          (c) => c.id === 'doing',
+        )?.title,
+      { timeout: 5000 },
+    )
+    .toBe('In progress');
+  expect(await readMarks(page)).toEqual(Array.from({ length: n }, (_, i) => `row-${i}`));
+});
+
+test('a card opens an editor dialog', async ({ page }) => {
+  const n = await markRows(page);
+  const card = await page.evaluate(() => {
+    const it = document.getElementById('board').items.find((c) => c.column === 'doing');
+    return { id: it.id, labels: (it.labels || []).slice().sort().join(',') };
+  });
+  await page.locator(LIST).locator('[data-column="doing"] .card').first().click();
+  await expect(page.getByRole('dialog', { name: 'Card' })).toBeVisible();
+  await page.getByRole('option', { name: 'Blocked' }).click();
+  await expect
+    .poll(
+      async () => {
+        const it = (await page.evaluate(() => document.getElementById('board').items)).find(
+          (c) => c.id === card.id,
+        );
+        return (it?.labels || []).slice().sort().join(',');
+      },
+      { timeout: 5000 },
+    )
+    .not.toBe(card.labels);
+  await page.getByRole('textbox', { name: 'New label' }).fill('design');
+  await page.getByRole('button', { name: 'Add label' }).click();
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').items)).find((c) => c.id === card.id)
+          ?.labels || [],
+      { timeout: 5000 },
+    )
+    .toContain('design');
+  const addWho = await page.evaluate((id) => {
+    const it = document.getElementById('board').items.find((c) => c.id === id);
+    const have = new Set(it?.who || []);
+    return ['You', 'Ada Lovelace', 'Ben Linus', 'Cara Moss'].find((n) => !have.has(n));
+  }, card.id);
+  const members = page.getByRole('combobox', { name: 'Members' });
+  await members.click();
+  await members.fill(addWho.split(/\s/)[0]);
+  await page.getByRole('listbox', { name: 'Members' }).getByRole('option', { name: addWho }).click();
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').items)).find((c) => c.id === card.id)
+          ?.who || [],
+      { timeout: 5000 },
+    )
+    .toContain(addWho);
+  await page.getByRole('combobox', { name: 'List' }).click();
+  await page.getByRole('option', { name: 'Done' }).click();
+  await expect(page.getByRole('dialog', { name: 'Card' })).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').items)).find((c) => c.id === card.id)
+          ?.column,
+      { timeout: 5000 },
+    )
+    .toBe('done');
+  await page.getByRole('combobox', { name: 'List' }).click();
+  await page.getByRole('option', { name: 'In progress' }).click();
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').items)).find((c) => c.id === card.id)
+          ?.column,
+      { timeout: 5000 },
+    )
+    .toBe('doing');
+  await page.getByRole('textbox', { name: 'Title' }).fill('Cut the launch film');
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').items)).find((it) => it.id === card.id)
+          ?.text,
+      { timeout: 5000 },
+    )
+    .toBe('Cut the launch film');
+  // Leaving a lane remounts that card (each lane has its own each()). The
+  // others must keep their nodes.
+  expect((await readMarks(page)).filter(Boolean)).toHaveLength(n - 1);
+});
+
+test('a list can be dragged to a new position', async ({ page }) => {
+  const from = await page.evaluate(() => {
+    const r = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="doing"] .head')
+      .getBoundingClientRect();
+    return { x: r.x + 24, y: r.y + 10 };
+  });
+  const to = await page.evaluate(() => {
+    const r = document
+      .getElementById('board')
+      .shadowRoot.querySelector('[data-column="todo"] .head')
+      .getBoundingClientRect();
+    return { x: r.x + 8, y: r.y + 10 };
+  });
+
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').columns)).map((c) => c.id),
+      { timeout: 5000 },
+    )
+    .toEqual(['doing', 'todo', 'done']);
+});
+
+test('a list can be deleted after confirming', async ({ page }) => {
+  const doing = page.locator(LIST).locator('[data-column="doing"]');
+  await doing.getByRole('button', { name: 'List actions' }).click();
+  await page.getByRole('menuitem', { name: 'Delete list' }).click();
+  await expect(page.getByRole('dialog', { name: 'Delete list?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => document.getElementById('board').columns)).map((c) => c.id),
+      { timeout: 5000 },
+    )
+    .not.toContain('doing');
+  const items = await page.evaluate(() => document.getElementById('board').items);
+  expect(items.every((it) => it.column !== 'doing')).toBe(true);
+});
+
 test('Alacris UI is on the page', async ({ page }) => {
-  // Config.UI loads every design-system tag. The example's own components
-  // still come from /web/components.js; this only asserts the vendored UI
-  // module registered, which is the claim go test cannot reach.
   await expect
     .poll(() => page.evaluate(() => !!customElements.get('ui-button')))
     .toBe(true);
+  await expect(page.locator('#board')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
 });

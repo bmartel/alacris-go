@@ -1,19 +1,13 @@
-// Command todo is the alacris-go example.
+// Command todo is the alacris-go example — a live board.
 //
 //	go run ./examples/todo
 //	open http://localhost:8080
 //
-// It shows the three layers together:
+//	go run ./examples/todo -demo   # a collaborator moves cards, for filming
 //
-//   - the components are written in JavaScript, in web/components.js, because
-//     setup() runs in the browser;
-//   - ui/ is generated from them by alacris-go, so the props are typed;
-//   - Alacris UI is on because Config.UI is set — Material components next to
-//     the app's own, sharing one reactive graph;
-//   - the list itself lives here, in Go, and reaches the page as prop writes.
-//
-// Nothing in the request path renders component internals. The server renders
-// elements and their attributes; alacris does the rest.
+// The board lives in Go. Every click is one property write — no HTML on the
+// wire — so a card that moves in another window is the same node here, and
+// whatever you were typing stays put.
 package main
 
 import (
@@ -21,7 +15,6 @@ import (
 	"embed"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -48,49 +41,37 @@ import (
 //go:embed web
 var webFS embed.FS
 
-// The ids and action names the page and the handlers agree on. Constants
-// because a typo in either half is otherwise a silent no-op.
 const (
-	todosID   = "todos"
-	echoID    = "echo"
-	countsID  = "remaining"
-	counterID = "counter"
+	boardID   = "board"
+	membersID = "members"
 
-	actionAdd    = "add-todo"
-	actionToggle = "toggle-todo"
-	actionRemove = "remove-todo"
-	actionFilter = "set-filter"
-	actionCount  = "counter-changed"
+	actionAdd        = "add-card"
+	actionMove       = "move-card"
+	actionAddList    = "add-list"
+	actionMoveList   = "move-list"
+	actionRenameList = "rename-list"
+	actionDeleteList = "delete-list"
+	actionEdit       = "edit-card"
+	actionRemove     = "remove-card"
 )
-
-// filterKey is the session value holding this page's filter. Each page picks
-// its own, so it cannot be a field on the shared list.
-type filterKey struct{}
 
 // view is everything one render of the page needs.
 type view struct {
-	Config alacris.Config
-	Items  []model.Item
-	Filter string
-
-	remaining int
-}
-
-func (v view) RemainingLabel() string {
-	if v.remaining == 1 {
-		return "1 left"
-	}
-	return fmt.Sprintf("%d left", v.remaining)
+	Config  alacris.Config
+	Items   []model.Item
+	Columns []model.Column
+	Members []string
 }
 
 func main() {
 	addr := flag.String("addr", ":8080", "address to listen on")
 	dev := flag.Bool("dev", false, "serve the unminified alacris build")
+	demo := flag.Bool("demo", false, "a collaborator moves cards, so one window is enough to film")
 	flag.Parse()
 
 	log.SetFlags(0)
 	app := &app{
-		list: model.New("Read the README", "Write a component", "Ship it"),
+		list: model.New(),
 		live: live.New(live.Options{Logger: slog.Default()}),
 		dev:  *dev,
 	}
@@ -107,6 +88,10 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	if *demo {
+		go app.collaborate(ctx)
+	}
 
 	go func() {
 		shown := *addr
@@ -136,24 +121,14 @@ type app struct {
 func (a *app) routes() {
 	a.mux = http.NewServeMux()
 
-	// The runtime, the live client and the two live endpoints.
 	live.Mount(a.mux, alacris.DefaultBase, a.live)
-
-	// The component module. In a real project this is whatever serves your
-	// static assets.
 	a.mux.Handle("/web/", http.FileServerFS(webFS))
-
 	a.mux.HandleFunc("GET /{$}", a.index)
-
 	a.handlers()
 }
 
-// index renders the page and hands it a session.
 func (a *app) index(w http.ResponseWriter, r *http.Request) {
-	// NewSession sets the cookie that authorises this browser, so it has to
-	// run before anything is written to w.
 	sess := a.live.NewSession(w, r)
-	sess.Set(filterKey{}, "all")
 
 	// A reconnecting browser has missed everything sent while it was away, and
 	// only the server knows what the page should look like.
@@ -161,7 +136,7 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 	// s.Context(), not r.Context(): this runs when the browser attaches, by
 	// which time the request that rendered the page has finished and its
 	// context has been cancelled.
-	sess.OnOpen(func(s *live.Session) { a.push(s) })
+	sess.OnOpen(func(s *live.Session) { a.pushAll() })
 
 	v := view{
 		Config: alacris.Config{
@@ -171,14 +146,12 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 			Live:    true,
 			Page:    sess.ID(),
 		},
-		Items:     a.list.Items(),
-		Filter:    "all",
-		remaining: a.list.Remaining(),
+		Items:   a.list.Items(),
+		Columns: a.list.Columns(),
+		Members: a.list.Members(),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// This response carries a Set-Cookie and a page id bound to it, so it is
-	// for one browser and must not be held by anything in between.
 	w.Header().Set("Cache-Control", "no-store, private")
 
 	if err := page(v).Render(r.Context(), w); err != nil {
@@ -189,83 +162,107 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 func (a *app) handlers() {
 	srv := a.live
 
-	live.On(srv, actionAdd, func(c *live.Ctx, d ui.TodoListAddDetail) error {
-		if _, err := a.list.Add(d.Text); err != nil {
-			// Nothing was added, so nothing changed; the input has already
-			// cleared itself, which is the only feedback this warrants.
+	live.On(srv, actionAdd, func(c *live.Ctx, d ui.BoardAddDetail) error {
+		if _, err := a.list.Add(d.Text, d.Column); err != nil {
 			return nil
 		}
 		a.pushAll()
 		return nil
 	})
 
-	live.On(srv, actionToggle, func(c *live.Ctx, d ui.TodoListToggleDetail) error {
-		a.list.Toggle(d.ID)
+	live.On(srv, actionMove, func(c *live.Ctx, d ui.BoardMoveDetail) error {
+		a.list.Move(d.ID, d.Column, d.Index)
 		a.pushAll()
 		return nil
 	})
 
-	live.On(srv, actionRemove, func(c *live.Ctx, d ui.TodoListRemoveDetail) error {
+	live.On(srv, actionAddList, func(c *live.Ctx, d ui.BoardAddlistDetail) error {
+		if _, err := a.list.AddColumn(d.Title); err != nil {
+			return nil
+		}
+		a.pushAll()
+		return nil
+	})
+
+	live.On(srv, actionMoveList, func(c *live.Ctx, d ui.BoardMovelistDetail) error {
+		a.list.MoveColumn(d.ID, d.Index)
+		a.pushAll()
+		return nil
+	})
+
+	live.On(srv, actionRenameList, func(c *live.Ctx, d ui.BoardRenameDetail) error {
+		a.list.RenameColumn(d.ID, d.Title)
+		a.pushAll()
+		return nil
+	})
+
+	live.On(srv, actionDeleteList, func(c *live.Ctx, d ui.BoardDeletelistDetail) error {
+		a.list.RemoveColumn(d.ID)
+		a.pushAll()
+		return nil
+	})
+
+	live.On(srv, actionEdit, func(c *live.Ctx, d ui.BoardEditDetail) error {
+		a.list.Update(d.ID, d.Text, d.Body, d.Who, d.Labels)
+		a.pushAll()
+		return nil
+	})
+
+	live.On(srv, actionRemove, func(c *live.Ctx, d ui.BoardRemoveDetail) error {
 		a.list.Remove(d.ID)
 		a.pushAll()
 		return nil
-	})
-
-	// The filter is this page's business, so it changes one session and
-	// nobody else's.
-	live.On(srv, actionFilter, func(c *live.Ctx, d ui.TodoListFilterDetail) error {
-		switch d.Filter {
-		case "all", "active", "done":
-		default:
-			return fmt.Errorf("unknown filter %q", d.Filter)
-		}
-		c.Session.Set(filterKey{}, d.Filter)
-		// The generated handle patches with compile-checked prop names; a
-		// renamed prop in the component fails this build instead of writing a
-		// property nobody reads.
-		ui.TodoListElement(c.Session, todosID).SetFilter(d.Filter)
-		return nil
-	})
-
-	// The counter owns its own state; this is only an echo of what it
-	// reported, rendered by the server into a slot.
-	live.On(srv, actionCount, func(c *live.Ctx, d ui.CounterChangeDetail) error {
-		return c.Session.Element(echoID).
-			SetHTML(c.Session.Context(), ui.ChipSlotDefault, chipText(fmt.Sprint(d.Value)))
 	})
 }
 
 // push brings one page up to date.
 //
 // The context comes from the session, not from whatever request triggered the
-// change: a page is updated because the list changed, and that has nothing to
-// do with the lifetime of the request that changed it. Using the caller's
-// context here would make one user's cancelled request abandon another user's
-// update half-done.
+// change: a page is updated because the board changed, and that has nothing to
+// do with the lifetime of the request that changed it.
 func (a *app) push(s *live.Session) {
 	ctx := s.Context()
 	items := a.list.Items()
-	filter, _ := s.Get(filterKey{})
 
-	// One frame, so the list and the count land together rather than in two
-	// paints.
 	s.Batch(func() {
-		todos := ui.TodoListElement(s, todosID)
-		todos.SetItems(items)
-		if f, ok := filter.(string); ok {
-			todos.SetFilter(f)
-		}
-		if err := s.Element(countsID).SetHTML(ctx, ui.ChipSlotDefault,
-			chipText(view{remaining: a.list.Remaining()}.RemainingLabel())); err != nil {
-			slog.Error("rendering the remaining count", "error", err)
+		h := ui.BoardElement(s, boardID)
+		h.SetItems(items)
+		h.SetColumns(a.list.Columns())
+		if err := s.Element(membersID).SetHTML(ctx, "",
+			facepile(a.list.Members(), len(items))); err != nil {
+			slog.Error("rendering the members", "error", err)
 		}
 	})
 }
 
-// pushAll brings every open page up to date, which is what makes two tabs
-// agree without either of them polling.
 func (a *app) pushAll() {
 	for _, s := range a.live.Sessions() {
 		a.push(s)
+	}
+}
+
+// collaborate is the other person in a one-window recording: it advances a
+// card every few seconds so the board is visibly live while you type.
+func (a *app) collaborate(ctx context.Context) {
+	tick := time.NewTicker(3 * time.Second)
+	defer tick.Stop()
+	n := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			ids := a.list.IDs()
+			if len(ids) == 0 {
+				continue
+			}
+			cols := a.list.ColumnIDs()
+			if len(cols) == 0 {
+				continue
+			}
+			a.list.Move(ids[n%len(ids)], cols[n%len(cols)], 0)
+			n++
+			a.pushAll()
+		}
 	}
 }

@@ -21,8 +21,8 @@ import { test, expect } from '@playwright/test';
 
 async function ready(page) {
   await page.waitForFunction(() => {
-    const el = document.getElementById('todos');
-    return !!el?.shadowRoot?.querySelector('ul');
+    const el = document.getElementById('board');
+    return !!el?.shadowRoot?.querySelector('ui-card');
   });
 }
 
@@ -72,16 +72,18 @@ test('a dead session recovers by reloading into a fresh one', async ({ page }) =
   // The fresh page is genuinely live: a change made through the component
   // comes back as a server-driven update.
   const before = await page.evaluate(
-    () => document.getElementById('todos').shadowRoot.querySelectorAll('li').length,
+    () => document.getElementById('board').shadowRoot.querySelectorAll('ui-card').length,
   );
-  const input = page.locator('#todos input[aria-label="New todo"]');
+  const todo = page.locator('#board').locator('[data-column="todo"]');
+  await todo.getByRole('button', { name: 'Add a card' }).click();
+  const input = todo.getByRole('textbox', { name: 'Add a card' });
   await input.fill('recovered and live');
   await input.press('Enter');
   await expect
     .poll(
       () =>
         page.evaluate(
-          () => document.getElementById('todos').shadowRoot.querySelectorAll('li').length,
+          () => document.getElementById('board').shadowRoot.querySelectorAll('ui-card').length,
         ),
       { timeout: 5000 },
     )

@@ -16,7 +16,6 @@ package ui
 //
 //	@alacris.Pending{Tags: ui.Tags}
 var Tags = []string{
-	"ala-chip",
-	"ala-counter",
-	"ala-todo-list",
+	"ala-board",
+	"ala-member-select",
 }

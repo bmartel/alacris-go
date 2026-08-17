@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strconv"
+
 	alacris "github.com/bmartel/alacris-go"
 	"github.com/bmartel/alacris-go/examples/todo/ui"
 	m3 "github.com/bmartel/alacris-go/ui"
@@ -11,127 +13,86 @@ import (
 // Everything below the <body> is one render. There is no hydration payload and
 // no serialized component state: the elements carry their props as attributes,
 // and alacris builds their shadow content when the module arrives.
+//
+// Chrome is Alacris UI, composed inside the board: title, filter, members and
+// share sit in a padded header so they are not jammed against the viewport.
 templ page(v view) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>alacris-go — todos</title>
-			// Hide the elements until they are defined. Their shadow content
-			// is built in the browser, so without this the page paints empty
-			// shells first and then fills them in.
+			<title>alacris-go — board</title>
 			@alacris.Pending{Tags: ui.Tags}
 			@m3.Pending()
-			// The import map has to come before any module import.
 			@alacris.Scripts(v.Config)
 			@styles()
 		</head>
 		<body>
-			<main>
-				<header>
-					<h1>Todos</h1>
-					<p class="tag">
-						The list lives on the server. Every change below is one
-						property write — no HTML on the wire.
-					</p>
-				</header>
-
-				<section>
-					<h2>
-						Server-owned list
-						@ui.Chip(ui.ChipProps{}).ID(countsID).
-							Apply(ui.ChipVars, map[string]string{"--chip-bg": "#ffe9a8"}) {
-							{ v.RemainingLabel() }
-						}
-					</h2>
-
-					// Props go down; events come back up as named server
-					// actions. The element needs an id because that is what a
-					// patch addresses.
-					@ui.TodoList(ui.TodoListProps{
-						Items:  v.Items,
-						Filter: v.Filter,
-					}).
-						ID(todosID).
-						On(ui.TodoListEventAdd, actionAdd).
-						On(ui.TodoListEventToggle, actionToggle).
-						On(ui.TodoListEventRemove, actionRemove).
-						On(ui.TodoListEventFilter, actionFilter) {
-						<p slot={ ui.TodoListSlotEmpty } class="empty">
-							Nothing here. Add something above.
-						</p>
-					}
-
-					<p class="note">
-						Open this page in a second tab. Both stay in step,
-						because both are looking at the same list.
-					</p>
-				</section>
-
-				<section>
-					<h2>Browser-owned counter</h2>
-					// The counter keeps its own state; the server only hears
-					// about it because this element asked it to.
-					@ui.Counter(ui.CounterProps{Start: 3}).
-						ID("counter").
-						On(ui.CounterEventChange, actionCount)
-					<p class="note">
-						Last value the server saw:
-						@ui.Chip(ui.ChipProps{}).ID(echoID) {
-							never
-						}
-					</p>
-				</section>
-			</main>
+			<div class="workspace">
+				@ui.Board(ui.BoardProps{Title: "Ship it", Items: v.Items, Columns: v.Columns}).
+					ID(boardID).
+					On(ui.BoardEventAdd, actionAdd).
+					On(ui.BoardEventMove, actionMove).
+					On(ui.BoardEventAddlist, actionAddList).
+					On(ui.BoardEventMovelist, actionMoveList).
+					On(ui.BoardEventRename, actionRenameList).
+					On(ui.BoardEventDeletelist, actionDeleteList).
+					On(ui.BoardEventEdit, actionEdit).
+					On(ui.BoardEventRemove, actionRemove) {
+					<span slot={ ui.BoardSlotEmpty }></span>
+					<div id={ membersID } class="facepile" slot={ ui.BoardSlotMembers }>
+						@facepile(v.Members, len(v.Items))
+					</div>
+				}
+			</div>
 		</body>
 	</html>
 }
 
-// chipText is what the server pushes into a chip's default slot.
-templ chipText(s string) {
-	<span>{ s }</span>
+templ facepile(names []string, cards int) {
+	<span data-cards={ strconv.Itoa(cards) }></span>
+	for _, name := range names {
+		@m3.Avatar(m3.AvatarProps{Name: name, Size: "32px", Label: name})
+	}
 }
 
 templ styles() {
 	<style>
-		:root {
-			color-scheme: light dark;
-			--bg: #fbfbfd; --fg: #16161a; --mut: #6b6b76;
-			--line: #e3e3ea; --accent: #ffb300; --card: #fff;
+		html, body {
+			margin: 0;
+			height: 100%;
+			height: 100dvh;
+			overflow: hidden;
+			background: var(--ui-color-surface);
+			color: var(--ui-color-on-surface);
 		}
-		@media (prefers-color-scheme: dark) {
-			:root {
-				--bg: #101013; --fg: #eeeef2; --mut: #9a9aa6;
-				--line: #2a2a32; --accent: #ffc233; --card: #18181d;
-			}
-		}
-		* { box-sizing: border-box }
 		body {
-			margin: 0; padding: 2.5rem 1.25rem 5rem;
-			background: var(--bg); color: var(--fg);
-			font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			display: flex;
+			flex-direction: column;
+			min-height: 100%;
+			min-height: 100dvh;
 		}
-		main { max-width: 42rem; margin: 0 auto }
-		h1 { font-size: 2.2rem; margin: 0 0 .2rem; letter-spacing: -.03em }
-		h2 {
-			font-size: .8rem; text-transform: uppercase; letter-spacing: .09em;
-			color: var(--mut); margin: 0 0 1rem; font-weight: 600;
-			display: flex; align-items: center; gap: .5rem;
+		.workspace {
+			flex: 1;
+			min-height: 0;
+			display: flex;
+			flex-direction: column;
 		}
-		.tag { color: var(--mut); margin: 0 0 2.5rem }
-		.note { color: var(--mut); font-size: .85rem; margin: 1rem 0 0 }
-		.empty { color: var(--mut); margin: 0 }
-		section {
-			border: 1px solid var(--line); border-radius: 14px;
-			padding: 1.25rem 1.4rem 1.5rem; margin-bottom: 1.25rem;
-			background: var(--card);
+		#board {
+			flex: 1;
+			min-height: 0;
 		}
-		/* Themed from outside the shadow root, which is the whole point of
-		   the custom properties the component declares with vars(). */
-		ala-chip { --chip-bg: #ececf2; --chip-fg: #333 }
-		@media (prefers-color-scheme: dark) {
-			ala-chip { --chip-bg: #2b2b33; --chip-fg: #eee }
+		.facepile {
+			display: flex;
+			align-items: center;
+			padding-inline: 4px;
 		}
+		.facepile ui-avatar {
+			margin-inline-start: -8px;
+			box-shadow: 0 0 0 2px var(--ui-color-surface-container);
+		}
+		.facepile ui-avatar:first-of-type { margin-inline-start: 0; }
+		.facepile [data-cards] { display: none }
 	</style>
 }

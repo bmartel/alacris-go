@@ -18,15 +18,15 @@ Typed wrappers generated from your `define()` calls · the runtime served from G
 </div>
 
 ```go
-@ui.TodoList(ui.TodoListProps{Items: todos, Filter: "active"}).
-    ID("todos").
-    On(ui.TodoListEventAdd, "add-todo")
+@ui.Board(ui.BoardProps{Items: items}).
+    ID("board").
+    On(ui.BoardEventAdd, "add-card")
 ```
 
 ```go
-live.On(srv, "add-todo", func(c *live.Ctx, d ui.TodoListAddDetail) error {
-    list.Add(d.Text)
-    c.Session.Element("todos").Set("items", list.Items())   // one property write
+live.On(srv, "add-card", func(c *live.Ctx, d ui.BoardAddDetail) error {
+    list.Add(d.Text, d.Column)
+    c.Session.Element("board").Set("items", list.Items())   // one property write
     return nil
 })
 ```
@@ -214,19 +214,18 @@ Down — one property write per change, coalesced into one frame:
 
 ```go
 sess.Batch(func() {
-    sess.Element("todos").Set("items", list.Items())
-    sess.Element("todos").Set("filter", "active")
+    sess.Element("board").Set("items", list.Items())
 })
 ```
 
 Up — a component's `CustomEvent`s forwarded to named server actions:
 
 ```go
-@ui.TodoList(props).ID("todos").On(ui.TodoListEventAdd, "add-todo")
+@ui.Board(props).ID("board").On(ui.BoardEventAdd, "add-card")
 ```
 
 ```go
-live.On(srv, "add-todo", func(c *live.Ctx, d ui.TodoListAddDetail) error { ... })
+live.On(srv, "add-card", func(c *live.Ctx, d ui.BoardAddDetail) error { ... })
 ```
 
 One delegated listener per event type covers every element, present and future;
@@ -294,13 +293,23 @@ go run ./examples/todo
 # http://localhost:8080
 ```
 
-A todo list the server owns. Components in JavaScript, wrappers generated from
-them, list state in Go, every change arriving as one prop write. Open it in two
-tabs — they stay in step, and neither polls.
+A live board the server owns. Components in JavaScript, wrappers generated
+from them, card state in Go, every change arriving as one prop write. Open it
+in two windows. Move a card in one — it slides columns in the other, and
+whatever you were typing does not. Neither tab polls.
 
-It is also where the non-obvious parts are demonstrated honestly: the list is
-**not** wrapped in a conditional template, because that would rebuild every row
-on every update and undo the thing `each` exists to do.
+```bash
+go run ./examples/todo -demo
+```
+
+`-demo` is a collaborator that moves cards on a timer, so a one-window
+recording is enough to film the same trick.
+
+Each lane has its own `each()`, so the columns are real stacks. A card that
+stays in a lane keeps its node when the list is rewritten; a card that changes
+lane is created in the destination — that is the cost of the layout, and the
+identity tests reorder inside a lane so they still catch an `each` placed
+inside a conditional.
 
 ## Vendored runtime
 

@@ -70,7 +70,7 @@ live/          server-authoritative props over SSE + POST
 cmd/alacris-go/  generate | check | manifest
 internal/vendorjs/  refreshes assets/ from npm
 internal/docsgen/   renders every Go example on the docs site
-examples/todo/   the example app — also the e2e fixture and a `check` target
+examples/todo/   the example app (a live board) — also the e2e fixture and a `check` target
 e2e/             Playwright, against the real example app
 docs/            the Astro site; docs/public/AGENTS.md is the consumer drop-in
 ```

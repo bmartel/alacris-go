@@ -8,219 +8,126 @@ import (
 	live "github.com/bmartel/alacris-go/live"
 )
 
-// ChipTag is the name of the <ala-chip> custom element.
-const ChipTag = "ala-chip"
+// BoardTag is the name of the <ala-board> custom element.
+const BoardTag = "ala-board"
 
-// Slots exposed by <ala-chip>. Put one on your own markup to fill it:
+// Slots exposed by <ala-board>. Put one on your own markup to fill it:
 //
-//	<h3 slot={ ChipSlotDefault }>
+//	<h3 slot={ BoardSlotEmpty }>
 const (
-	// the label text
-	ChipSlotDefault = ""
+	// kept in the light DOM for first paint / no-JS
+	BoardSlotEmpty = "empty"
+	// overlapping avatars; the server rewrites this slot
+	BoardSlotMembers = "members"
 )
 
-// ChipVars is the theming contract of <ala-chip>: the custom properties it
-// is styled through, and the only supported way to restyle it from outside its
-// shadow root.
+// Events emitted by <ala-board>. Forward one to a server action with On:
 //
-//	Chip(props).Apply(ChipVars, map[string]string{"--chip-bg": "#111"})
-//
-// Applying a property that is not in the contract is an error, so a rename in the
-// component turns up here rather than as styling that silently stops working.
-var ChipVars = alacris.Vars(
-	"--chip-bg", // the background (defaults to #eee)
-	"--chip-fg", // the text colour (defaults to #111)
-)
-
-// ChipProps are the props of <ala-chip>.
-//
-// A field left at its zero value, or set to the component's own default, is
-// left off the element, so the component keeps its default. To send a zero
-// value deliberately, set it with Prop on the returned element.
-type ChipProps struct {
-	// The component defaults it to 'neutral'.
-	Tone string
-}
-
-// Chip renders <ala-chip>.
-//
-// A small label. Themed entirely through custom properties, so the page can
-// restyle it without knowing anything about its shadow root.
-func Chip(p ChipProps) *alacris.Element {
-	e := alacris.E(ChipTag)
-	if p.Tone != "" && p.Tone != "neutral" {
-		e.Prop("tone", p.Tone)
-	}
-	return e
-}
-
-// ChipHandle patches a rendered <ala-chip> over a live session.
-//
-// Each setter writes one component prop — one property write, one DOM update on
-// the page. Obtain one with ChipElement.
-type ChipHandle struct {
-	handle live.Handle
-}
-
-// ChipElement addresses the <ala-chip> rendered with this id, for
-// patching its props with compile-checked names instead of strings:
-//
-//	ChipElement(c.Session, "id").SetTone(v)
-func ChipElement(s *live.Session, id string) ChipHandle {
-	return ChipHandle{handle: s.Element(id)}
-}
-
-// Handle returns the untyped handle, for attributes, classes and slot HTML.
-func (h ChipHandle) Handle() live.Handle { return h.handle }
-
-// SetTone writes the tone prop.
-func (h ChipHandle) SetTone(v string) { h.handle.Set("tone", v) }
-
-// CounterTag is the name of the <ala-counter> custom element.
-const CounterTag = "ala-counter"
-
-// Events emitted by <ala-counter>. Forward one to a server action with On:
-//
-//	Counter(props).On(CounterEventChange, "handler-name")
+//	Board(props).On(BoardEventAdd, "handler-name")
 const (
-	// the number changed
-	CounterEventChange = "change"
+	// the user added a card
+	BoardEventAdd = "add"
+	// the user dropped a card
+	BoardEventMove = "move"
+	// the user added a list
+	BoardEventAddlist = "addlist"
+	// the user dropped a list
+	BoardEventMovelist = "movelist"
+	// the user renamed a list
+	BoardEventRename = "rename"
+	// the user deleted a list
+	BoardEventDeletelist = "deletelist"
+	// the user edited a card
+	BoardEventEdit = "edit"
+	// the user deleted a card
+	BoardEventRemove = "remove"
 )
 
-// CounterChangeDetail is the detail of the "change" event of <ala-counter>.
+// BoardAddDetail is the detail of the "add" event of <ala-board>.
 //
-// the number changed
-type CounterChangeDetail struct {
-	Value int `json:"value"`
+// the user added a card
+type BoardAddDetail struct {
+	Text   string `json:"text"`
+	Column string `json:"column"`
 }
 
-// CounterProps are the props of <ala-counter>.
+// BoardMoveDetail is the detail of the "move" event of <ala-board>.
 //
-// A field left at its zero value, or set to the component's own default, is
-// left off the element, so the component keeps its default. To send a zero
-// value deliberately, set it with Prop on the returned element.
-type CounterProps struct {
-	// Start is the value it opens on.
-	//
-	// The component defaults it to 0.
-	Start int
-
-	// Step is how much each press moves it.
-	//
-	// The component defaults it to 1.
-	Step int
+// the user dropped a card
+type BoardMoveDetail struct {
+	ID     int    `json:"id"`
+	Column string `json:"column"`
+	Index  int    `json:"index"`
 }
 
-// Counter renders <ala-counter>.
+// BoardAddlistDetail is the detail of the "addlist" event of <ala-board>.
 //
-// A number the user can nudge, kept in the browser.
-//
-// Nothing here touches the server: local state that no one else needs is
-// exactly what a signal is for.
-func Counter(p CounterProps) *alacris.Element {
-	e := alacris.E(CounterTag)
-	if p.Start != 0 {
-		e.Prop("start", p.Start)
-	}
-	if p.Step != 0 && p.Step != 1 {
-		e.Prop("step", p.Step)
-	}
-	return e
+// the user added a list
+type BoardAddlistDetail struct {
+	Title string `json:"title"`
 }
 
-// CounterHandle patches a rendered <ala-counter> over a live session.
+// BoardMovelistDetail is the detail of the "movelist" event of <ala-board>.
 //
-// Each setter writes one component prop — one property write, one DOM update on
-// the page. Obtain one with CounterElement.
-type CounterHandle struct {
-	handle live.Handle
+// the user dropped a list
+type BoardMovelistDetail struct {
+	ID    string `json:"id"`
+	Index int    `json:"index"`
 }
 
-// CounterElement addresses the <ala-counter> rendered with this id, for
-// patching its props with compile-checked names instead of strings:
+// BoardRenameDetail is the detail of the "rename" event of <ala-board>.
 //
-//	CounterElement(c.Session, "id").SetStart(v)
-func CounterElement(s *live.Session, id string) CounterHandle {
-	return CounterHandle{handle: s.Element(id)}
+// the user renamed a list
+type BoardRenameDetail struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
-// Handle returns the untyped handle, for attributes, classes and slot HTML.
-func (h CounterHandle) Handle() live.Handle { return h.handle }
-
-// SetStart writes the start prop.
-func (h CounterHandle) SetStart(v int) { h.handle.Set("start", v) }
-
-// SetStep writes the step prop.
-func (h CounterHandle) SetStep(v int) { h.handle.Set("step", v) }
-
-// TodoListTag is the name of the <ala-todo-list> custom element.
-const TodoListTag = "ala-todo-list"
-
-// Slots exposed by <ala-todo-list>. Put one on your own markup to fill it:
+// BoardDeletelistDetail is the detail of the "deletelist" event of <ala-board>.
 //
-//	<h3 slot={ TodoListSlotEmpty }>
-const (
-	// shown instead of the list when there is nothing to show
-	TodoListSlotEmpty = "empty"
-)
-
-// Events emitted by <ala-todo-list>. Forward one to a server action with On:
-//
-//	TodoList(props).On(TodoListEventAdd, "handler-name")
-const (
-	// the user entered a new todo
-	TodoListEventAdd = "add"
-	// the user flipped one done or undone
-	TodoListEventToggle = "toggle"
-	// the user deleted one
-	TodoListEventRemove = "remove"
-	// the user picked a different filter
-	TodoListEventFilter = "filter"
-)
-
-// TodoListAddDetail is the detail of the "add" event of <ala-todo-list>.
-//
-// the user entered a new todo
-type TodoListAddDetail struct {
-	Text string `json:"text"`
+// the user deleted a list
+type BoardDeletelistDetail struct {
+	ID string `json:"id"`
 }
 
-// TodoListToggleDetail is the detail of the "toggle" event of <ala-todo-list>.
+// BoardEditDetail is the detail of the "edit" event of <ala-board>.
 //
-// the user flipped one done or undone
-type TodoListToggleDetail struct {
+// the user edited a card
+type BoardEditDetail struct {
+	ID     int      `json:"id"`
+	Text   string   `json:"text"`
+	Body   string   `json:"body"`
+	Who    []string `json:"who"`
+	Labels []string `json:"labels"`
+}
+
+// BoardRemoveDetail is the detail of the "remove" event of <ala-board>.
+//
+// the user deleted a card
+type BoardRemoveDetail struct {
 	ID int `json:"id"`
 }
 
-// TodoListRemoveDetail is the detail of the "remove" event of <ala-todo-list>.
-//
-// the user deleted one
-type TodoListRemoveDetail struct {
-	ID int `json:"id"`
-}
-
-// TodoListFilterDetail is the detail of the "filter" event of <ala-todo-list>.
-//
-// the user picked a different filter
-type TodoListFilterDetail struct {
-	Filter string `json:"filter"`
-}
-
-// TodoListProps are the props of <ala-todo-list>.
+// BoardProps are the props of <ala-board>.
 //
 // A field left at its zero value, or set to the component's own default, is
 // left off the element, so the component keeps its default. To send a zero
 // value deliberately, set it with Prop on the returned element.
-type TodoListProps struct {
-	// Items is the list, as rendered by the server.
+type BoardProps struct {
+	// Title is the board name.
+	//
+	// The component defaults it to 'Ship it'.
+	Title string
+
+	// Items is the cards, as rendered by the server.
 	//
 	// Crosses as JSON in the items attribute.
 	Items []todo.Item
 
-	// Filter is "all", "active" or "done".
+	// Columns is the lists, left to right.
 	//
-	// The component defaults it to 'all'.
-	Filter string
+	// Crosses as JSON in the columns attribute.
+	Columns []todo.Column
 
 	// Busy is true while the server is working.
 	//
@@ -228,20 +135,19 @@ type TodoListProps struct {
 	Busy bool
 }
 
-// TodoList renders <ala-todo-list>.
+// Board renders <ala-board>.
 //
-// The todo list.
-//
-// The list itself is a prop, so the server is the only thing that decides what
-// is in it. Every interaction leaves as an event and comes back as a new
-// value for `items`.
-func TodoList(p TodoListProps) *alacris.Element {
-	e := alacris.E(TodoListTag)
+// The shared board.
+func Board(p BoardProps) *alacris.Element {
+	e := alacris.E(BoardTag)
+	if p.Title != "" && p.Title != "Ship it" {
+		e.Prop("title", p.Title)
+	}
 	if len(p.Items) > 0 {
 		e.Prop("items", p.Items)
 	}
-	if p.Filter != "" && p.Filter != "all" {
-		e.Prop("filter", p.Filter)
+	if len(p.Columns) > 0 {
+		e.Prop("columns", p.Columns)
 	}
 	if p.Busy {
 		e.Prop("busy", p.Busy)
@@ -249,30 +155,129 @@ func TodoList(p TodoListProps) *alacris.Element {
 	return e
 }
 
-// TodoListHandle patches a rendered <ala-todo-list> over a live session.
+// BoardHandle patches a rendered <ala-board> over a live session.
 //
 // Each setter writes one component prop — one property write, one DOM update on
-// the page. Obtain one with TodoListElement.
-type TodoListHandle struct {
+// the page. Obtain one with BoardElement.
+type BoardHandle struct {
 	handle live.Handle
 }
 
-// TodoListElement addresses the <ala-todo-list> rendered with this id, for
+// BoardElement addresses the <ala-board> rendered with this id, for
 // patching its props with compile-checked names instead of strings:
 //
-//	TodoListElement(c.Session, "id").SetItems(v)
-func TodoListElement(s *live.Session, id string) TodoListHandle {
-	return TodoListHandle{handle: s.Element(id)}
+//	BoardElement(c.Session, "id").SetTitle(v)
+func BoardElement(s *live.Session, id string) BoardHandle {
+	return BoardHandle{handle: s.Element(id)}
 }
 
 // Handle returns the untyped handle, for attributes, classes and slot HTML.
-func (h TodoListHandle) Handle() live.Handle { return h.handle }
+func (h BoardHandle) Handle() live.Handle { return h.handle }
+
+// SetTitle writes the title prop.
+func (h BoardHandle) SetTitle(v string) { h.handle.Set("title", v) }
 
 // SetItems writes the items prop.
-func (h TodoListHandle) SetItems(v []todo.Item) { h.handle.Set("items", v) }
+func (h BoardHandle) SetItems(v []todo.Item) { h.handle.Set("items", v) }
 
-// SetFilter writes the filter prop.
-func (h TodoListHandle) SetFilter(v string) { h.handle.Set("filter", v) }
+// SetColumns writes the columns prop.
+func (h BoardHandle) SetColumns(v []todo.Column) { h.handle.Set("columns", v) }
 
 // SetBusy writes the busy prop.
-func (h TodoListHandle) SetBusy(v bool) { h.handle.Set("busy", v) }
+func (h BoardHandle) SetBusy(v bool) { h.handle.Set("busy", v) }
+
+// MemberSelectTag is the name of the <ala-member-select> custom element.
+const MemberSelectTag = "ala-member-select"
+
+// Events emitted by <ala-member-select>. Forward one to a server action with On:
+//
+//	MemberSelect(props).On(MemberSelectEventChange, "handler-name")
+const (
+	// the selection changed
+	MemberSelectEventChange = "change"
+)
+
+// MemberSelectChangeDetail is the detail of the "change" event of <ala-member-select>.
+//
+// the selection changed
+type MemberSelectChangeDetail struct {
+	Value []string `json:"value"`
+}
+
+// MemberSelectProps are the props of <ala-member-select>.
+//
+// A field left at its zero value, or set to the component's own default, is
+// left off the element, so the component keeps its default. To send a zero
+// value deliberately, set it with Prop on the returned element.
+type MemberSelectProps struct {
+	// Value is selected names.
+	//
+	// Crosses as JSON in the value attribute.
+	Value []string
+
+	// Options is people that can be assigned.
+	//
+	// Crosses as JSON in the options attribute.
+	Options []string
+
+	// The component defaults it to 'Members'.
+	Label string
+
+	// The component defaults it to 'Search people'.
+	Placeholder string
+}
+
+// MemberSelect renders <ala-member-select>.
+//
+// Multi-select people picker: dismissible input chips plus <ui-autocomplete>.
+//
+// Alacris UI's combobox is single-select; this is the MD3 composition for
+// assigning several people — chips for who is on the card, a filtering
+// autocomplete to add someone else.
+func MemberSelect(p MemberSelectProps) *alacris.Element {
+	e := alacris.E(MemberSelectTag)
+	if len(p.Value) > 0 {
+		e.Prop("value", p.Value)
+	}
+	if len(p.Options) > 0 {
+		e.Prop("options", p.Options)
+	}
+	if p.Label != "" && p.Label != "Members" {
+		e.Prop("label", p.Label)
+	}
+	if p.Placeholder != "" && p.Placeholder != "Search people" {
+		e.Prop("placeholder", p.Placeholder)
+	}
+	return e
+}
+
+// MemberSelectHandle patches a rendered <ala-member-select> over a live session.
+//
+// Each setter writes one component prop — one property write, one DOM update on
+// the page. Obtain one with MemberSelectElement.
+type MemberSelectHandle struct {
+	handle live.Handle
+}
+
+// MemberSelectElement addresses the <ala-member-select> rendered with this id, for
+// patching its props with compile-checked names instead of strings:
+//
+//	MemberSelectElement(c.Session, "id").SetValue(v)
+func MemberSelectElement(s *live.Session, id string) MemberSelectHandle {
+	return MemberSelectHandle{handle: s.Element(id)}
+}
+
+// Handle returns the untyped handle, for attributes, classes and slot HTML.
+func (h MemberSelectHandle) Handle() live.Handle { return h.handle }
+
+// SetValue writes the value prop.
+func (h MemberSelectHandle) SetValue(v []string) { h.handle.Set("value", v) }
+
+// SetOptions writes the options prop.
+func (h MemberSelectHandle) SetOptions(v []string) { h.handle.Set("options", v) }
+
+// SetLabel writes the label prop.
+func (h MemberSelectHandle) SetLabel(v string) { h.handle.Set("label", v) }
+
+// SetPlaceholder writes the placeholder prop.
+func (h MemberSelectHandle) SetPlaceholder(v string) { h.handle.Set("placeholder", v) }
