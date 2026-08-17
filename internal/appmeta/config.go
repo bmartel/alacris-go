@@ -16,15 +16,16 @@ const FileName = "alacris.app.json"
 
 // Config is bundle metadata. Window size and live wiring stay in Go.
 type Config struct {
-	Name       string         `json:"name"`
-	Identifier string         `json:"identifier"`
-	Version    string         `json:"version"`
-	Main       string         `json:"main,omitempty"`
-	Icon       string         `json:"icon,omitempty"`
-	Copyright  string         `json:"copyright,omitempty"`
-	Category   string         `json:"category,omitempty"`
-	Bundle     Bundle         `json:"bundle,omitempty"`
-	Updater    *UpdaterConfig `json:"updater,omitempty"`
+	Name           string         `json:"name"`
+	Identifier     string         `json:"identifier"`
+	Version        string         `json:"version"`
+	Main           string         `json:"main,omitempty"`
+	Icon           string         `json:"icon,omitempty"`
+	Copyright      string         `json:"copyright,omitempty"`
+	Category       string         `json:"category,omitempty"`
+	DeepLinkScheme string         `json:"deepLinkScheme,omitempty"`
+	Bundle         Bundle         `json:"bundle,omitempty"`
+	Updater        *UpdaterConfig `json:"updater,omitempty"`
 }
 
 // Bundle holds per-OS packaging options.

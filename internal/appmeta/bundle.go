@@ -56,7 +56,10 @@ func writeMacApp(c Config, binaryPath, destDir string) (string, error) {
 	if err := os.WriteFile(filepath.Join(root, "Contents", "Info.plist"), []byte(infoPlist(c)), 0o644); err != nil {
 		return "", err
 	}
-	if c.Icon != "" {
+	if err := writeIcons(c, root, "darwin"); err != nil {
+		return "", err
+	}
+	if c.Icon != "" && !strings.EqualFold(filepath.Ext(c.Icon), ".png") {
 		if err := copyFile(c.Icon, filepath.Join(res, filepath.Base(c.Icon)), 0o644); err != nil {
 			return "", fmt.Errorf("appmeta: icon: %w", err)
 		}
@@ -83,6 +86,9 @@ func writeLinux(c Config, binaryPath, destDir string) (string, error) {
 	if err := os.WriteFile(filepath.Join(destDir, "nfpm.yaml"), []byte(nfpmFile(c)), 0o644); err != nil {
 		return "", err
 	}
+	if err := writeIcons(c, destDir, "linux"); err != nil {
+		return "", err
+	}
 	return destDir, nil
 }
 
@@ -97,14 +103,31 @@ func writeWindows(c Config, binaryPath, destDir string) (string, error) {
 	if err := os.WriteFile(filepath.Join(destDir, "winres.json"), []byte(winresFile(c)), 0o644); err != nil {
 		return "", err
 	}
+	if err := writeIcons(c, destDir, "windows"); err != nil {
+		return "", err
+	}
 	return exe, nil
 }
 
 func infoPlist(c Config) string {
 	icon := ""
 	if c.Icon != "" {
-		base := strings.TrimSuffix(filepath.Base(c.Icon), filepath.Ext(c.Icon))
-		icon = fmt.Sprintf("  <key>CFBundleIconFile</key>\n  <string>%s</string>\n", base)
+		icon = fmt.Sprintf("  <key>CFBundleIconFile</key>\n  <string>%s</string>\n", xmlEscape(iconPlistName(c)))
+	}
+	urlTypes := ""
+	if c.DeepLinkScheme != "" {
+		urlTypes = fmt.Sprintf(`  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>%s</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>%s</string>
+      </array>
+    </dict>
+  </array>
+`, xmlEscape(c.Identifier), xmlEscape(c.DeepLinkScheme))
 	}
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -130,9 +153,9 @@ func infoPlist(c Config) string {
   <string>11.0</string>
   <key>NSHighResolutionCapable</key>
   <true/>
-%s</dict>
+%s%s</dict>
 </plist>
-`, xmlEscape(c.BinaryName()), xmlEscape(c.Identifier), xmlEscape(c.Name), xmlEscape(c.Version), xmlEscape(c.Version), icon)
+`, xmlEscape(c.BinaryName()), xmlEscape(c.Identifier), xmlEscape(c.Name), xmlEscape(c.Version), xmlEscape(c.Version), icon, urlTypes)
 }
 
 func desktopFile(c Config) string {
@@ -144,14 +167,18 @@ func desktopFile(c Config) string {
 		cats += ";"
 	}
 	exec := c.BinaryName()
+	mime := ""
+	if c.DeepLinkScheme != "" {
+		mime = fmt.Sprintf("MimeType=x-scheme-handler/%s;\n", c.DeepLinkScheme)
+	}
 	return fmt.Sprintf(`[Desktop Entry]
 Type=Application
 Name=%s
-Exec=%s
+Exec=%s %%u
 Icon=%s
 Categories=%s
 StartupWMClass=%s
-`, c.Name, exec, c.BinaryName(), cats, c.Identifier)
+%s`, c.Name, exec, c.BinaryName(), cats, c.Identifier, mime)
 }
 
 func nfpmFile(c Config) string {

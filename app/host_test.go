@@ -142,6 +142,23 @@ func TestListenRequiresHandler(t *testing.T) {
 	}
 }
 
+func TestListenBootstrapURLHasNoToken(t *testing.T) {
+	t.Parallel()
+	h, err := Listen(Options{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = h.Shutdown(context.Background()) })
+	u := h.BootstrapURL("/")
+	if strings.Contains(u, hostQuery) {
+		t.Fatalf("ungated BootstrapURL leaked a token: %s", u)
+	}
+}
+
 func TestShutdownStopsServing(t *testing.T) {
 	t.Parallel()
 	h, err := Listen(Options{

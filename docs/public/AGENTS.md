@@ -279,8 +279,16 @@ Same live handler, in an OS webview. Nested module
 
 ```go
 live.New(live.Options{CookieSecure: live.SecureNever})
-app.Run(app.Options{Title: "Board", Width: 1100, Height: 800, Handler: mux, Menu: app.DefaultMenu()})
+app.Run(app.Options{
+    Title: "Board", Width: 1100, Height: 800,
+    Handler: mux, Menu: app.DefaultMenu(),
+    Identifier: "com.example.board",
+})
 ```
+
+`Run` issues a host token so another local process cannot create a session
+on the loopback port. The live cookie is still required. EventSource needs
+HTTP, so there is no custom scheme.
 
 Native APIs are Go, typically from `live.On`:
 
@@ -293,6 +301,10 @@ live.On(srv, "export", func(c *live.Ctx, d struct{}) error {
     return os.WriteFile(path, payload, 0o644)
 })
 ```
+
+Also on `app`: `Notify`, `OpenURL`, `WriteClipboard`, `DataDir`,
+`RegisterShortcut`, `Options.SingleInstance`, `Options.DeepLinkScheme`,
+`Options.Tray`, `Updater.ApplyAndRelaunch`.
 
 Do not add Wails bindings, a JS `invoke`, or a second interop. The live
 protocol is the bridge. `alacris.app.json` is bundle metadata only; window

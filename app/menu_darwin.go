@@ -18,24 +18,14 @@ void appFinishMenu(void);
 import "C"
 import (
 	"strings"
-	"sync"
 	"unsafe"
-)
-
-var (
-	menuMu  sync.Mutex
-	menuFns = map[int]func(){}
-	menuSeq int
 )
 
 func applyMenu(w *Window, m *Menu) {
 	if m == nil || len(m.Items) == 0 {
 		return
 	}
-	menuMu.Lock()
-	menuFns = map[int]func(){}
-	menuSeq = 1
-	menuMu.Unlock()
+	resetMenuFns()
 
 	C.appInstallMenu()
 	for _, it := range m.Items {
@@ -75,12 +65,7 @@ func addMenuItem(w *Window, it MenuItem) {
 	if it.Do == nil {
 		return
 	}
-	menuMu.Lock()
-	id := menuSeq
-	menuSeq++
-	do := it.Do
-	menuFns[id] = func() { do(w) }
-	menuMu.Unlock()
+	id := registerMenuDo(w, it.Do)
 	title := C.CString(it.Title)
 	shift, alt, cmd := C.int(0), C.int(0), C.int(0)
 	if k.shift {
@@ -94,29 +79,6 @@ func addMenuItem(w *Window, it MenuItem) {
 	}
 	C.appAddMenuItem(C.int(id), title, key, shift, alt, cmd)
 	C.free(unsafe.Pointer(title))
-}
-
-func orTitle(s, def string) string {
-	if s == "" {
-		return def
-	}
-	return s
-}
-
-func roleTitle(r Role) string {
-	switch r {
-	case RoleQuit:
-		return "Quit"
-	case RoleCut:
-		return "Cut"
-	case RoleCopy:
-		return "Copy"
-	case RolePaste:
-		return "Paste"
-	case RoleSelectAll:
-		return "Select All"
-	}
-	return ""
 }
 
 func roleSelector(r Role) string {
@@ -133,14 +95,4 @@ func roleSelector(r Role) string {
 		return "selectAll:"
 	}
 	return ""
-}
-
-//export goMenuInvoke
-func goMenuInvoke(id C.int) {
-	menuMu.Lock()
-	fn := menuFns[int(id)]
-	menuMu.Unlock()
-	if fn != nil {
-		fn()
-	}
 }

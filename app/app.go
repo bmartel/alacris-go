@@ -55,9 +55,8 @@ type Options struct {
 	// (a free port). Only loopback hosts are accepted; 0.0.0.0 is refused.
 	Addr string
 
-	// Menu is installed as the native menu bar where the backend supports
-	// it (currently macOS). Nil means no menu; DefaultMenu is the usual
-	// Edit/Quit set.
+	// Menu is installed as the native menu bar on macOS, Windows, and
+	// Linux. Nil means no menu; DefaultMenu is the usual Edit/Quit set.
 	Menu *Menu
 
 	// Appearance hints the title bar. The default follows the OS.
@@ -71,6 +70,57 @@ type Options struct {
 	// methods that do not need Dispatch (SetTitle, SetSize, Close) are
 	// safe here.
 	OnReady func(*Window)
+
+	// X and Y are the initial window origin in screen pixels. Ignored
+	// when Center is true. Both zero means the OS picks.
+	X, Y int
+
+	// Center places the window on the primary display. Overrides X and Y.
+	Center bool
+
+	// MaxWidth and MaxHeight bound growing. Zero means no maximum.
+	MaxWidth  int
+	MaxHeight int
+
+	// Fullscreen opens the window in the OS full-screen space.
+	Fullscreen bool
+
+	// Undecorated hides the native title bar.
+	Undecorated bool
+
+	// AlwaysOnTop keeps the window above others.
+	AlwaysOnTop bool
+
+	// Hidden opens the window without showing it (a tray-only start).
+	Hidden bool
+
+	// Identifier is the reverse-DNS id used for single-instance locking,
+	// data directories, and deep-link registration. Required when
+	// SingleInstance is true.
+	Identifier string
+
+	// SingleInstance refuses a second process and forwards its arguments
+	// to OnSecondInstance on the first.
+	SingleInstance bool
+
+	// OnSecondInstance runs in the first process when another launch is
+	// refused. Args are the second process's os.Args[1:].
+	OnSecondInstance func(args []string)
+
+	// DeepLinkScheme registers an URL scheme (no "://") the OS should
+	// deliver to this app. OnDeepLink receives the full URL.
+	DeepLinkScheme string
+
+	// OnDeepLink runs when the OS delivers a matching URL. Also invoked
+	// for a second-instance launch whose args look like a URL.
+	OnDeepLink func(url string)
+
+	// Tray, if set, installs a status-item / notification-area icon.
+	Tray *Tray
+
+	// OnClose is asked before the last window goes away. Returning false
+	// cancels the close (the window stays). Nil means allow.
+	OnClose func() bool
 }
 
 func (o *Options) fill() error {
@@ -94,11 +144,14 @@ func (o *Options) fill() error {
 	return nil
 }
 
-// An App owns the loopback host and, once Open has run, a window.
+// An App owns the loopback host and, once Open has run, one or more windows.
 type App struct {
-	opts Options
-	host *Host
-	win  *Window
+	opts     Options
+	host     *Host
+	win      *Window
+	wins     []*Window
+	inst     *instanceLock
+	deeplink func(string)
 }
 
 // New prepares an App. It does not listen or open a window.
@@ -117,18 +170,22 @@ func (a *App) Run() error {
 	if err := requireDesktop(); err != nil {
 		return err
 	}
+	if err := FinishPendingUpdate(); err != nil {
+		return err
+	}
 	if a.win == nil {
 		if _, err := a.Open(); err != nil {
 			return err
 		}
 	}
 	defer a.closeHost()
+	defer a.releaseInstance()
 	return a.win.run()
 }
 
-// Open starts the loopback server and creates the window without entering
-// the event loop. A second window is not supported yet; a second Open
-// returns the existing one.
+// Open starts the gated loopback server and creates the first window
+// without entering the event loop. A second Open returns the existing
+// first window; use NewWindow for another.
 func (a *App) Open() (*Window, error) {
 	if a.win != nil {
 		return a.win, nil
@@ -136,34 +193,122 @@ func (a *App) Open() (*Window, error) {
 	if err := a.opts.fill(); err != nil {
 		return nil, err
 	}
-	h, err := Listen(a.opts)
+	if err := a.acquireInstance(); err != nil {
+		return nil, err
+	}
+	if a.opts.DeepLinkScheme != "" {
+		a.deeplink = a.opts.OnDeepLink
+		registerDeepLink(a.opts.DeepLinkScheme, a.opts.Identifier, func(u string) {
+			if a.deeplink != nil {
+				a.deeplink(u)
+			}
+		})
+	}
+	h, err := listen(a.opts, true)
 	if err != nil {
+		a.releaseInstance()
 		return nil, err
 	}
 	a.host = h
-	w, err := newWindow(a.opts)
+	w, err := a.createWindow()
 	if err != nil {
 		_ = h.Shutdown(context.Background())
 		a.host = nil
+		a.releaseInstance()
 		return nil, err
 	}
-	w.host = h
+	a.win = w
+	if a.opts.Tray != nil {
+		applyTray(w, a.opts.Tray)
+	}
+	if a.opts.OnReady != nil {
+		a.opts.OnReady(w)
+	}
+	return w, nil
+}
+
+// NewWindow opens another window onto the same host. Open must have run.
+func (a *App) NewWindow() (*Window, error) {
+	if a.host == nil {
+		return a.Open()
+	}
+	return a.createWindow()
+}
+
+func (a *App) createWindow() (*Window, error) {
+	w, err := newWindow(a.opts)
+	if err != nil {
+		return nil, err
+	}
+	w.host = a.host
+	w.app = a
 	w.SetTitle(a.opts.Title)
 	w.SetSize(a.opts.Width, a.opts.Height)
 	if a.opts.MinWidth > 0 || a.opts.MinHeight > 0 {
 		w.setMinSize(a.opts.MinWidth, a.opts.MinHeight)
 	}
+	if a.opts.MaxWidth > 0 || a.opts.MaxHeight > 0 {
+		w.setMaxSize(a.opts.MaxWidth, a.opts.MaxHeight)
+	}
 	if a.opts.FixedSize {
 		w.setFixedSize(true)
 	}
-	applyMenu(w, a.opts.Menu)
-	w.navigate(h.URL() + a.opts.Path)
-	applyAppearance(w, a.opts.Appearance)
-	a.win = w
-	if a.opts.OnReady != nil {
-		a.opts.OnReady(w)
+	if a.opts.Undecorated {
+		w.SetDecorations(false)
 	}
+	if a.opts.AlwaysOnTop {
+		w.SetAlwaysOnTop(true)
+	}
+	if a.opts.Center {
+		w.Center()
+	} else if a.opts.X != 0 || a.opts.Y != 0 {
+		w.SetPosition(a.opts.X, a.opts.Y)
+	}
+	applyMenu(w, a.opts.Menu)
+	w.navigate(a.host.BootstrapURL(a.opts.Path))
+	applyAppearance(w, a.opts.Appearance)
+	if a.opts.Fullscreen {
+		w.Fullscreen()
+	}
+	if a.opts.Hidden {
+		w.Hide()
+	}
+	a.wins = append(a.wins, w)
 	return w, nil
+}
+
+func (a *App) acquireInstance() error {
+	if !a.opts.SingleInstance {
+		return nil
+	}
+	if a.opts.Identifier == "" {
+		return fmt.Errorf("app: SingleInstance requires Options.Identifier")
+	}
+	onSecond := a.opts.OnSecondInstance
+	lock, err := acquireInstance(a.opts.Identifier, osArgs(), func(args []string) {
+		if len(args) == 1 && looksLikeURL(args[0]) && a.opts.OnDeepLink != nil {
+			a.opts.OnDeepLink(args[0])
+			return
+		}
+		if onSecond != nil {
+			onSecond(args)
+		}
+		if a.win != nil {
+			a.win.Focus()
+		}
+	})
+	if err != nil {
+		return err
+	}
+	a.inst = lock
+	return nil
+}
+
+func (a *App) releaseInstance() {
+	if a.inst != nil {
+		a.inst.release()
+		a.inst = nil
+	}
 }
 
 // Window is the window Open created, or nil.

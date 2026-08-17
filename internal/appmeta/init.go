@@ -133,7 +133,7 @@ func main() {
 	mux := http.NewServeMux()
 	srv := live.New(live.Options{
 		Logger:       slog.Default(),
-		CookieSecure: live.SecureNever,
+		CookieSecure: live.SecureNever, // loopback HTTP; Run still issues a host token
 	})
 	defer srv.Close()
 

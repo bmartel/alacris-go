@@ -8,7 +8,6 @@ import (
 )
 
 func TestSaveFileCanceled(t *testing.T) {
-	t.Parallel()
 	orig := dialogExec
 	t.Cleanup(func() { dialogExec = orig })
 	dialogExec = func(context.Context, string, ...string) ([]byte, error) {
@@ -21,7 +20,6 @@ func TestSaveFileCanceled(t *testing.T) {
 }
 
 func TestOpenFileReturnsPath(t *testing.T) {
-	t.Parallel()
 	orig := dialogExec
 	t.Cleanup(func() { dialogExec = orig })
 	dialogExec = func(context.Context, string, ...string) ([]byte, error) {
@@ -37,7 +35,6 @@ func TestOpenFileReturnsPath(t *testing.T) {
 }
 
 func TestConfirmNo(t *testing.T) {
-	t.Parallel()
 	orig := dialogExec
 	t.Cleanup(func() { dialogExec = orig })
 	dialogExec = func(context.Context, string, ...string) ([]byte, error) {

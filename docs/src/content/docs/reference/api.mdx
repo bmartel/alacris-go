@@ -194,12 +194,14 @@ window needs `-tags desktop`. See [Desktop apps](/alacris-go/guides/desktop/).
 
 | | |
 | --- | --- |
-| `Run(Options) error` | Listen on loopback, open a window, block until it closes. |
-| `New(Options) *App`, `(*App) Open()`, `(*App) Run()` | The same, split, for a later second window. |
-| `Listen(Options) (*Host, error)` | Loopback HTTP only. No display, no desktop tag. |
-| `(*Host) URL()`, `Shutdown(ctx)` | Bound origin, and a graceful stop. |
-| `Window` | `SetTitle`, `SetSize`, `Minimize`, `Close`. |
-| `Menu`, `MenuItem`, `DefaultMenu`, `EditMenu` | Native menu bar. `Do` is a Go callback. |
+| `Run(Options) error` | Gated loopback, open a window, block until it closes. |
+| `New(Options) *App`, `(*App) Open()`, `(*App) Run()`, `(*App) NewWindow()` | The same, split, for a second window. |
+| `Listen(Options) (*Host, error)` | Loopback HTTP only. No display, no desktop tag, no host token. |
+| `(*Host) URL()`, `BootstrapURL(path)`, `Shutdown(ctx)` | Bound origin, first-navigation URL, graceful stop. |
+| `Window` | `SetTitle`, `SetSize`, `SetPosition`, `Center`, `Minimize`, `Maximize`, `Fullscreen`, `Show`, `Hide`, `Focus`, `SetAlwaysOnTop`, `SetDecorations`, `SetBadge`, `Close`, `RegisterShortcut`. |
+| `Menu`, `MenuItem`, `DefaultMenu`, `EditMenu`, `Tray` | Native menu bar and status item. `Do` is a Go callback. |
 | `OpenFile`, `SaveFile`, `SaveAs`, `Message`, `Confirm` | OS dialogs. `ErrCanceled` on dismiss. |
-| `Updater`, `Manifest`, `Verify`, `SignArtifact` | ed25519-signed updates. |
-| `ErrNoDesktop` | `Run` without `-tags desktop`. |
+| `Notify`, `OpenURL`, `RevealInFileManager`, `WriteClipboard`, `ReadClipboard` | OS helpers. No desktop tag. |
+| `DataDir`, `CacheDir` | Identifier-scoped directories. |
+| `Updater`, `ApplyAndRelaunch`, `Relaunch`, `FinishPendingUpdate` | ed25519-signed updates and process replace. |
+| `ErrNoDesktop`, `ErrAlreadyRunning`, `ErrCanceled`, `ErrNoShortcut` | |

@@ -24,6 +24,8 @@ func appCmd(args []string, stdout, stderr io.Writer) error {
 		return appDev(args[1:], stdout, stderr)
 	case "build":
 		return appBuild(args[1:], stdout, stderr)
+	case "info":
+		return appInfo(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		appUsage(stdout)
 		return nil
@@ -37,12 +39,14 @@ func appCmd(args []string, stdout, stderr io.Writer) error {
 func appUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   alacris-go app init   [-name name] [-id identifier] [-module path] [dir]
-  alacris-go app dev    [dir] [--] [args...]
+  alacris-go app dev    [-watch=false] [dir] [--] [args...]
   alacris-go app build  [-o dist] [-config alacris.app.json] [dir]
+  alacris-go app info
 
 init writes a desktop-first project (Go, templ, alacris.app.json).
-dev runs it with -tags desktop.
-build compiles with -tags desktop and wraps the binary (.app, .desktop, .exe).
+dev runs it with -tags desktop and rebuilds when .go/.templ/.js change.
+build compiles with -tags desktop, wraps the binary, and runs codesign/nfpm/hdiutil when those tools are on PATH.
+info prints the desktop toolchain (CGO, webkit, signing helpers).
 `)
 }
 
@@ -71,26 +75,6 @@ func appInit(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "  next: cd %s && go get github.com/bmartel/alacris-go@latest github.com/bmartel/alacris-go/app@latest\n", dir)
 	fmt.Fprintf(stdout, "        go generate ./... && alacris-go app dev\n")
 	return nil
-}
-
-func appDev(args []string, stdout, stderr io.Writer) error {
-	dir := "."
-	progArgs := args
-	if len(args) > 0 && args[0] != "--" && !flagish(args[0]) {
-		dir = args[0]
-		progArgs = args[1:]
-	}
-	if len(progArgs) > 0 && progArgs[0] == "--" {
-		progArgs = progArgs[1:]
-	}
-	runArgs := append([]string{"run", "-tags", "desktop", "."}, progArgs...)
-	cmd := exec.Command("go", runArgs...)
-	cmd.Dir = dir
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = stdoutWriter(stdout)
-	cmd.Stderr = stderrWriter(stderr)
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=1")
-	return cmd.Run()
 }
 
 func appBuild(args []string, stdout, stderr io.Writer) error {
@@ -151,7 +135,11 @@ func appBuild(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "alacris-go: wrote %s\n", got)
+	packed, err := appmeta.Pack(cfg, got, runtime.GOOS)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "alacris-go: wrote %s\n", packed)
 	return nil
 }
 

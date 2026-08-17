@@ -18,11 +18,12 @@ menu callback.
 
 ```go
 app.Run(app.Options{
-    Title:   "Board",
-    Width:   1100,
-    Height:  800,
-    Handler: mux, // the mux a browser build would ListenAndServe
-    Menu:    app.DefaultMenu(),
+    Title:      "Board",
+    Width:      1100,
+    Height:     800,
+    Handler:    mux, // the mux a browser build would ListenAndServe
+    Menu:       app.DefaultMenu(),
+    Identifier: "com.example.board",
 })
 ```
 
@@ -52,10 +53,25 @@ go get github.com/bmartel/alacris-go/app
 
 ## Cookie on loopback
 
-The live cookie still authorises the page. The host is plain HTTP on
-`127.0.0.1`, so set `CookieSecure: live.SecureNever` on the live server you
-pass to that handler. `SecureAuto` omits Secure on non-TLS already; naming it
-keeps a later TLS-on-loopback experiment from dropping the cookie.
+The host is still plain HTTP: EventSource only speaks HTTP family URLs, so a
+custom `alacris://` scheme would break `live.js`. Set
+`CookieSecure: live.SecureNever` on the live server you pass to that handler.
+`SecureAuto` omits Secure on non-TLS already; naming it keeps a later TLS
+experiment from dropping the cookie.
+
+The live cookie still authorises the page. Do not drop it because this is a
+desktop build.
+
+## Host token
+
+`Open` / `Run` bind `127.0.0.1` (never `0.0.0.0`) and reject a `Host` header
+that is not that address. They also issue a random **host token**: the webview
+navigates to a one-shot query parameter, the gate swaps it for an HttpOnly
+cookie and redirects, and every later request (including EventSource) must
+present that cookie. Another process on the machine that can open a TCP
+connection to the port cannot create a live session.
+
+`Listen` does not install the gate. It is the testable half of the host.
 
 ## Native APIs are Go
 
@@ -71,31 +87,26 @@ live.On(srv, "export", func(c *live.Ctx, d struct{}) error {
 
 | Surface | API |
 | --- | --- |
-| Window | `Run`, `Options`, `Window.SetTitle`, `SetSize`, `Minimize`, `Close` |
-| Menus | `Menu`, `MenuItem`, `DefaultMenu`, `EditMenu`. `Do` is a Go callback. Roles (`RoleQuit`, `RoleCopy`, …) map to the first responder. Installed on macOS today. |
+| Window | `Run`, `Options`, `NewWindow`. `SetTitle`, `SetSize`, `SetPosition`, `Center`, `Minimize`, `Maximize`, `Fullscreen`, `Show`, `Hide`, `Focus`, `SetAlwaysOnTop`, `SetDecorations`, `SetBadge`, `Close`. |
+| Menus | `Menu`, `MenuItem`, `DefaultMenu`, `EditMenu`. `Do` is a Go callback. Roles (`RoleQuit`, `RoleCopy`, …) map to the first responder. Installed on macOS, Windows, and Linux. |
+| Tray | `Options.Tray` with a `Menu`. |
 | Dialogs | `OpenFile`, `SaveFile`, `SaveAs`, `Message`, `Confirm`. `ErrCanceled` means the user dismissed the dialog. |
-| Files | The Go standard library. There is no JS `fs` plugin. |
-| Updates | `Updater.Check` / `Apply`, ed25519 over the artifact bytes. See below. |
+| Files | The Go standard library. There is no JS `fs` plugin. `DataDir` / `CacheDir` are identifier-scoped. |
+| Clipboard | `WriteClipboard`, `ReadClipboard`. |
+| Notifications | `Notify`. |
+| Open / reveal | `OpenURL`, `RevealInFileManager`. |
+| Shortcuts | `Window.RegisterShortcut` (global; macOS and Windows). |
+| Single instance | `Options.SingleInstance` plus `Identifier`. Second launch returns `ErrAlreadyRunning` and forwards args. |
+| Deep links | `Options.DeepLinkScheme` and `OnDeepLink`. The bundler writes `CFBundleURLTypes` / `.desktop` MimeType. |
+| Updates | `Updater.Check` / `Apply` / `ApplyAndRelaunch`. ed25519 over the artifact bytes. `Relaunch` execs the new file; on Windows a locked exe is parked as `.new` and swapped then. |
 
 Do not add `window.__TAURI__` or a Wails-style `invoke`. A component that needs
 the filesystem emits an event; Go does the rest.
 
-## Loopback threat
-
-The host binds `127.0.0.1` (never `0.0.0.0`) and rejects a `Host` header that
-is not that address, which closes DNS rebinding. Any other process on the
-machine that can open a TCP connection to the port can still create a live
-session. That is the same class of bug Electron and Tauri v1 had with
-localhost. The live cookie is still required; do not treat a desktop build as
-a reason to drop it.
-
-A later host can replace the listener with a custom URL scheme without
-changing `live.On` or `Handle.Set`.
-
 ## CLI
 
-`alacris.app.json` is bundle metadata (name, identifier, icon). Window size
-and live wiring stay in Go.
+`alacris.app.json` is bundle metadata (name, identifier, icon, optional
+`deepLinkScheme`). Window size and live wiring stay in Go.
 
 ```bash
 alacris-go app init -name Board -id com.example.board
@@ -103,20 +114,22 @@ go get github.com/bmartel/alacris-go@latest github.com/bmartel/alacris-go/app@la
 go generate ./...
 alacris-go app dev
 alacris-go app build -o dist
+alacris-go app info
 ```
 
 `init` writes a desktop-first project: `app.Run`, a templ page, `web/components.js`,
 and the JSON file. It is not a Vite app.
 
-`dev` is `go run -tags desktop`. `build` compiles with that tag and wraps the
-binary: a `.app` on macOS, a `.desktop` + `nfpm.yaml` on Linux, an `.exe` +
-`winres.json` on Windows. Cross-compiling CGO (Linux → macOS) is not supported;
-build on the target OS or a CI matrix.
+`dev` is `go run -tags desktop`, and it rebuilds when `.go`, `.templ`, or `.js`
+change. Pass `-watch=false` for a single run.
 
-If `nfpm` or `go-winres` is on `PATH`, use it on the files `build` wrote.
-Codesign and notarize with your usual tools (`gon`, `codesign`); the JSON
-field `bundle.macOS.signingIdentity` is documentation for that step, not a
-second signer inside this CLI.
+`build` compiles with that tag, wraps the binary (`.app` / `.desktop`+`nfpm.yaml`
+/ `.exe`+`winres.json`), writes icons from a PNG, and runs **codesign**,
+**hdiutil**, **nfpm**, or **go-winres** when those tools are on `PATH`. Set
+`bundle.macOS.signingIdentity` to codesign. Notarize with
+`ALACRIS_NOTARY_PROFILE` pointing at a `notarytool` keychain profile.
+Cross-compiling CGO (Linux → macOS) is not supported; build on the target OS
+or a CI matrix.
 
 ## Auto-update
 
@@ -148,19 +161,21 @@ upd, err := app.Updater{
     Current:   version,
 }.Check(ctx)
 if upd != nil {
-    _ = updater.Apply(ctx, upd) // next launch uses the new bytes
+    _ = updater.ApplyAndRelaunch(ctx, upd)
 }
 ```
 
 `Apply` replaces the executable (on Windows, writes `app.exe.new` when the
-running file is locked). It does not restart the process.
+running file is locked). `ApplyAndRelaunch` then execs the new file. `Run`
+calls `FinishPendingUpdate` so a parked `.new` is applied if a previous
+relaunch did not finish.
 
 ## Build tags and CGO
 
 | | |
 | --- | --- |
 | Default `go test ./...` | Does not enter `app/`. Root stays free of webkit. |
-| `cd app && go test ./...` | Host, dialogs, updater. No display. |
+| `cd app && go test ./...` | Host, dialogs, updater, host token. No display. |
 | `-tags desktop` | Links the OS webview. Needs CGO, Xcode CLT / WebView2 / `libwebkit2gtk`. |
 
 <Aside type="caution" title="Do not import Wails or Fyne for this">

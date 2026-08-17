@@ -79,9 +79,8 @@ func main() {
 	log.SetFlags(0)
 	liveOpts := live.Options{Logger: slog.Default()}
 	if *desktop {
-		// Loopback HTTP has no TLS. SecureAuto would omit Secure anyway;
-		// saying so keeps a later TLS-on-loopback experiment from breaking
-		// the cookie.
+		// Loopback HTTP has no TLS. Run still issues a host token so another
+		// local process cannot create a session; the live cookie stays.
 		liveOpts.CookieSecure = live.SecureNever
 	}
 	app := &app{

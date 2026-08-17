@@ -35,7 +35,7 @@ live handler in an OS webview).
 - [Live: actions from the page](https://bmartel.github.io/alacris-go/guides/live-actions/): Forwarding CustomEvents to typed Go handlers, per-session handlers, error handling.
 - [Sessions and reconnects](https://bmartel.github.io/alacris-go/guides/sessions/): The cookie that carries the capability, the page id that does not, OnOpen, buffering, TTL, per-page state.
 - [Deploying](https://bmartel.github.io/alacris-go/guides/deploying/): Caching, CSP, proxy buffering, session affinity, shutdown.
-- [Desktop apps](https://bmartel.github.io/alacris-go/guides/desktop/): Same live handler in an OS webview. No JS bindings. Nested module, `-tags desktop`.
+- [Desktop apps](https://bmartel.github.io/alacris-go/guides/desktop/): Same live handler in an OS webview. Host token, no JS bindings. Nested module, `-tags desktop`.
 
 ## Reference
 

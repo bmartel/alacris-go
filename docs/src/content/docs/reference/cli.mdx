@@ -21,7 +21,7 @@ go install github.com/bmartel/alacris-go/cmd/alacris-go@latest
 alacris-go generate <path>... -o <dir>   write Go wrappers
 alacris-go check    <path>... -o <dir>   fail if the wrappers are out of date
 alacris-go manifest <path>...            write what it found, as JSON
-alacris-go app init|dev|build            desktop host, around the same live app
+alacris-go app init|dev|build|info       desktop host, around the same live app
 alacris-go version
 ```
 
@@ -138,13 +138,16 @@ Desktop host around the same live handler. See
 
 ```bash
 alacris-go app init [-name name] [-id identifier] [-module path] [dir]
-alacris-go app dev  [dir] [--] [args...]
+alacris-go app dev  [-watch=false] [dir] [--] [args...]
 alacris-go app build [-o dist] [-config alacris.app.json] [dir]
+alacris-go app info
 ```
 
 `init` writes `app.Run`, a templ page, `web/components.js`, and
-`alacris.app.json`. `dev` is `go run -tags desktop`. `build` compiles with
-that tag and wraps the binary for the current OS.
+`alacris.app.json`. `dev` is `go run -tags desktop` and rebuilds on source
+changes. `build` compiles with that tag, wraps the binary, writes icons from
+a PNG, and runs codesign / hdiutil / nfpm / go-winres when they are on
+`PATH`. `info` prints the desktop toolchain.
 
 ## In `go:generate`
 

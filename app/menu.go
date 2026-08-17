@@ -82,3 +82,26 @@ func parseKeys(s string) keyStroke {
 	}
 	return k
 }
+
+func orTitle(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
+func roleTitle(r Role) string {
+	switch r {
+	case RoleQuit:
+		return "Quit"
+	case RoleCut:
+		return "Cut"
+	case RoleCopy:
+		return "Copy"
+	case RolePaste:
+		return "Paste"
+	case RoleSelectAll:
+		return "Select All"
+	}
+	return ""
+}

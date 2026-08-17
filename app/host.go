@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -13,17 +14,24 @@ import (
 // A Host is the loopback HTTP server Run puts behind the webview.
 //
 // Listen is the testable half of the host: it does not need a display or
-// `-tags desktop`. The caller must Shutdown.
+// `-tags desktop`. The caller must Shutdown. Listen does not install the
+// host-token gate; Open does, so a window is the only client that can
+// create a session.
 type Host struct {
 	srv      *http.Server
 	ln       net.Listener
 	url      string
 	hostport string
+	token    string
 }
 
 // Listen serves opts.Handler on a loopback address and returns the bound
-// host. Run calls this before opening the window.
+// host. Tests use this. Run/Open call listen with the host-token gate on.
 func Listen(opts Options) (*Host, error) {
+	return listen(opts, false)
+}
+
+func listen(opts Options, gated bool) (*Host, error) {
 	if err := opts.fill(); err != nil {
 		return nil, err
 	}
@@ -41,12 +49,19 @@ func Listen(opts Options) (*Host, error) {
 		return nil, fmt.Errorf("app: listen: not a TCP address: %s", ln.Addr())
 	}
 	hostport := net.JoinHostPort(tcp.IP.String(), strconv.Itoa(tcp.Port))
+	handler := loopbackHandler(opts.Handler, hostport)
+	token := ""
+	if gated {
+		token = newHostToken()
+		handler = hostGate(handler, token)
+	}
 	h := &Host{
 		ln:       ln,
 		url:      "http://" + hostport,
 		hostport: hostport,
+		token:    token,
 		srv: &http.Server{
-			Handler:           loopbackHandler(opts.Handler, hostport),
+			Handler:           handler,
 			ReadHeaderTimeout: 10 * time.Second,
 			BaseContext: func(net.Listener) context.Context {
 				return context.Background()
@@ -61,6 +76,32 @@ func Listen(opts Options) (*Host, error) {
 
 // URL is the origin the webview should navigate to, with no path.
 func (h *Host) URL() string { return h.url }
+
+// BootstrapURL is the first navigation target. When the host is gated it
+// carries the one-shot token as a query parameter; the gate swaps that for
+// an HttpOnly cookie and redirects, so EventSource never sees the token.
+func (h *Host) BootstrapURL(path string) string {
+	if h == nil {
+		return ""
+	}
+	if path == "" {
+		path = "/"
+	} else if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	u := h.url + path
+	if h.token == "" {
+		return u
+	}
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return u
+	}
+	q := parsed.Query()
+	q.Set(hostQuery, h.token)
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
 
 // Hostport is the Host header value that will be accepted, host:port.
 func (h *Host) Hostport() string { return h.hostport }

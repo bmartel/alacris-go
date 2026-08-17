@@ -69,7 +69,7 @@ Usage:
   alacris-go generate <path>... -o <dir>   write Go wrappers
   alacris-go check    <path>... -o <dir>   fail if the wrappers are out of date
   alacris-go manifest <path>...            write what it found, as JSON
-  alacris-go app init|dev|build            desktop host, around the same live app
+  alacris-go app init|dev|build|info   desktop host, around the same live app
   alacris-go version
 
 Each <path> is a JavaScript file, a directory to walk, or a manifest .json

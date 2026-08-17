@@ -118,8 +118,10 @@ func (u Updater) Check(ctx context.Context) (*Update, error) {
 }
 
 // Apply downloads the artifact, verifies the ed25519 signature, and
-// replaces the running binary. The new file is used on the next start;
-// this process is not restarted.
+// replaces the running binary. The process is not restarted; call
+// ApplyAndRelaunch (or Relaunch after Apply) to exec the new file.
+// On Windows, a locked executable is parked as `<exe>.new` and swapped
+// in by Relaunch.
 func (u Updater) Apply(ctx context.Context, upd *Update) error {
 	if upd == nil {
 		return fmt.Errorf("app: no update")

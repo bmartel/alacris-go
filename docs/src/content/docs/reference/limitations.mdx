@@ -119,11 +119,12 @@ The `app` module opens the OS webview onto loopback HTTP. That needs CGO and
 the platform webview: Xcode Command Line Tools on macOS, WebView2 on Windows,
 `libwebkit2gtk` on Linux. Cross-compiling CGO is not supported.
 
-The host binds `127.0.0.1` and checks `Host`. Other local processes can still
-reach the port. See [Desktop apps](/alacris-go/guides/desktop/#loopback-threat).
+The host binds `127.0.0.1`, checks `Host`, and (on `Run`) requires a host
+token the webview alone holds. EventSource still needs HTTP, so there is no
+custom scheme. See [Desktop apps](/alacris-go/guides/desktop/#host-token).
 
-Native menus are installed on macOS. Dialogs (`SaveFile`, `Message`, …) work
-on macOS, Windows and Linux (zenity or kdialog on Linux).
+Native menus and trays are installed on macOS, Windows, and Linux. Dialogs
+(`SaveFile`, `Message`, …) work on all three (zenity or kdialog on Linux).
 
 ## When to use something else
 

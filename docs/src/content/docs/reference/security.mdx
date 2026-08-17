@@ -178,9 +178,10 @@ detail leaking through an error path nobody was thinking about.
 ## Desktop loopback
 
 The `app` host binds `127.0.0.1` and rejects a `Host` header that is not that
-address. Other processes on the machine can still connect to the port and
-create a live session. Keep the cookie. Do not bind `0.0.0.0`. Details:
-[Desktop apps](/alacris-go/guides/desktop/#loopback-threat).
+address. `Run` also issues a host token the webview presents as an HttpOnly
+cookie, so another local process that can reach the port cannot create a
+session. The live cookie is still required. Do not bind `0.0.0.0`. Details:
+[Desktop apps](/alacris-go/guides/desktop/#host-token).
 
 ## Reporting
 

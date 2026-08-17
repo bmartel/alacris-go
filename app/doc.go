@@ -5,8 +5,9 @@
 // for that model: it serves the same http.Handler on a loopback address and
 // opens the operating system's webview onto it. There is no JavaScript
 // binding layer, no generated TypeScript, and no second way to talk to Go.
-// Native capabilities (dialogs, menus, the filesystem) are ordinary Go
-// function calls, typically from a live.On handler or a menu callback.
+// Native capabilities (dialogs, menus, the filesystem, notifications) are
+// ordinary Go function calls, typically from a live.On handler or a menu
+// callback.
 //
 //	app.Run(app.Options{
 //	    Title:   "Board",
@@ -18,15 +19,16 @@
 //
 // # Build tags
 //
-// Opening a window requires a binary built with `-tags desktop`. That pull
+// Opening a window requires a binary built with `-tags desktop`. That pulls
 // CGO and the OS webview (WKWebView, WebView2, WebKitGTK). Without the tag,
 // Listen still works — it is ordinary HTTP — and Run returns ErrNoDesktop.
 //
-// # Loopback
+// # Host token
 //
-// The host binds 127.0.0.1 (never 0.0.0.0) and rejects requests whose Host
-// header is not that address, which closes DNS rebinding. Any other process
-// on the machine that can reach the port can still create a session; that is
-// the same class of bug Electron and Tauri v1 had with localhost. Do not
-// treat a desktop build as a substitute for the live cookie.
+// EventSource requires an HTTP family URL, so the webview cannot use a custom
+// scheme. Open binds 127.0.0.1 and issues a random host token: the first
+// navigation carries it as a query parameter, the gate swaps it for an
+// HttpOnly cookie and redirects. Another local process that can reach the
+// port cannot create a session without that token. Listen, used by tests,
+// does not install the gate. The live cookie is still required.
 package app

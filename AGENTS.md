@@ -69,12 +69,12 @@ live/          server-authoritative props over SSE + POST
   patch.go       the wire format
   action.go      Ctx, Bind, On
   assets/live.js the client
-cmd/alacris-go/  generate | check | manifest | app init|dev|build
+cmd/alacris-go/  generate | check | manifest | app init|dev|build|info
 internal/appmeta/  alacris.app.json and OS bundles; no webview
 internal/vendorjs/  refreshes assets/ from npm
 internal/docsgen/   renders every Go example on the docs site
 examples/todo/   the example app (a live board) — also the e2e fixture, a `check` target, and `-desktop`
-app/             nested module: loopback host + OS webview. `-tags desktop` to open a window
+app/             nested module: gated loopback host + OS webview. `-tags desktop` to open a window
 e2e/             Playwright, against the real example app
 docs/            the Astro site; docs/public/AGENTS.md is the consumer drop-in
 ```
@@ -86,7 +86,7 @@ docs/            the Astro site; docs/public/AGENTS.md is the consumer drop-in
 | `go build ./...` | compiles |
 | `go vet ./...` | CI runs it; so should you |
 | `go test ./...` | the suite |
-| `cd app && go test ./...` | host, dialogs, updater; no display |
+| `cd app && go test ./...` | host, dialogs, updater, host token; no display |
 | `go test -race ./...` | **required** for any change under `live/` |
 | `gofmt -l .` | must print nothing — CI fails on any output |
 | `go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-` | the example's wrappers are current |
