@@ -12,8 +12,8 @@ import BoardClip from '../../../components/BoardClip.astro';
 <BoardClip />
 
 alacris-go renders [alacris](https://bmartel.github.io/alacris/) web components
-from Go and [templ](https://templ.guide). It is three layers, each usable on
-its own.
+from Go and [templ](https://templ.guide). It is three layers plus an optional
+desktop host, each usable on its own.
 
 ## What Go actually renders
 
@@ -65,25 +65,27 @@ assignment and no hydration payload:
 
 The page is complete before any JavaScript has run.
 
-## The three layers
+## The layers
 
 | Layer | What it does | What it costs |
 | --- | --- | --- |
 | [`alacris`](/alacris-go/guides/rendering/) | Render elements, serve the runtime. | Nothing. Ordinary request/response. |
 | [`gen` + CLI](/alacris-go/guides/codegen/) | Typed Go wrappers from your `define()` calls. | A generate step, next to templ's. |
 | [`live`](/alacris-go/guides/live-props/) | Server-driven props and component events. | A stateful server and session affinity. |
+| [`app`](/alacris-go/guides/desktop/) | The same live handler, in an OS webview. | CGO, `-tags desktop`, a nested module. |
 
 Most applications want the first two. Use the third when the server owns what
 the page shows (a shared board, a dashboard, a queue) and you would otherwise
-be writing polling or a custom WebSocket protocol.
+be writing polling or a custom WebSocket protocol. Use the fourth when that
+same process should be a window instead of a URL.
 
-The module's example is that third layer in a page: `examples/todo` is a live
-Kanban board (lanes, cards, members, labels) whose chrome is Alacris UI and
-whose state lives on the server. Two windows stay in step because a move is
-one property write.
+The module's example is the third layer in a page, and the fourth with a flag:
+`examples/todo` is a live Kanban board whose chrome is Alacris UI and whose
+state lives on the server.
 
 ```bash
 go run ./examples/todo
+go run -tags desktop ./examples/todo -desktop
 ```
 
 ## What this is not
@@ -96,6 +98,8 @@ go run ./examples/todo
   state a component already models as a prop.
 - **Not tied to the live layer.** The first two layers are stateless and have no
   dependency on the third.
+- **Not Wails, not Fyne, not Tauri's JS bindings.** The desktop host reuses
+  `live.On` and `Handle.Set`. Native dialogs and menus are Go.
 
 ## Where to go next
 
@@ -107,5 +111,7 @@ go run ./examples/todo
   components, a theme engine, and `Config.UI` to turn it on.
 - [Live: props from the server](/alacris-go/guides/live-props/): one property
   write, every open tab.
+- [Desktop apps](/alacris-go/guides/desktop/): the same handler, in an OS
+  webview.
 - [Props and encoding](/alacris-go/guides/props/): the encoding table, and the
   two rules that exist because of sharp edges in the runtime.

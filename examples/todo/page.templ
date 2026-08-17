@@ -42,6 +42,11 @@ templ page(v view) {
 					On(ui.BoardEventRemove, actionRemove) {
 					<span slot={ ui.BoardSlotEmpty }></span>
 					<div id={ membersID } class="facepile" slot={ ui.BoardSlotMembers }>
+						if v.Desktop {
+							@m3.Button(m3.ButtonProps{Variant: "text"}).ID("export").On("click", actionExport) {
+								Export
+							}
+						}
 						@facepile(v.Members, len(v.Items))
 					</div>
 				}

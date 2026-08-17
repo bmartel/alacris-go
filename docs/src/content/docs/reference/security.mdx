@@ -175,6 +175,13 @@ answers `500`; the response body is a fixed string. If a user should see
 something, send a patch saying so in the page's own terms. It stops internal
 detail leaking through an error path nobody was thinking about.
 
+## Desktop loopback
+
+The `app` host binds `127.0.0.1` and rejects a `Host` header that is not that
+address. Other processes on the machine can still connect to the port and
+create a live session. Keep the cookie. Do not bind `0.0.0.0`. Details:
+[Desktop apps](/alacris-go/guides/desktop/#loopback-threat).
+
 ## Reporting
 
 Security issues in this module go to

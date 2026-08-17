@@ -42,6 +42,8 @@ curl -o AGENTS.alacris.md https://bmartel.github.io/alacris/AGENTS.md
   out, and `*bool` for a default of `true`.
 - The live layer: `OnOpen` is not optional, details are user input, the cookie
   is the capability (not the page id).
+- Desktop apps: same live handler in `app.Run`; native APIs are Go
+  (`SaveFile`, menus), not a JS `invoke` bridge.
 - A wrong → right table of the mistakes that actually happen.
 - A verification checklist, including the focus-and-node-identity check that
   catches an `each` in a conditional.

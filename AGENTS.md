@@ -14,14 +14,16 @@ Docs: <https://bmartel.github.io/alacris-go/> · Sibling runtime:
 
 ## What this module is, and what that forbids
 
-1. **It renders alacris custom elements from Go, and nothing more.** A
-   component's shadow content is built in the browser by `setup()`. There is no
-   SSR of component internals and no declarative shadow DOM. Do not add one, and
-   do not add a Go DSL for templates or signals.
+1. **It renders alacris custom elements from Go.** A component's shadow
+   content is built in the browser by `setup()`. There is no SSR of component
+   internals and no declarative shadow DOM. Do not add one, and do not add a
+   Go DSL for templates or signals. The `app` nested module is a host for that
+   same model (loopback HTTP plus an OS webview), not a second UI toolkit.
 2. **It has no dependencies worth the name.** `go.mod` carries `templ` and
    nothing else. Adding a dependency to the root package or `live/` needs a
    reason that survives being asked twice; a dependency in `internal/` or a test
-   is ordinary.
+   is ordinary. CGO and the webview library belong in [`app/`](app/), which is
+   a nested module so `go test ./...` never links webkit.
 3. **`assets/` is someone else's build, vendored byte for byte.** It is not
    edited, not formatted, not reformatted by git ([`.gitattributes`](.gitattributes)
    marks it `-text`), and not "fixed". It is replaced wholesale by
@@ -67,10 +69,12 @@ live/          server-authoritative props over SSE + POST
   patch.go       the wire format
   action.go      Ctx, Bind, On
   assets/live.js the client
-cmd/alacris-go/  generate | check | manifest
+cmd/alacris-go/  generate | check | manifest | app init|dev|build
+internal/appmeta/  alacris.app.json and OS bundles; no webview
 internal/vendorjs/  refreshes assets/ from npm
 internal/docsgen/   renders every Go example on the docs site
-examples/todo/   the example app (a live board) — also the e2e fixture and a `check` target
+examples/todo/   the example app (a live board) — also the e2e fixture, a `check` target, and `-desktop`
+app/             nested module: loopback host + OS webview. `-tags desktop` to open a window
 e2e/             Playwright, against the real example app
 docs/            the Astro site; docs/public/AGENTS.md is the consumer drop-in
 ```
@@ -82,6 +86,7 @@ docs/            the Astro site; docs/public/AGENTS.md is the consumer drop-in
 | `go build ./...` | compiles |
 | `go vet ./...` | CI runs it; so should you |
 | `go test ./...` | the suite |
+| `cd app && go test ./...` | host, dialogs, updater; no display |
 | `go test -race ./...` | **required** for any change under `live/` |
 | `gofmt -l .` | must print nothing — CI fails on any output |
 | `go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-` | the example's wrappers are current |
@@ -213,6 +218,8 @@ is not a mistake; leave it alone until then.
 | `WriteTimeout` on an `http.Server` in an example | Leave it unset | It cuts every live stream on a timer |
 | A `perf:` commit with no benchmark | Numbers before and after | Otherwise it is a `refactor:` |
 | Adding a runtime dependency casually | Justify it, or put it in `internal/` | The public packages carry `templ` and nothing else |
+| Adding webview or CGO to the root `go.mod` | Put it in `app/` | Nested module, `-tags desktop` |
+| A Wails/Fyne/JS `invoke` bridge | `live.On` plus `app.SaveFile` | The live protocol is the interop |
 | Bumping a major for a breaking change | `!` and let it cut a minor | Below 1.0.0 by deliberate configuration |
 
 ## Verifying your work
@@ -224,11 +231,12 @@ Before declaring a task done:
 3. `go run ./cmd/alacris-go check ./examples/todo/web -o ./examples/todo/ui -strip ala-`
 4. `go run ./internal/docsgen -check`, `go run ./internal/vendorjs -check`, and
    `go run ./internal/genui -check`.
-5. If you touched `live/`, rendering, or the example: `cd e2e && npx playwright test`.
-6. If you claimed a performance change: the benchmark, before and after.
-7. If you changed a rule a consumer follows: [`docs/public/AGENTS.md`][drop-in]
+5. If you touched `app/` or `internal/appmeta`: `cd app && go test ./...`.
+6. If you touched `live/`, rendering, or the example: `cd e2e && npx playwright test`.
+7. If you claimed a performance change: the benchmark, before and after.
+8. If you changed a rule a consumer follows: [`docs/public/AGENTS.md`][drop-in]
    and the affected guide say the same thing the code now does.
-8. The commit message's type matches what actually changed.
+9. The commit message's type matches what actually changed.
 
 ## Reference
 

@@ -81,6 +81,7 @@ export default defineConfig({
             { label: 'Authentication', slug: 'guides/auth', badge: 'Live' },
             { label: 'Testing live handlers', slug: 'guides/testing', badge: 'Live' },
             { label: 'Deploying', slug: 'guides/deploying' },
+            { label: 'Desktop apps', slug: 'guides/desktop' },
           ],
         },
         {

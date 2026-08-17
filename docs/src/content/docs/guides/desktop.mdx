@@ -1,0 +1,170 @@
+---
+title: Desktop apps
+description: Host the same live HTTP app in a native OS webview. Element, On and Set do not change.
+sidebar:
+  order: 9
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The live protocol does not change. Go still renders elements, patches props
+over SSE, and receives component events over POST. `app` is a host for that
+model: the same `http.Handler` listens on loopback, and the operating system's
+webview (WKWebView, WebView2, WebKitGTK) is the client.
+
+There is no JavaScript binding layer and no generated TypeScript. Native
+capabilities are Go function calls, usually from a `live.On` handler or a
+menu callback.
+
+```go
+app.Run(app.Options{
+    Title:   "Board",
+    Width:   1100,
+    Height:  800,
+    Handler: mux, // the mux a browser build would ListenAndServe
+    Menu:    app.DefaultMenu(),
+})
+```
+
+The example board is that handler with a flag:
+
+```bash
+go run -tags desktop ./examples/todo -desktop
+```
+
+Without `-tags desktop`, `Run` returns an error that names the tag. `Listen`
+does not need it: it is ordinary HTTP, and that is what the tests exercise.
+
+## The nested module
+
+```go
+import "github.com/bmartel/alacris-go/app"
+```
+
+It has its own `go.mod`. The root module still depends on `templ` and nothing
+else; CGO and the webview library live only here. A project that never opens a
+window never sees them.
+
+```
+go get github.com/bmartel/alacris-go
+go get github.com/bmartel/alacris-go/app
+```
+
+## Cookie on loopback
+
+The live cookie still authorises the page. The host is plain HTTP on
+`127.0.0.1`, so set `CookieSecure: live.SecureNever` on the live server you
+pass to that handler. `SecureAuto` omits Secure on non-TLS already; naming it
+keeps a later TLS-on-loopback experiment from dropping the cookie.
+
+## Native APIs are Go
+
+```go
+live.On(srv, "export", func(c *live.Ctx, d struct{}) error {
+    path, err := app.SaveFile(c.Context(), app.FileFilter{Name: "JSON", Ext: ".json"})
+    if err != nil {
+        return err
+    }
+    return os.WriteFile(path, payload, 0o644)
+})
+```
+
+| Surface | API |
+| --- | --- |
+| Window | `Run`, `Options`, `Window.SetTitle`, `SetSize`, `Minimize`, `Close` |
+| Menus | `Menu`, `MenuItem`, `DefaultMenu`, `EditMenu`. `Do` is a Go callback. Roles (`RoleQuit`, `RoleCopy`, …) map to the first responder. Installed on macOS today. |
+| Dialogs | `OpenFile`, `SaveFile`, `SaveAs`, `Message`, `Confirm`. `ErrCanceled` means the user dismissed the dialog. |
+| Files | The Go standard library. There is no JS `fs` plugin. |
+| Updates | `Updater.Check` / `Apply`, ed25519 over the artifact bytes. See below. |
+
+Do not add `window.__TAURI__` or a Wails-style `invoke`. A component that needs
+the filesystem emits an event; Go does the rest.
+
+## Loopback threat
+
+The host binds `127.0.0.1` (never `0.0.0.0`) and rejects a `Host` header that
+is not that address, which closes DNS rebinding. Any other process on the
+machine that can open a TCP connection to the port can still create a live
+session. That is the same class of bug Electron and Tauri v1 had with
+localhost. The live cookie is still required; do not treat a desktop build as
+a reason to drop it.
+
+A later host can replace the listener with a custom URL scheme without
+changing `live.On` or `Handle.Set`.
+
+## CLI
+
+`alacris.app.json` is bundle metadata (name, identifier, icon). Window size
+and live wiring stay in Go.
+
+```bash
+alacris-go app init -name Board -id com.example.board
+go get github.com/bmartel/alacris-go@latest github.com/bmartel/alacris-go/app@latest
+go generate ./...
+alacris-go app dev
+alacris-go app build -o dist
+```
+
+`init` writes a desktop-first project: `app.Run`, a templ page, `web/components.js`,
+and the JSON file. It is not a Vite app.
+
+`dev` is `go run -tags desktop`. `build` compiles with that tag and wraps the
+binary: a `.app` on macOS, a `.desktop` + `nfpm.yaml` on Linux, an `.exe` +
+`winres.json` on Windows. Cross-compiling CGO (Linux → macOS) is not supported;
+build on the target OS or a CI matrix.
+
+If `nfpm` or `go-winres` is on `PATH`, use it on the files `build` wrote.
+Codesign and notarize with your usual tools (`gon`, `codesign`); the JSON
+field `bundle.macOS.signingIdentity` is documentation for that step, not a
+second signer inside this CLI.
+
+## Auto-update
+
+The endpoint serves a JSON manifest. The signature is ed25519 over the
+**artifact bytes**, base64-encoded, same idea as Tauri's updater so a GitHub
+Release can host one file:
+
+```json
+{
+  "version": "0.2.0",
+  "notes": "…",
+  "platforms": {
+    "darwin-arm64": {
+      "url": "https://github.com/org/app/releases/download/v0.2.0/Board_darwin-arm64.tar.gz",
+      "signature": "<base64>"
+    }
+  }
+}
+```
+
+The map key is `GOOS-GOARCH` (`darwin-arm64`, `windows-amd64`, `linux-amd64`).
+Embed the public key in the app; keep the private key off the machine that
+builds nothing.
+
+```go
+upd, err := app.Updater{
+    Endpoint:  "https://example/latest.json",
+    PublicKey: pub,
+    Current:   version,
+}.Check(ctx)
+if upd != nil {
+    _ = updater.Apply(ctx, upd) // next launch uses the new bytes
+}
+```
+
+`Apply` replaces the executable (on Windows, writes `app.exe.new` when the
+running file is locked). It does not restart the process.
+
+## Build tags and CGO
+
+| | |
+| --- | --- |
+| Default `go test ./...` | Does not enter `app/`. Root stays free of webkit. |
+| `cd app && go test ./...` | Host, dialogs, updater. No display. |
+| `-tags desktop` | Links the OS webview. Needs CGO, Xcode CLT / WebView2 / `libwebkit2gtk`. |
+
+<Aside type="caution" title="Do not import Wails or Fyne for this">
+  Wails' product is generated JS bindings. Fyne's is native widgets. Both fight
+  the model: JavaScript owns component internals, Go owns composition, state,
+  and now the window.
+</Aside>

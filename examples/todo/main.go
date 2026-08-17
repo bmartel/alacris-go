@@ -5,6 +5,8 @@
 //
 //	go run ./examples/todo -demo   # a collaborator moves cards, for filming
 //
+//	go run -tags desktop ./examples/todo -desktop   # same app, native window
+//
 // The board lives in Go. Every click is one property write — no HTML on the
 // wire — so a card that moves in another window is the same node here, and
 // whatever you were typing stays put.
@@ -13,6 +15,7 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"log"
@@ -24,6 +27,7 @@ import (
 	"time"
 
 	alacris "github.com/bmartel/alacris-go"
+	nativeapp "github.com/bmartel/alacris-go/app"
 	"github.com/bmartel/alacris-go/examples/todo/model"
 	"github.com/bmartel/alacris-go/examples/todo/ui"
 	"github.com/bmartel/alacris-go/live"
@@ -53,6 +57,7 @@ const (
 	actionDeleteList = "delete-list"
 	actionEdit       = "edit-card"
 	actionRemove     = "remove-card"
+	actionExport     = "export-board"
 )
 
 // view is everything one render of the page needs.
@@ -61,23 +66,40 @@ type view struct {
 	Items   []model.Item
 	Columns []model.Column
 	Members []string
+	Desktop bool
 }
 
 func main() {
 	addr := flag.String("addr", ":8080", "address to listen on")
 	dev := flag.Bool("dev", false, "serve the unminified alacris build")
 	demo := flag.Bool("demo", false, "a collaborator moves cards, so one window is enough to film")
+	desktop := flag.Bool("desktop", false, "open in a native window; rebuild with -tags desktop")
 	flag.Parse()
 
 	log.SetFlags(0)
+	liveOpts := live.Options{Logger: slog.Default()}
+	if *desktop {
+		// Loopback HTTP has no TLS. SecureAuto would omit Secure anyway;
+		// saying so keeps a later TLS-on-loopback experiment from breaking
+		// the cookie.
+		liveOpts.CookieSecure = live.SecureNever
+	}
 	app := &app{
-		list: model.New(),
-		live: live.New(live.Options{Logger: slog.Default()}),
-		dev:  *dev,
+		list:    model.New(),
+		live:    live.New(liveOpts),
+		dev:     *dev,
+		desktop: *desktop,
 	}
 	defer app.live.Close()
 
 	app.routes()
+
+	if *desktop {
+		if err := app.runDesktop(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	srv := &http.Server{
 		Addr:              *addr,
@@ -112,10 +134,11 @@ func main() {
 }
 
 type app struct {
-	mux  *http.ServeMux
-	list *model.List
-	live *live.Server
-	dev  bool
+	mux     *http.ServeMux
+	list    *model.List
+	live    *live.Server
+	dev     bool
+	desktop bool
 }
 
 func (a *app) routes() {
@@ -149,6 +172,7 @@ func (a *app) index(w http.ResponseWriter, r *http.Request) {
 		Items:   a.list.Items(),
 		Columns: a.list.Columns(),
 		Members: a.list.Members(),
+		Desktop: a.desktop,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -213,6 +237,60 @@ func (a *app) handlers() {
 		a.pushAll()
 		return nil
 	})
+
+	if a.desktop {
+		live.On(srv, actionExport, func(c *live.Ctx, _ struct{}) error {
+			return a.exportBoard(c.Context())
+		})
+	}
+}
+
+func (a *app) runDesktop() error {
+	return nativeapp.Run(nativeapp.Options{
+		Title:   "Board",
+		Width:   1100,
+		Height:  800,
+		Handler: a.mux,
+		Dev:     a.dev,
+		Menu:    a.desktopMenu(),
+	})
+}
+
+func (a *app) desktopMenu() *nativeapp.Menu {
+	file := nativeapp.MenuItem{Title: "File", Items: []nativeapp.MenuItem{
+		{Title: "Export Board…", Keys: "CmdOrCtrl+E", Do: func(*nativeapp.Window) {
+			if err := a.exportBoard(context.Background()); err != nil && !errors.Is(err, nativeapp.ErrCanceled) {
+				slog.Error("export", "error", err)
+			}
+		}},
+		{Title: "Quit", Keys: "CmdOrCtrl+Q", Role: nativeapp.RoleQuit},
+	}}
+	return &nativeapp.Menu{Items: []nativeapp.MenuItem{file, nativeapp.EditMenu()}}
+}
+
+func (a *app) exportBoard(ctx context.Context) error {
+	path, err := nativeapp.SaveAs(ctx, nativeapp.FileDialog{
+		Title:    "Export board",
+		Filename: "board.json",
+		Filters:  []nativeapp.FileFilter{{Name: "JSON", Ext: ".json"}},
+	})
+	if err != nil {
+		if errors.Is(err, nativeapp.ErrCanceled) {
+			return nil
+		}
+		return err
+	}
+	payload, err := json.MarshalIndent(struct {
+		Columns []model.Column `json:"columns"`
+		Items   []model.Item   `json:"items"`
+	}{Columns: a.list.Columns(), Items: a.list.Items()}, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, payload, 0o644); err != nil {
+		return err
+	}
+	return nativeapp.Message(ctx, "Exported", "Wrote "+path)
 }
 
 // push brings one page up to date.

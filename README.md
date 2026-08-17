@@ -76,7 +76,7 @@ what it uses for object and array defaults. A fully-formed component needs no
 post-load property assignment, and the page is complete before any JavaScript
 has run.
 
-## Three layers
+## Layers
 
 Each works on its own.
 
@@ -85,6 +85,7 @@ Each works on its own.
 | `alacris` | render elements, serve the runtime. Stateless, ordinary request/response. |
 | `gen` + `alacris-go` | generate typed Go wrappers from your `define()` calls. |
 | `live` | push prop changes from the server, receive component events. |
+| `app` | the same live handler, in an OS webview. Nested module, `-tags desktop`. |
 
 ### 1. Rendering
 
@@ -294,6 +295,8 @@ and this library kebab-cases it into the attribute (`max-count`) exactly the way
 ```bash
 go run ./examples/todo
 # http://localhost:8080
+
+go run -tags desktop ./examples/todo -desktop
 ```
 
 A live board the server owns. Components in JavaScript, wrappers generated
@@ -354,6 +357,7 @@ actually rendered, and `go test ./...` fails if the two stop matching.
 
 ```bash
 go test ./...
+cd app && go test ./...
 go test -race ./...
 go generate ./examples/todo/...
 

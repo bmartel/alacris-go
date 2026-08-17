@@ -40,11 +40,13 @@
 //
 // # Layers
 //
-// The package divides into three, each usable on its own:
+// The package divides into three, each usable on its own, plus an optional
+// desktop host in a nested module:
 //
 //	alacris  render elements and serve the runtime. Stateless.
 //	gen      generate typed Go wrappers from your define() calls.
 //	live     push prop changes from the server and receive component events.
+//	app      the same live handler in an OS webview (github.com/bmartel/alacris-go/app).
 //
 // The first two are ordinary request/response rendering. The third makes the
 // server authoritative over component state: because a prop is a signal,

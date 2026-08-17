@@ -124,11 +124,35 @@ func page(v view) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			if v.Desktop {
+				templ_7745c5c3_Var6 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+					if !templ_7745c5c3_IsBuffer {
+						defer func() {
+							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+							if templ_7745c5c3_Err == nil {
+								templ_7745c5c3_Err = templ_7745c5c3_BufErr
+							}
+						}()
+					}
+					ctx = templ.InitializeContext(ctx)
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "Export")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					return nil
+				})
+				templ_7745c5c3_Err = m3.Button(m3.ButtonProps{Variant: "text"}).ID("export").On("click", actionExport).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 			templ_7745c5c3_Err = facepile(v.Members, len(v.Items)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -147,7 +171,7 @@ func page(v view) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -171,25 +195,25 @@ func facepile(names []string, cards int) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var6 == nil {
-			templ_7745c5c3_Var6 = templ.NopComponent
+		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var7 == nil {
+			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span data-cards=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span data-cards=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(cards))
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(cards))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 54, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `page.templ`, Line: 59, Col: 39}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"></span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"></span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -219,12 +243,12 @@ func styles() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var8 == nil {
-			templ_7745c5c3_Var8 = templ.NopComponent
+		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var9 == nil {
+			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<style>\n\t\thtml, body {\n\t\t\tmargin: 0;\n\t\t\theight: 100%;\n\t\t\theight: 100dvh;\n\t\t\toverflow: hidden;\n\t\t\tbackground: var(--ui-color-surface);\n\t\t\tcolor: var(--ui-color-on-surface);\n\t\t}\n\t\tbody {\n\t\t\tdisplay: flex;\n\t\t\tflex-direction: column;\n\t\t\tmin-height: 100%;\n\t\t\tmin-height: 100dvh;\n\t\t}\n\t\t.workspace {\n\t\t\tflex: 1;\n\t\t\tmin-height: 0;\n\t\t\tdisplay: flex;\n\t\t\tflex-direction: column;\n\t\t}\n\t\t#board {\n\t\t\tflex: 1;\n\t\t\tmin-height: 0;\n\t\t}\n\t\t.facepile {\n\t\t\tdisplay: flex;\n\t\t\talign-items: center;\n\t\t\tpadding-inline: 4px;\n\t\t}\n\t\t.facepile ui-avatar {\n\t\t\tmargin-inline-start: -8px;\n\t\t\tbox-shadow: 0 0 0 2px var(--ui-color-surface-container);\n\t\t}\n\t\t.facepile ui-avatar:first-of-type { margin-inline-start: 0; }\n\t\t.facepile [data-cards] { display: none }\n\t</style>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<style>\n\t\thtml, body {\n\t\t\tmargin: 0;\n\t\t\theight: 100%;\n\t\t\theight: 100dvh;\n\t\t\toverflow: hidden;\n\t\t\tbackground: var(--ui-color-surface);\n\t\t\tcolor: var(--ui-color-on-surface);\n\t\t}\n\t\tbody {\n\t\t\tdisplay: flex;\n\t\t\tflex-direction: column;\n\t\t\tmin-height: 100%;\n\t\t\tmin-height: 100dvh;\n\t\t}\n\t\t.workspace {\n\t\t\tflex: 1;\n\t\t\tmin-height: 0;\n\t\t\tdisplay: flex;\n\t\t\tflex-direction: column;\n\t\t}\n\t\t#board {\n\t\t\tflex: 1;\n\t\t\tmin-height: 0;\n\t\t}\n\t\t.facepile {\n\t\t\tdisplay: flex;\n\t\t\talign-items: center;\n\t\t\tpadding-inline: 4px;\n\t\t}\n\t\t.facepile ui-avatar {\n\t\t\tmargin-inline-start: -8px;\n\t\t\tbox-shadow: 0 0 0 2px var(--ui-color-surface-container);\n\t\t}\n\t\t.facepile ui-avatar:first-of-type { margin-inline-start: 0; }\n\t\t.facepile [data-cards] { display: none }\n\t</style>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

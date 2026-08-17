@@ -31,6 +31,12 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Test app module
+        working-directory: app
+        run: |
+          go vet ./...
+          go test ./...
+
       # The live layer is concurrent by nature, so the race detector is not
       # optional here.
       - name: Test with the race detector

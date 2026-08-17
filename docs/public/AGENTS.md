@@ -272,6 +272,33 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
   `CookieSecure: live.SecureAlways`. `SecureNever` is for local development
   only.
 
+## Desktop apps
+
+Same live handler, in an OS webview. Nested module
+`github.com/bmartel/alacris-go/app`. Rebuild with `-tags desktop`.
+
+```go
+live.New(live.Options{CookieSecure: live.SecureNever})
+app.Run(app.Options{Title: "Board", Width: 1100, Height: 800, Handler: mux, Menu: app.DefaultMenu()})
+```
+
+Native APIs are Go, typically from `live.On`:
+
+```go
+live.On(srv, "export", func(c *live.Ctx, d struct{}) error {
+    path, err := app.SaveFile(c.Context(), app.FileFilter{Name: "JSON", Ext: ".json"})
+    if err != nil {
+        return err
+    }
+    return os.WriteFile(path, payload, 0o644)
+})
+```
+
+Do not add Wails bindings, a JS `invoke`, or a second interop. The live
+protocol is the bridge. `alacris.app.json` is bundle metadata only; window
+size stays in `app.Options`. See
+https://bmartel.github.io/alacris-go/guides/desktop/
+
 ## Common mistakes (wrong → right)
 
 | Wrong | Right | Why |
@@ -292,6 +319,7 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
 | `AllowOrigin` returning `true` | Name the origins you trust | A credentialed endpoint that reflects any origin is an open door |
 | `unsafe-inline` to make Scripts work | `Config.Nonce` or `templ.WithNonce` | Every emitted tag carries the nonce already |
 | Adding npm for the runtime or Alacris UI | They are vendored | `RuntimeHandler` already serves them |
+| A Wails/Fyne/JS `invoke` bridge | `live.On` plus `app.SaveFile` | The live protocol is the interop |
 | `!important` in a component | Custom properties, `::part` | It is the one thing a consumer cannot override |
 
 ## Verifying your work
@@ -317,3 +345,4 @@ Before declaring a task done:
 - The alacris runtime itself: https://bmartel.github.io/alacris/ (and its own
   `AGENTS.md` for writing component internals)
 - Alacris UI: https://bmartel.github.io/alacris-go/guides/alacris-ui/
+- Desktop: https://bmartel.github.io/alacris-go/guides/desktop/

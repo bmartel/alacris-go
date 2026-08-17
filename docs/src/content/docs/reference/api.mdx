@@ -1,6 +1,6 @@
 ---
 title: Go API
-description: Every exported type and function across the alacris, gen, live, and ui packages, with the one-line reason each exists.
+description: Every exported type and function across the alacris, gen, live, ui, and app packages, with the one-line reason each exists.
 sidebar:
   order: 1
 ---
@@ -182,3 +182,24 @@ import "github.com/bmartel/alacris-go/live"
   `Client() []byte` returns the live client script, for projects serving assets
   from their own pipeline rather than from Go.
 </Aside>
+
+## Package `app`
+
+```go
+import "github.com/bmartel/alacris-go/app"
+```
+
+A nested module. Hosts the same `http.Handler` in an OS webview. Opening a
+window needs `-tags desktop`. See [Desktop apps](/alacris-go/guides/desktop/).
+
+| | |
+| --- | --- |
+| `Run(Options) error` | Listen on loopback, open a window, block until it closes. |
+| `New(Options) *App`, `(*App) Open()`, `(*App) Run()` | The same, split, for a later second window. |
+| `Listen(Options) (*Host, error)` | Loopback HTTP only. No display, no desktop tag. |
+| `(*Host) URL()`, `Shutdown(ctx)` | Bound origin, and a graceful stop. |
+| `Window` | `SetTitle`, `SetSize`, `Minimize`, `Close`. |
+| `Menu`, `MenuItem`, `DefaultMenu`, `EditMenu` | Native menu bar. `Do` is a Go callback. |
+| `OpenFile`, `SaveFile`, `SaveAs`, `Message`, `Confirm` | OS dialogs. `ErrCanceled` on dismiss. |
+| `Updater`, `Manifest`, `Verify`, `SignArtifact` | ed25519-signed updates. |
+| `ErrNoDesktop` | `Run` without `-tags desktop`. |

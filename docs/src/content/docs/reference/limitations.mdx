@@ -113,6 +113,18 @@ Needs `<template>`, `TreeWalker`, and (for component styles)
 The live client needs `EventSource` and `fetch`, which is a wider set than the
 above.
 
+## Desktop host
+
+The `app` module opens the OS webview onto loopback HTTP. That needs CGO and
+the platform webview: Xcode Command Line Tools on macOS, WebView2 on Windows,
+`libwebkit2gtk` on Linux. Cross-compiling CGO is not supported.
+
+The host binds `127.0.0.1` and checks `Host`. Other local processes can still
+reach the port. See [Desktop apps](/alacris-go/guides/desktop/#loopback-threat).
+
+Native menus are installed on macOS. Dialogs (`SaveFile`, `Message`, …) work
+on macOS, Windows and Linux (zenity or kdialog on Linux).
+
 ## When to use something else
 
 | If you need | Consider |
@@ -121,6 +133,8 @@ above.
 | To swap server-rendered HTML | htmx, Datastar, Turbo |
 | A large client-side app with routing and its own state | A client framework |
 | Interactive islands with SSR and hydration | Astro with a UI framework |
+| Native widgets, not web components | Fyne |
+| JS bindings to Go methods inside a webview | Wails |
 
 alacris-go is at its best when the server owns the data, the browser owns the
 interaction, and you would rather write Go than a client-side state layer.

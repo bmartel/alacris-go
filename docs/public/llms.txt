@@ -12,9 +12,10 @@ never the component's internals. Every prop crosses as an attribute, objects
 and arrays included, because alacris coerces using the type of the prop's
 default and parses object defaults with JSON.parse.
 
-Three layers, each usable alone: `alacris` (render, stateless), `gen` + the
-`alacris-go` CLI (typed wrappers), `live` (server-driven props and component
-events over SSE and POST).
+Three layers plus an optional desktop host, each usable alone: `alacris`
+(render, stateless), `gen` + the `alacris-go` CLI (typed wrappers), `live`
+(server-driven props and component events over SSE and POST), `app` (the same
+live handler in an OS webview).
 
 ## Start here
 
@@ -34,11 +35,12 @@ events over SSE and POST).
 - [Live: actions from the page](https://bmartel.github.io/alacris-go/guides/live-actions/): Forwarding CustomEvents to typed Go handlers, per-session handlers, error handling.
 - [Sessions and reconnects](https://bmartel.github.io/alacris-go/guides/sessions/): The cookie that carries the capability, the page id that does not, OnOpen, buffering, TTL, per-page state.
 - [Deploying](https://bmartel.github.io/alacris-go/guides/deploying/): Caching, CSP, proxy buffering, session affinity, shutdown.
+- [Desktop apps](https://bmartel.github.io/alacris-go/guides/desktop/): Same live handler in an OS webview. No JS bindings. Nested module, `-tags desktop`.
 
 ## Reference
 
-- [Go API](https://bmartel.github.io/alacris-go/reference/api/): Every exported type and function across the alacris, gen, live, and ui packages.
-- [CLI](https://bmartel.github.io/alacris-go/reference/cli/): generate, check and manifest, with every flag.
+- [Go API](https://bmartel.github.io/alacris-go/reference/api/): Every exported type and function across the alacris, gen, live, ui, and app packages.
+- [CLI](https://bmartel.github.io/alacris-go/reference/cli/): generate, check, manifest, and app init|dev|build.
 - [JSDoc tags](https://bmartel.github.io/alacris-go/reference/jsdoc/): @prop, @fires, @slot, @cssprop, @goname, @goimport, and the type vocabulary.
 - [Wire protocol](https://bmartel.github.io/alacris-go/reference/wire-protocol/): Endpoints, SSE frame format, the five patch operations, the action payload.
 - [Security](https://bmartel.github.io/alacris-go/reference/security/): What is handled, and the three things that are yours.

@@ -1,8 +1,10 @@
-// Command alacris-go generates typed Go wrappers for alacris web components.
+// Command alacris-go generates typed Go wrappers for alacris web components
+// and hosts a desktop app around the same live handler.
 //
 //	alacris-go generate ./web/components -o ./internal/components
 //	alacris-go manifest ./web/components -o ./alacris.components.json
 //	alacris-go check    ./web/components -o ./internal/components
+//	alacris-go app init|dev|build
 //
 // The usual place to put it is a go:generate line next to the templ one:
 //
@@ -45,6 +47,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return generate(args[1:], stdout, stderr, true)
 	case "manifest":
 		return manifest(args[1:], stdout, stderr)
+	case "app":
+		return appCmd(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		usage(stdout)
 		return nil
@@ -65,6 +69,7 @@ Usage:
   alacris-go generate <path>... -o <dir>   write Go wrappers
   alacris-go check    <path>... -o <dir>   fail if the wrappers are out of date
   alacris-go manifest <path>...            write what it found, as JSON
+  alacris-go app init|dev|build            desktop host, around the same live app
   alacris-go version
 
 Each <path> is a JavaScript file, a directory to walk, or a manifest .json
