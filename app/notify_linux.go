@@ -9,5 +9,7 @@ func notify(ctx context.Context, n Notification) error {
 	if title == "" {
 		title = "alacris"
 	}
-	return notifyExec(ctx, "notify-send", title, n.Body)
+	// "--" stops the title or body — which can carry app-supplied text — from
+	// being read as notify-send options when it begins with a dash.
+	return notifyExec(ctx, "notify-send", "--", title, n.Body)
 }
