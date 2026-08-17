@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.7.1](https://github.com/bmartel/alacris-go/compare/v0.7.0...v0.7.1) (2026-08-17)
+
+### Bug Fixes
+
+* compile the desktop host on Linux and Windows ([efa76ed](https://github.com/bmartel/alacris-go/commit/efa76ed5ec2145ed30d0b8a00dceb62f659a7286))
+
 ## [0.7.0](https://github.com/bmartel/alacris-go/compare/v0.6.0...v0.7.0) (2026-08-17)
 
 ### Features
