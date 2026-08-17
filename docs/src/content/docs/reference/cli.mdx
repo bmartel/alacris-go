@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: alacris-go generate, check and manifest — every flag and what it changes.
+description: alacris-go generate, check and manifest: every flag and what it changes.
 sidebar:
   order: 2
 ---
@@ -39,14 +39,14 @@ alacris-go generate ./web/components -o ./internal/ui -strip ala-
 | `-o` | *(required)* | Directory to write the generated package to. |
 | `-package` | the output directory's name | Package name. |
 | `-strip` | none | Tag prefix dropped when deriving Go names. `ala-` makes `<ala-counter>` generate `Counter`. |
-| `-optional` | `zero` | `zero` or `pointer` — how a prop with a non-zero default is represented. |
+| `-optional` | `zero` | `zero` or `pointer`: how a prop with a non-zero default is represented. |
 | `-import` | `github.com/bmartel/alacris-go` | Import path of the runtime package, for a fork or a vendored copy. |
 | `-manifest` | none | Also write the manifest to this file. |
 | `-q` | off | Only report problems. |
 
 Files are written only when their contents change, so a generate step does not
 disturb build caches or file watchers. Generated files this run did not produce
-— the leftovers of a renamed or deleted component — are removed.
+(the leftovers of a renamed or deleted component) are removed.
 
 ### `-optional`
 
@@ -62,11 +62,11 @@ ui.UserCard(ui.UserCardProps{Name: ptr("")})   // name=""
 ```
 
 `zero` reads better and covers almost every case; the escape hatch is calling
-`.Prop()` on the returned element. `pointer` is there when a prop genuinely
+`.Prop()` on the returned element. `pointer` is there when a prop
 needs to distinguish the two.
 
-A boolean prop whose default is `true` is always a pointer, in either mode —
-see [Props and encoding](/alacris-go/guides/props/#booleans).
+A boolean prop whose default is `true` is always a pointer, in either mode.
+See [Props and encoding](/alacris-go/guides/props/#booleans).
 
 ## `check`
 
@@ -88,7 +88,7 @@ run: alacris-go generate ... -o ./internal/ui
 <Aside type="tip" title="Put this in CI">
   A component changed and never regenerated is the most likely failure in a
   project like this, and it produces a page that renders an attribute nothing is
-  listening for — silent, and hard to trace. Output does not depend on the
+  listening for: silent, and hard to trace. Output does not depend on the
   directory you run from, so the same command works locally and in CI.
 </Aside>
 
@@ -99,8 +99,8 @@ alacris-go manifest ./web -o alacris.components.json
 ```
 
 Writes what the scanner found as JSON. Use it when a component declares
-something the scanner cannot see — props built at runtime, an event whose detail
-deserves a hand-written Go type — then commit the file and generate from it:
+something the scanner cannot see (props built at runtime, an event whose detail
+deserves a hand-written Go type), then commit the file and generate from it:
 
 ```bash
 alacris-go generate ./alacris.components.json ./web/other -o ./internal/components
@@ -144,5 +144,5 @@ Wrappers first: the templates use them.
 | Code | Meaning |
 | --- | --- |
 | 0 | Success. |
-| 1 | A scan, generation or check failure — the message says which. |
+| 1 | A scan, generation or check failure. The message says which. |
 | 2 | Usage: an unknown command, or a bad flag. |

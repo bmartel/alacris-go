@@ -31,7 +31,7 @@ No HTML crosses in either direction.
 ```
 
 That renders `data-ala-on="add:add-card move:move-card"`. The client
-attaches one listener per event type to the document — alacris events are
+attaches one listener per event type to the document. alacris events are
 composed and bubbling, so a single listener reaches every element, across shadow
 boundaries, including elements added later.
 
@@ -50,7 +50,7 @@ live.On(srv, "add-card", func(c *live.Ctx, d components.BoardAddDetail) error {
 `live.On` is generic: the event detail is decoded into the type parameter
 before your handler runs, and `components.BoardAddDetail` is the struct the
 generator wrote from the component's `@fires` tag. Rename the field in the
-component and this stops compiling — which is the point.
+component and this stops compiling.
 
 The untyped form is there when you want the raw payload:
 
@@ -81,7 +81,7 @@ sess.On("rename-list", func(c *live.Ctx) error {
 })
 ```
 
-Use it for anything that belongs to one page — a selection, a wizard
+Use it for anything that belongs to one page: a selection, a wizard
 step, a draft. Server-wide handlers are for changes everyone shares.
 
 ## What the context carries
@@ -108,9 +108,9 @@ live.On(srv, "greet", func(c *live.Ctx, d ui.UserCardGreetDetail) error {
 
 ## Errors
 
-Returning an error logs it and answers `500`. It does **not** reach the browser,
-and that is deliberate: what a user should see is a patch, sent from the
-handler, in whatever terms the page already understands.
+Returning an error logs it and answers `500`. It does **not** reach the browser.
+What a user should see is a patch, sent from the handler, in whatever terms the
+page already understands.
 
 ```go
 live.On(srv, "add-card", func(c *live.Ctx, d components.BoardAddDetail) error {
@@ -127,7 +127,7 @@ live.On(srv, "add-card", func(c *live.Ctx, d components.BoardAddDetail) error {
 
 <Aside type="danger" title="A component emits what it says it emits; a console can emit anything">
   The payload arrives from a browser, which means it arrives from whoever is
-  using that browser. Binding is strict — unknown fields are rejected — the body
+  using that browser. Binding is strict (unknown fields are rejected), the body
   is size-capped, and cross-origin posts are refused. None of that validates
   your domain rules.
 
@@ -153,12 +153,12 @@ const (
 ```
 
 An action nobody handles is logged as a warning and answered `404`, rather than
-being silently dropped — a rename that only happened on one side is otherwise
+being silently dropped. A rename that only happened on one side is otherwise
 very hard to find.
 
 ## When not to use this
 
-If a change is entirely the browser's business — a disclosure toggle, a hover
-state, a local draft — leave it in the component. Signals already handle it,
+If a change is entirely the browser's business (a disclosure toggle, a hover
+state, a local draft), leave it in the component. Signals already handle it,
 and a round trip makes it worse. A card's inline title draft stays in the
 component until the user commits it; only then does the server hear about it.

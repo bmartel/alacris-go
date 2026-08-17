@@ -382,8 +382,8 @@ func (c Config) ImportMap() map[string]string {
 	return imports
 }
 
-// Scripts renders the import map, your module entry points, and — when
-// configured — the live client.
+// Scripts renders the import map, your module entry points, and, when
+// configured, the live client.
 //
 // It belongs in <head>, before any other module script: an import map has to
 // precede the first module import it applies to.

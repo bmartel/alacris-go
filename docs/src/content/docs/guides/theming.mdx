@@ -1,6 +1,6 @@
 ---
 title: Theming
-description: Restyle a component from Go through the contract it declares — custom properties, parts, and a Go type that checks you are using them.
+description: Restyle a component from Go through the contract it declares: custom properties, parts, and a Go type that checks you are using them.
 sidebar:
   order: 4
 ---
@@ -9,8 +9,8 @@ import { Aside } from '@astrojs/starlight/components';
 import GoExample from '../../../components/GoExample.astro';
 
 A shadow root is opaque, which protects the component author and blocks everyone
-else. The platform provides three ways through, and alacris leans on all three
-rather than inventing a fourth. From Go you reach the first one.
+else. The platform provides three ways through; alacris uses all three.
+From Go you reach the first one.
 
 ## Custom properties
 
@@ -29,7 +29,7 @@ define('ala-chip', {
 ```
 
 Custom properties inherit straight through the shadow boundary, so setting one
-on the element — or anywhere above it — reaches inside:
+on the element, or anywhere above it, reaches inside:
 
 <GoExample id="theming" />
 
@@ -120,7 +120,7 @@ usually is:
 
 ## The other two routes
 
-They are CSS, not Go, but worth knowing they exist:
+They are CSS, not Go:
 
 **`::part`** reaches a specific internal the component chose to expose. Outer
 rules beat the component's own, so a consumer always wins:
@@ -130,7 +130,7 @@ ala-chip::part(dot) { width: 14px }
 ```
 
 **`adoptGlobal`** pushes a stylesheet into every alacris component on the page,
-including ones that do not exist yet — the escape hatch for restyling a
+including ones that do not exist yet. The escape hatch for restyling a
 component set whose source you do not control:
 
 ```js
@@ -141,7 +141,7 @@ const remove = adoptGlobal(css`:host { font-family: Inter, system-ui }`);
 ## One rule
 
 <Aside type="caution" title="Never use !important in a component">
-  It is the only inner declaration a consumer cannot override — it defeats
+  It is the only inner declaration a consumer cannot override. It defeats
   `::part`, custom properties and `adoptGlobal` alike. alacris never emits it,
   and neither should your components.
 </Aside>
@@ -157,8 +157,8 @@ ala-chip           { --chip-bg: #ececf2; --chip-fg: #333 }
 [data-tone="warn"] { --chip-bg: #ffe9a8 }
 ```
 
-Reach for `Apply` when the value is genuinely per-element and comes from data —
-a category colour, a progress percentage — rather than from design.
+Use `Apply` when the value is per-element and comes from data (a category
+colour, a progress percentage) rather than from design.
 
 ## The design system
 

@@ -1,6 +1,6 @@
 ---
 title: Props and encoding
-description: How a Go value becomes an attribute and then a typed JavaScript value — and the two rules that exist because of sharp edges in the runtime.
+description: How a Go value becomes an attribute and then a typed JavaScript value, and the two rules that exist because of sharp edges in the runtime.
 sidebar:
   order: 2
 ---
@@ -37,10 +37,10 @@ that; hand-written `Prop` calls are on your own.
 
 ## Objects and arrays cross too
 
-This is the part that makes server rendering worth doing. Because object
-defaults are parsed with `JSON.parse`, a struct or a map crosses as an
-attribute — no post-load property assignment, no hydration payload, and a page
-that is complete before any JavaScript has run.
+This is the part that makes server rendering useful. Because object defaults
+are parsed with `JSON.parse`, a struct or a map crosses as an attribute. No
+post-load property assignment, no hydration payload, and a page that is
+complete before any JavaScript has run.
 
 <GoExample id="encoding-composites" title="Composites" />
 
@@ -58,7 +58,7 @@ if (v === null) return typeof d === 'boolean' ? false : d;
 ```
 
 `v` is `null` when an attribute is **removed**. So removing a boolean attribute
-returns `false` — even when the prop's declared default is `true`. Presence and
+returns `false`, even when the prop's declared default is `true`. Presence and
 absence cannot express "leave it alone", so the library never relies on them.
 
 <Aside type="danger" title="A default of true needs a pointer">
@@ -77,8 +77,8 @@ absence cannot express "leave it alone", so the library never relies on them.
 
 ## Numbers
 
-A numeric prop is coerced with `+v`, which produces a JavaScript number — a
-float64. Anything past 2<sup>53</sup>−1 cannot survive that.
+A numeric prop is coerced with `+v`, which produces a JavaScript number (a
+float64). Anything past 2<sup>53</sup>−1 cannot survive that.
 
 ```go
 alacris.E("x-y").Prop("id", int64(9007199254740993))
@@ -151,7 +151,7 @@ would produce an attribute nothing reads.
 
 <Aside type="note" title="The live layer uses the other name">
   A [prop patch](/alacris-go/guides/live-props/) writes the DOM **property**, so
-  it uses the JavaScript name — `maxCount`, not `max-count`. Both APIs take the
+  it uses the JavaScript name (`maxCount`, not `max-count`). Both APIs take the
   name as `define()` spells it; only the wire differs.
 </Aside>
 

@@ -30,11 +30,11 @@ The description above the tags becomes the constructor's doc comment.
 <Aside type="note" title="Where the block has to be">
   Directly above the call, separated only by a simple declaration prefix
   (`export const Card = define(...)` is fine). A block further away, or one
-  separated by another statement, belongs to something else and is ignored — so
+  separated by another statement, belongs to something else and is ignored, so
   a stray comment cannot silently become a component's documentation.
 
   A `//` header at the top of a file is also read when the file contains a
-  single `define()` — that is how [Alacris UI](/alacris-go/guides/alacris-ui/)
+  single `define()`. That is how [Alacris UI](/alacris-go/guides/alacris-ui/)
   documents its components. The block is ignored unless it contains `@` tags
   (a license banner is not a component doc).
 </Aside>
@@ -83,7 +83,7 @@ The description above the tags becomes the constructor's doc comment.
 define('order-line', { props: { items: [], price: {} }, setup });
 ```
 
-The expression is used verbatim, so write it exactly as Go needs it —
+The expression is used verbatim, so write it exactly as Go needs it:
 `[]todo.Item`, not `todo.Item[]`.
 
 ## Event details
@@ -126,14 +126,14 @@ The generator infers what it can from the default value:
 | `true` / `false` | `bool` (a `true` default becomes `*bool`) |
 | `['a', 'b']` | `[]string` |
 | `[1, 2]` | `[]int` |
-| `[]` | `[]any` — an empty array says nothing about its elements |
+| `[]` | `[]any` (an empty array says nothing about its elements) |
 | `{}` | `map[string]any` |
 | `null` | `any` |
 
 So `@prop` matters most for empty arrays and objects, and for saying `integer`
 where the default happens to be whole.
 
-Events, slots and custom properties are **only** what the tags say — `define()`
+Events, slots and custom properties are **only** what the tags say. `define()`
 does not mention them at all.
 
 ## Errors

@@ -1,6 +1,6 @@
 ---
 title: Rendering elements
-description: The Element API — props, attributes, classes, styles, slots and children — and how it fits into a templ file.
+description: The Element API: props, attributes, classes, styles, slots and children, and how it fits into a templ file.
 sidebar:
   order: 1
 ---
@@ -18,7 +18,7 @@ goes and picks up children from the block around it.
 ```
 
 Builder methods return the element, so they chain. They collect errors rather
-than panicking, and `Render` reports the first one — a bad tag name or an
+than panicking, and `Render` reports the first one. A bad tag name or an
 unencodable prop fails the request instead of producing quietly broken HTML.
 
 ## Props
@@ -43,9 +43,9 @@ rules, and `Props` takes a map, applied in sorted key order for stable output.
 
 ## Ordinary attributes
 
-`Attr` follows **HTML** rules rather than alacris' — a `true` bool renders bare
-and a `false` one disappears. That is the opposite of how props behave, and it
-is deliberate: `hidden` and `disabled` are HTML, not component API.
+`Attr` follows **HTML** rules rather than alacris': a `true` bool renders bare
+and a `false` one disappears. That is the opposite of how props behave, on
+purpose: `hidden` and `disabled` are HTML, not component API.
 
 <GoExample id="attrs" />
 
@@ -85,8 +85,8 @@ component's set of custom properties into something Go can check.
 ## Slots and children
 
 Slot content is light DOM. It is in the document, in the first paint, and
-visible to a crawler — which makes it the right home for content that matters
-when JavaScript has not arrived yet.
+visible to a crawler. Put content that matters when JavaScript has not arrived
+yet here.
 
 Three ways to fill a slot, in order of preference:
 
@@ -112,8 +112,8 @@ enclosing block, and `Text` sets a single escaped text child.
 
 <Aside type="caution" title="The wrapper is real">
   `Slot` wraps content in a `<div>`, which participates in layout. When that
-  matters, use `SlotAs` or put the `slot` attribute on your own markup —
-  generated packages export the slot names as constants for exactly that.
+  matters, use `SlotAs` or put the `slot` attribute on your own markup.
+  Generated packages export the slot names as constants for that.
 </Aside>
 
 ## Hiding elements until they are defined

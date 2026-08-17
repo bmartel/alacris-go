@@ -16,7 +16,7 @@ put on it.
 // Call it before anything is written to w.
 sess := srv.NewSession(w, r)
 
-sess.ID()          // the page id — put this in the page
+sess.ID()          // the page id; put this in the page
 sess.Connected()   // is a browser attached right now?
 sess.Closed()
 ```
@@ -37,7 +37,7 @@ sess.Closed()
   URL or a log.
 
   The **page id** is `sess.ID()`. It goes in the page and in the stream's query
-  string, so it does reach access logs — and on its own it reaches nothing.
+  string, so it does reach access logs. On its own it reaches nothing.
 
   Serve pages that set the cookie with `Cache-Control: no-store, private`: the
   response is for one browser.
@@ -49,8 +49,8 @@ A cookie is per-browser. A session is per page render. If the cookie carried
 the session id, opening a second tab would overwrite the first tab's session,
 and the first tab would start receiving the second one's patches.
 
-One cookie and many page ids keeps tabs independent — and has the useful side
-effect that neither value is sufficient on its own.
+One cookie and many page ids keeps tabs independent, and neither value is
+sufficient on its own.
 
 ## Configuring the cookie
 
@@ -65,7 +65,7 @@ live.New(live.Options{
 
 `SecureAlways` is for a proxy that terminates TLS without setting
 `X-Forwarded-Proto`. `SameSiteNoneMode` is only for a page and a live endpoint
-on genuinely different origins; browsers require `Secure` with it, and you also
+on different origins; browsers require `Secure` with it, and you also
 need `AllowOrigin` to name the origins you trust.
 
 ```go
@@ -95,7 +95,7 @@ push and there is no separate path to keep in step.
 
 <Aside type="tip" title="Make it idempotent and complete">
   Write the full state, not a delta. `OnOpen` is the one place where "send
-  everything" is the correct instinct — it is the only thing standing between a
+  everything" is correct: it is the only thing standing between a
   reconnect and a stale page.
 </Aside>
 
@@ -117,7 +117,7 @@ push and there is no separate path to keep in step.
 
   `Session.Context` lives as long as the session and is cancelled when it
   closes. Use it for anything started from `OnOpen` or an action handler that
-  outlives the request that triggered it — including a push to *another*
+  outlives the request that triggered it, including a push to *another*
   session, where the triggering request's lifetime is doubly irrelevant.
 
   `SetHTML` refuses a cancelled context and says so, so the mistake is loud
@@ -125,7 +125,7 @@ push and there is no separate path to keep in step.
 </Aside>
 
 Inside an action handler, `c.Context()` is the action request's context and is
-correct for work that belongs to that request — a database read whose result the
+correct for work that belongs to that request: a database read whose result the
 user is waiting on. For the patch itself, prefer `c.Session.Context()`.
 
 ## Before the browser arrives
@@ -133,7 +133,7 @@ user is waiting on. For the patch itself, prefer `c.Session.Context()`.
 A page renders, the server changes something, and only then does the browser
 open its stream. Patches sent in that window are buffered, so nothing is lost.
 
-The buffer is bounded — `Options.Buffer`, 256 by default. Past it the **oldest**
+The buffer is bounded (`Options.Buffer`, 256 by default). Past it the **oldest**
 are dropped, because a stream of writes to one prop only really needs its last
 value. `OnOpen` covers the rest.
 
@@ -157,14 +157,13 @@ sess.Close()
 sess.Element("board").Set("items", items)   // discarded, no panic, no error
 ```
 
-That is deliberate. The page it was for is gone, and making every call site
-handle that would put error checks around code whose only correct response is to
-carry on.
+The page it was for is gone. Making every call site handle that would put error
+checks around code whose only correct response is to carry on.
 
 ## When the session is gone: recovery
 
-Sessions live in the server's memory, so a restart — a deploy, a dev-loop
-rebuild — forgets all of them, and an expired session is forgotten on purpose.
+Sessions live in the server's memory, so a restart (a deploy, a dev-loop
+rebuild) forgets all of them, and an expired session is forgotten on purpose.
 An open page is then holding a page id the server has never heard of, and the
 `EventSource` spec makes the resulting non-200 response a **permanent**
 failure: the browser will never retry it.
@@ -172,10 +171,10 @@ failure: the browser will never retry it.
 The live client recovers on its own. When the stream fails permanently, or an
 action comes back `404 unknown session`, it probes the endpoint with backoff:
 
-- **Server unreachable, or answering 5xx** — keep probing. This is the window
-  where a dev server is recompiling; waiting it out is the point.
-- **200** — the session still exists; attach a fresh stream and carry on.
-- **404** — the server is up and the session is gone. The state the server
+- **Server unreachable, or answering 5xx:** keep probing. This is the window
+  where a dev server is recompiling; waiting it out is useful.
+- **200:** the session still exists; attach a fresh stream and carry on.
+- **404:** the server is up and the session is gone. The state the server
   held for this page is gone with it, so the client reloads the page **once**
   for a fresh render and a fresh session. If fresh sessions are dying too, it
   stops rather than loop.
@@ -183,8 +182,8 @@ action comes back `404 unknown session`, it probes the endpoint with backoff:
 In development this is the difference between "restart, and every tab catches
 up by itself" and "restart, and every tab is silently dead."
 
-Each step announces itself as an `alacris:live` window event — `state` is
-`open`, `closed`, `recovering`, `reloading`, or `error` — so a page can show a
+Each step announces itself as an `alacris:live` window event (`state` is
+`open`, `closed`, `recovering`, `reloading`, or `error`) so a page can show a
 connection indicator:
 
 ```js
@@ -193,8 +192,8 @@ window.addEventListener('alacris:live', (e) => {
 });
 ```
 
-An application that wants to own the decision — show a banner instead of
-reloading, say — turns recovery off and listens for the events itself:
+An application that wants to own the decision (show a banner instead of
+reloading, say) turns recovery off and listens for the events itself:
 
 ```go
 alacris.Config{Live: true, Page: sess.ID(), NoRecover: true}
@@ -203,8 +202,8 @@ alacris.Config{Live: true, Page: sess.ID(), NoRecover: true}
 <Aside type="note" title="A reload is the honest outcome">
   The session's state cannot be rebuilt without a render, and only your
   handlers know how to render. Recovery does not pretend otherwise: it gets
-  the server's newest answer onto the screen, at the cost of client-only state
-  — which is exactly what a user's manual refresh would have done, minus the
+  the server's newest answer onto the screen, at the cost of client-only state,
+  which is exactly what a user's manual refresh would have done, minus the
   user noticing the page was dead first.
 </Aside>
 
@@ -212,7 +211,7 @@ alacris.Config{Live: true, Page: sess.ID(), NoRecover: true}
 
 A reload can open the new stream before the old one has finished dying. The
 newest connection wins and the older one is closed, rather than the new one
-being turned away — otherwise a reload could leave the page permanently
+being turned away. Otherwise a reload could leave the page permanently
 disconnected.
 
 ## Per-page state
@@ -240,7 +239,7 @@ defer srv.Close()   // ends every session and stops the collector
 ```
 
 On shutdown, `Close` ends the sessions and every open stream returns. Give your
-`http.Server` a `Shutdown` with a timeout and do not set a `WriteTimeout` — an
+`http.Server` a `Shutdown` with a timeout and do not set a `WriteTimeout`. An
 SSE stream is meant to stay open, and a write deadline will cut it.
 
 ```go

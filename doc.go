@@ -18,7 +18,7 @@
 //
 // Slot content is real HTML in the document, so it is in the first paint and
 // in the crawler's view of the page. Everything inside the shadow root appears
-// once the module loads — see Pending for the stylesheet that keeps that
+// once the module loads. See Pending for the stylesheet that keeps that
 // transition from flashing.
 //
 // # Props
@@ -42,9 +42,9 @@
 //
 // The package divides into three, each usable on its own:
 //
-//	alacris  — render elements and serve the runtime. Stateless.
-//	gen      — generate typed Go wrappers from your define() calls.
-//	live     — push prop changes from the server and receive component events.
+//	alacris  render elements and serve the runtime. Stateless.
+//	gen      generate typed Go wrappers from your define() calls.
+//	live     push prop changes from the server and receive component events.
 //
 // The first two are ordinary request/response rendering. The third makes the
 // server authoritative over component state: because a prop is a signal,

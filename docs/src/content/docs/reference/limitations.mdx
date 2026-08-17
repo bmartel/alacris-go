@@ -21,8 +21,8 @@ empty.
 
 **Consequences:**
 
-- Content that must be in the initial HTML — for SEO, for readers with
-  JavaScript disabled, for an email client — has to be **slot content**, not
+- Content that must be in the initial HTML (for SEO, for readers with
+  JavaScript disabled, for an email client) has to be **slot content**, not
   component internals.
 - There is a flash unless you use
   [`alacris.Pending`](/alacris-go/guides/rendering/#hiding-elements-until-they-are-defined),
@@ -42,7 +42,7 @@ add the rendered content, so it is not supported.
 ## Props must match their declared type
 
 alacris coerces an attribute using the type of the prop's **default**. A Go
-value of a different shape does not error — it produces something the component
+value of a different shape does not error. It produces something the component
 did not expect:
 
 ```js
@@ -64,7 +64,7 @@ rounding, but the constraint is real: use strings for large identifiers, and
 have the component treat them as strings.
 
 Decimal currency has the usual float problem. Send minor units as an integer, or
-a string, or a struct — not a `float64`.
+a string, or a struct, not a `float64`.
 
 ## The live layer needs a stateful server
 
@@ -72,7 +72,7 @@ Sessions live in the memory of the process that created them:
 
 - **Session affinity is required** behind a load balancer.
 - **`Broadcast` reaches one instance's sessions.** Fanning out across instances
-  needs your own bus — see [Deploying](/alacris-go/guides/deploying/#running-more-than-one-instance).
+  needs your own bus. See [Deploying](/alacris-go/guides/deploying/#running-more-than-one-instance).
 - **SSE is a held connection.** Proxies must not buffer it, and your
   `http.Server` must not have a `WriteTimeout`.
 
@@ -81,16 +81,16 @@ Layers one and two have none of these properties.
 ## Patches address elements by `id`
 
 An element the server intends to patch needs an `id`, and it has to be unique on
-the page. There is no selector support, deliberately: a selector that matches
+the page. There is no selector support: a selector that matches
 two elements, or none, fails in a way the server cannot see.
 
 ## No built-in optimistic updates
 
 An action is a round trip. The page shows the change when the server says so.
-For a slow network that is visible, and the library does not paper over it.
+For a slow network that is visible, and the library does not hide it.
 
-You can do it by hand — have the component update locally and emit, and let the
-server's patch confirm or correct it — but nothing coordinates that for you, and
+You can do it by hand: have the component update locally and emit, and let the
+server's patch confirm or correct it. Nothing coordinates that for you, and
 reconciling a rejected optimistic update is your problem.
 
 ## No file uploads through actions
@@ -102,13 +102,13 @@ send an action referring to the result.
 
 These come from the runtime, and matter when writing the JavaScript half:
 
-- Dynamic tag names — ``html`<${tag}>` `` does not work.
-- Bindings inside `<textarea>` or `<title>` text — use `.value` / `.textContent`.
-- Unquoted partial attributes — write `class="a ${b}"`, not `class=a${b}`.
+- Dynamic tag names: ``html`<${tag}>` `` does not work.
+- Bindings inside `<textarea>` or `<title>` text: use `.value` / `.textContent`.
+- Unquoted partial attributes: write `class="a ${b}"`, not `class=a${b}`.
 
 ## Browser support
 
-Needs `<template>`, `TreeWalker`, and — for component styles —
+Needs `<template>`, `TreeWalker`, and (for component styles)
 `adoptedStyleSheets`: Chrome/Edge 73+, Safari 16.4+, Firefox 101+. There is a
 `<style>` fallback where constructable stylesheets are missing.
 

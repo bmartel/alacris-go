@@ -8,8 +8,8 @@ sidebar:
 import { Aside } from '@astrojs/starlight/components';
 
 This module is below 1.0.0, so breaking changes arrive as minor releases:
-0.1.x to 0.2.0, not 1.0.0. Pin a minor version if you would rather adopt them
-deliberately.
+0.1.x to 0.2.0, not 1.0.0. Pin a minor version if you want to adopt them on
+your own schedule.
 
 ```
 require github.com/bmartel/alacris-go v0.2.0
@@ -22,7 +22,7 @@ Everything else is unchanged; the render and codegen layers are untouched.
 
 ### Why
 
-The stream URL carried the session id, which is a capability — anything holding
+The stream URL carried the session id, which is a capability: anything holding
 it could receive a page's patches and act as that page. `EventSource` cannot set
 request headers, so that id went into the query string of every connection, and
 from there into every access log that records one.
@@ -40,7 +40,7 @@ sess := srv.NewSession(w, r)      // 0.2.0
 ```
 
 It reads the browser's cookie, or sets one. Call it **before anything is
-written to `w`** — a cookie cannot be set once the headers have gone out.
+written to `w`**. A cookie cannot be set once the headers have gone out.
 
 **2. `Config.Session` became `Config.Page`.**
 
@@ -98,7 +98,7 @@ Additive. Set `Config.UI: true` and import
 pages are unchanged until that flag is set.
 
 If you already generate wrappers into a package named `ui`, alias one of the
-imports — the design system took that path:
+imports. The design system took that path:
 
 ```go
 import (

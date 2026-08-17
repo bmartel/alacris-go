@@ -1,6 +1,6 @@
 ---
 title: Generating wrappers
-description: Turn your define() calls into typed Go — props structs, event details, slot names and theming contracts — with one source of truth.
+description: Turn your define() calls into typed Go: props structs, event details, slot names and theming contracts, from one source of truth.
 sidebar:
   order: 3
 ---
@@ -9,7 +9,7 @@ import { Aside, Steps, FileTree } from '@astrojs/starlight/components';
 import GoExample from '../../../components/GoExample.astro';
 
 The generator reads the `define()` call itself. There is no second file to keep
-in step, and no manifest to maintain — until you want one.
+in step, and no manifest to maintain until you want one.
 
 ```bash
 alacris-go generate ./web/components -o ./internal/ui
@@ -49,7 +49,7 @@ func UserCard(p UserCardProps) *alacris.Element
 ```
 
 Plus a shared file with `Tags`, the list every component in the package
-registers — which is what `alacris.Pending` wants:
+registers, which is what `alacris.Pending` wants:
 
 ```templ
 @alacris.Pending{Tags: ui.Tags}
@@ -80,7 +80,7 @@ define('user-card', {
 });
 ```
 
-Without `@prop {string[]} tags`, an empty array default gives `[]any` — because
+Without `@prop {string[]} tags`, an empty array default gives `[]any`, because
 an empty array says nothing about its elements. The tag is how you say
 otherwise. Every tag is listed in the [JSDoc reference](/alacris-go/reference/jsdoc/).
 
@@ -105,13 +105,13 @@ fields, which is worse than stopping.
 <Aside type="note" title="What it does read past">
   It happily skips code sitting next to the data. `setup({ name }) { ... }`,
   `styles: css`...``, template literals with nested substitutions, regex
-  literals containing `define(` — none of them confuse it, and none of them
+  literals containing `define(`: none of them confuse it, and none of them
   stop it reading the `props` object beside them.
 </Aside>
 
 ## The manifest escape hatch
 
-When a component genuinely builds its props at runtime, describe it by hand:
+When a component builds its props at runtime, describe it by hand:
 
 <Steps>
 
@@ -121,7 +121,7 @@ When a component genuinely builds its props at runtime, describe it by hand:
    alacris-go manifest ./web -o alacris.components.json
    ```
 
-2. **Edit it** — add the component the scanner refused, fix a type, name a Go
+2. **Edit it.** Add the component the scanner refused, fix a type, name a Go
    type for an event detail.
 
 3. **Generate from it**, alone or mixed with sources:
@@ -158,7 +158,7 @@ alacris-go: with -strip "ala-", <ala-todo-item> and <todo-item> both generate To
 `@goname` settles it.
 
 Do not generate your own wrappers into a package also named `ui` if you import
-[`github.com/bmartel/alacris-go/ui`](/alacris-go/guides/alacris-ui/) — that is
+[`github.com/bmartel/alacris-go/ui`](/alacris-go/guides/alacris-ui/). That is
 the design system. Put app wrappers in `./internal/components` (or similar),
 or alias one of the imports.
 
@@ -169,7 +169,7 @@ or alias one of the imports.
 //go:generate go run github.com/a-h/templ/cmd/templ@latest generate
 ```
 
-The wrappers first — the templates use them.
+The wrappers first. The templates use them.
 
 In CI, check instead:
 
@@ -192,7 +192,7 @@ the directory you run from, so the same command works locally and in CI.
 <FileTree>
 - web/
   - components.js  your `define()` calls
-- internal/components/  generated app wrappers — do not edit
+- internal/components/  generated app wrappers; do not edit
   - components_gen.go
   - alacris_gen.go  `Tags`, package docs
 - alacris.components.json  optional, only for what the scanner cannot read

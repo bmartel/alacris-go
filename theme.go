@@ -9,7 +9,7 @@ import (
 	"github.com/a-h/templ"
 )
 
-// VarSet is the Go side of a component's theming contract — the custom
+// VarSet is the Go side of a component's theming contract: the custom
 // properties declared by alacris' vars(prefix, defaults).
 //
 // Names are derived exactly as style.js derives them, so a Go constant and the

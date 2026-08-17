@@ -1,6 +1,6 @@
 ---
 title: "Live: props from the server"
-description: Make the server authoritative over what a component shows — one property write per change, with no HTML on the wire.
+description: Make the server authoritative over what a component shows. One property write per change, with no HTML on the wire.
 sidebar:
   order: 5
   badge: Live
@@ -9,9 +9,9 @@ sidebar:
 import { Aside, Steps } from '@astrojs/starlight/components';
 import LiveDemo from '../../../components/LiveDemo.astro';
 
-A prop is a signal. That is the whole basis of this layer: when the server
-changes something, it does not render a fragment and swap it in — it writes
-**one property**, which wakes **one binding**, which updates **one DOM node**.
+A prop is a signal. When the server changes something, it writes **one
+property**, which wakes **one binding**, which updates **one DOM node**. It
+does not render a fragment and swap it in.
 
 <LiveDemo
   title="Watch a prop patch land"
@@ -52,7 +52,7 @@ sess.Batch(func() {
       ],
     },
   ]}
-  note="The frames are scripted here because a static site has no Go server, but the client applying them is the one the Go module embeds. The runnable example in the module is a live Kanban board (`examples/todo`); the pattern is the same — one property write, every open tab."
+  note="The frames are scripted here because a static site has no Go server, but the client applying them is the one the Go module embeds. The runnable example in the module is a live Kanban board (`examples/todo`); the pattern is the same: one property write, every open tab."
 />
 
 ## Setting it up
@@ -120,8 +120,8 @@ h.SetHTML(ctx, "empty", tmpl)       // replace the children of one slot
 h.Props(map[string]any{...})        // several props, one frame
 ```
 
-`Set` takes the **JavaScript** prop name from `define()` — `maxCount`, not
-`max-count` — because it writes the DOM property rather than the attribute.
+`Set` takes the **JavaScript** prop name from `define()` (`maxCount`, not
+`max-count`) because it writes the DOM property rather than the attribute.
 That is also why values need no encoding: they are JSON on the wire and become
 real JavaScript values on arrival.
 
@@ -165,14 +165,14 @@ server rendered:
 h.SetHTML(ctx, ui.ChipSlotDefault, chipText("4 left"))
 ```
 
-Reach for it when the server genuinely owns the markup — a rendered document, a
+Use it when the server owns the markup: a rendered document, a
 chunk of a report. For anything a component already models as a prop, a prop is
 smaller, does not touch the DOM the user is interacting with, and keeps
 rendering where the component put it.
 
 <Aside type="caution" title="A named slot needs an element">
   Bare text cannot be assigned to a named slot; it lands in the default one.
-  Render an element around it — the client logs a warning if you do not.
+  Render an element around it. The client logs a warning if you do not.
 </Aside>
 
 ## What this costs
@@ -183,7 +183,7 @@ first two layers of this library have no dependency on any of it.
 
 ## Next
 
-- [Live: actions from the page](/alacris-go/guides/live-actions/) — closing the
-  loop, so the page can ask the server to change something.
-- [Sessions and reconnects](/alacris-go/guides/sessions/) — buffering, TTL, and
+- [Live: actions from the page](/alacris-go/guides/live-actions/): so the page
+  can ask the server to change something.
+- [Sessions and reconnects](/alacris-go/guides/sessions/): buffering, TTL, and
   why `OnOpen` is not optional.

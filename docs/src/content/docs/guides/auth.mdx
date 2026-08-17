@@ -8,14 +8,13 @@ sidebar:
 import { Aside } from '@astrojs/starlight/components';
 
 The live layer authenticates a *browser page*: the cookie proves which browser,
-the page id says which page. It deliberately knows nothing about your users —
+the page id says which page. It knows nothing about your users:
 `NewSession` takes no identity, and the live cookie is not your login cookie
-and does not expire with it. Connecting the two is application code, and it is
-three small patterns.
+and does not expire with it. Connecting the two is application code.
 
 <Aside type="danger" title="Registering an action makes it callable">
   Any browser holding a valid live session can invoke **any registered
-  action**, with any element id and any detail — the `data-ala-on` wiring on
+  action**, with any element id and any detail. The `data-ala-on` wiring on
   the page is a convenience, not an authorization. Whether the page rendered a
   delete button has no bearing on whether `delete-account` can be posted.
 
@@ -48,8 +47,8 @@ func (a *app) page(w http.ResponseWriter, r *http.Request) {
 
 ## Guard actions
 
-A handler re-derives the user from the session and — for anything that matters
-— re-checks that the login is still good. The live cookie outlives your auth
+A handler re-derives the user from the session and, for anything that matters,
+re-checks that the login is still good. The live cookie outlives your auth
 cookie, so "this session belonged to Ada at render time" is not "Ada is still
 logged in now":
 
@@ -88,15 +87,15 @@ live.On(srv, "delete-item", func(c *live.Ctx, d ui.ItemListRemoveDetail) error {
 
 The `StillValid` check costs one session-store read per action. If an action is
 hot enough for that to matter, it is almost certainly not one that needs
-per-action revocation — read-only filters and cursors can skip it and rely on
+per-action revocation. Read-only filters and cursors can skip it and rely on
 the render-time binding alone.
 
 ## Cut sessions off at logout
 
 Re-checking on each action already means a logged-out user's next click fails.
 What it does not do is stop the *stream*: patches pushed by background work
-would keep flowing to a screen someone walked away from. If that matters —
-shared machines, sensitive dashboards — keep an index of the user's live
+would keep flowing to a screen someone walked away from. If that matters
+(shared machines, sensitive dashboards), keep an index of the user's live
 sessions and end them at logout:
 
 ```go

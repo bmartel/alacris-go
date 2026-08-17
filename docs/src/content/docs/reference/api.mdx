@@ -27,7 +27,7 @@ import alacris "github.com/bmartel/alacris-go"
 | `(*Element) Props(map[string]any)` | Several props, applied in sorted key order. |
 | `(*Element) Attr(name string, v any)` | An ordinary HTML attribute; a false bool disappears. |
 | `(*Element) Attrs(templ.Attributes)` | Spread an attribute map. |
-| `(*Element) ID(string)` | Set `id` — required for anything the live layer patches. |
+| `(*Element) ID(string)` | Set `id`. Required for anything the live layer patches. |
 | `(*Element) Class(...string)` / `ClassIf(bool, ...string)` | Append class names. |
 | `(*Element) Style(property, value string)` | One sanitized inline declaration. |
 | `(*Element) Var(name, value string)` | A CSS custom property; `--` optional. |
@@ -62,7 +62,7 @@ import alacris "github.com/bmartel/alacris-go"
 | `SetCacheHeaders(http.Header, *http.Request, etag string)` | The caching policy: immutable when the URL is versioned, revalidated otherwise. |
 | `RuntimeVersion` | The alacris version vendored in this module. |
 | `UIVersion` | The `@alacris/ui` version vendored in `assets/ui/`. |
-| `TrustedTypesPolicy` | `"alacris"` — allow it under a trusted-types CSP. |
+| `TrustedTypesPolicy` | `"alacris"`. Allow it under a trusted-types CSP. |
 | `DefaultBase` | `"/_alacris/"`. |
 | `AssetCore`, `AssetCoreDev`, `AssetStore`, `AssetContext`, `AssetSignal`, `AssetLive`, `AssetUI`, `AssetUITheme` | Served file names. |
 
@@ -79,7 +79,7 @@ import alacris "github.com/bmartel/alacris-go"
 
 | | |
 | --- | --- |
-| `Vars(names ...string) VarSet` | A contract from full property names — what generated code uses. |
+| `Vars(names ...string) VarSet` | A contract from full property names. What generated code uses. |
 | `NewVarSet(prefix string, keys ...string) VarSet` | A contract from a prefix and camelCase keys, mirroring `vars()`. |
 | `(VarSet) Name(key) string`, `Names() []string`, `Apply(*Element, map[string]string)` | The contract, and applying it. |
 | `Theme`, `ThemeColors`, `ThemeOverrides` | The `applyTheme` config, set on `Config.Theme`. |
@@ -143,8 +143,8 @@ import "github.com/bmartel/alacris-go/live"
 
 | | |
 | --- | --- |
-| `(*Session) ID() string` | The page id to put in the page. Not a secret — the capability is the cookie. |
-| `(*Session) Context() context.Context` | Lives as long as the session. The context to render `SetHTML` with — not the request's, which has finished by the time `OnOpen` runs. |
+| `(*Session) ID() string` | The page id to put in the page. Not a secret; the capability is the cookie. |
+| `(*Session) Context() context.Context` | Lives as long as the session. The context to render `SetHTML` with, not the request's, which has finished by the time `OnOpen` runs. |
 | `(*Session) Element(id) Handle` | A handle for patching one element. |
 | `(*Session) Send(...Patch)` | Queue patches. Never blocks, never fails. |
 | `(*Session) Batch(func())` | Coalesce into one frame. |
@@ -163,7 +163,7 @@ import "github.com/bmartel/alacris-go/live"
 | `(Handle) Props(map[string]any)` | Several props, one frame. |
 | `(Handle) SetHTML(ctx, slot string, templ.Component) error` | Replace one slot's children. |
 | `Prop`, `Attr`, `Class`, `HTML`, `Reload` | Patch constructors. |
-| `Patch`, `Op` | The wire shape — see [Wire protocol](/alacris-go/reference/wire-protocol/). |
+| `Patch`, `Op` | The wire shape. See [Wire protocol](/alacris-go/reference/wire-protocol/). |
 
 ### Context
 
@@ -174,7 +174,7 @@ import "github.com/bmartel/alacris-go/live"
 | `(*Ctx) Handle() Handle` | The element that emitted the event. |
 | `(*Ctx) Context() context.Context` | The request's context. |
 | `Options` | TTL, Buffer, MaxDetail, MaxSessions, Heartbeat, AllowOrigin, Logger, Now, and the Cookie* fields. |
-| `Secure` | `SecureAuto`, `SecureAlways`, `SecureNever` — whether the cookie carries Secure. |
+| `Secure` | `SecureAuto`, `SecureAlways`, `SecureNever`: whether the cookie carries Secure. |
 | `DefaultCookieName` | `"alacris_live"`. |
 | `ErrClosed` | Returned when a session has ended. |
 

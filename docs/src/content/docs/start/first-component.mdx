@@ -8,9 +8,9 @@ sidebar:
 import { Aside, Steps, Card } from '@astrojs/starlight/components';
 import GoExample from '../../../components/GoExample.astro';
 
-The division of labour: **JavaScript owns what happens inside the component,
-Go owns what goes into it and what the page is made of.** `setup()` runs in a
-browser, so it stays in JavaScript; everything around it can be typed.
+**JavaScript owns what happens inside the component. Go owns what goes into it
+and what the page is made of.** `setup()` runs in a browser, so it stays in
+JavaScript; everything around it can be typed.
 
 <Steps>
 
@@ -40,9 +40,9 @@ browser, so it stays in JavaScript; everything around it can be typed.
    ```
 
    The JSDoc block is not decoration. `define()` says what a prop is called and
-   how it is coerced; the tags say what `define()` cannot — that `tags` is a
-   list of strings rather than a list of anything, that a `greet` event exists
-   and what it carries, that there is a `title` slot.
+   how it is coerced. The tags say the rest: that `tags` is a list of strings
+   rather than a list of anything, that a `greet` event exists and what it
+   carries, that there is a `title` slot.
 
 2. **Generate the wrapper.**
 
@@ -106,15 +106,15 @@ browser, so it stays in JavaScript; everything around it can be typed.
 
 </Steps>
 
-## What the generator bought you
+## What the generator did
 
 <Card title="Defaults it knows about" icon="information">
-The generator read `name: 'anon'` out of `define()`, so a `Name` left empty —
-or set to `"anon"` — is **left off the element entirely**. Smaller HTML, and
+The generator read `name: 'anon'` out of `define()`, so a `Name` left empty
+or set to `"anon"` is **left off the element entirely**. Smaller HTML, and
 only a layer that knows the component's defaults can do it.
 </Card>
 
-Three more things it did that are easy to miss:
+Three more things it did:
 
 - **Kebab-casing that matches the runtime.** `maxCount` becomes `max-count`
   using the same transformation `define.js` uses, quirks and all. A hand-written
@@ -125,7 +125,7 @@ Three more things it did that are easy to miss:
   the component's `@fires` tag becomes a Go compile error rather than a handler
   that receives an empty struct.
 - **A `*bool` where it matters.** A boolean prop whose default is `true` cannot
-  be a plain `bool` — Go's zero value is `false`, so the field could never mean
+  be a plain `bool`. Go's zero value is `false`, so the field could never mean
   "leave it alone". See [Props and encoding](/alacris-go/guides/props/#booleans).
 
 ## Wire it into your build
@@ -151,9 +151,9 @@ alacris-go check ./web -o ./internal/components
 
 ## Next
 
-- [Props and encoding](/alacris-go/guides/props/) — what crosses, how, and the
+- [Props and encoding](/alacris-go/guides/props/): what crosses, how, and the
   two rules that exist because of sharp edges in the runtime.
-- [Generating wrappers](/alacris-go/guides/codegen/) — every JSDoc tag, and the
+- [Generating wrappers](/alacris-go/guides/codegen/): every JSDoc tag, and the
   manifest escape hatch for components the scanner cannot read.
-- [Alacris UI](/alacris-go/guides/alacris-ui/) — sixty-eight Material components
-  that ship with the module, so you do not have to write a button.
+- [Alacris UI](/alacris-go/guides/alacris-ui/): sixty-eight Material components
+  that ship with the module.

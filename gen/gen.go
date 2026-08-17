@@ -11,8 +11,8 @@
 // *alacris.Element. The generator knows each prop's default, so a value equal
 // to it is left off the rendered element.
 //
-// What define() cannot say — that an event carries a particular detail, that a
-// number is really an integer, which slots exist — is read from a JSDoc block
+// What define() cannot say (that an event carries a particular detail, that a
+// number is really an integer, which slots exist) is read from a JSDoc block
 // above the call. See the jsdoc.go file comment for the tags.
 //
 // A props object the scanner cannot read as literal data is an error, never a

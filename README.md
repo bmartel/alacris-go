@@ -31,10 +31,9 @@ live.On(srv, "add-card", func(c *live.Ctx, d ui.BoardAddDetail) error {
 })
 ```
 
-That second block is the whole idea. An alacris prop is a signal, so "the server
-changed something" compiles to a single DOM property write and a single node
-update — no HTML over the wire, nothing to diff, nothing to morph, and nothing
-that disturbs focus, scroll position or what the user has typed.
+A prop is a signal. A server change is one DOM property write and one node
+update: no HTML over the wire, and focus, scroll position and typed text stay
+put.
 
 Those names are the example app's: `examples/todo` generates wrappers into
 package `ui` and aliases the design system as `m3`. In a new project, generate
@@ -49,13 +48,11 @@ go get github.com/bmartel/alacris-go
 ```
 
 The alacris runtime is vendored into the module and served from Go, so a Go
-project needs no npm at all. Alacris UI — sixty-eight Material Design 3
-components — is vendored the same way. `Config.UI` turns it on; the typed
-wrappers live in [`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui).
+project needs no npm. Alacris UI (sixty-eight Material Design 3 components) is
+vendored the same way. `Config.UI` turns it on; the typed wrappers live in
+[`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui).
 
 ## What the server can and cannot render
-
-Worth being clear about up front, because it shapes everything else.
 
 A component's shadow content is produced by its `setup()` function when the
 element connects, **in the browser**. There is no server-side rendering of
@@ -70,14 +67,14 @@ element itself:
 
 Slot content is real HTML in the document, so it is in the first paint and in a
 crawler's view of the page. Everything inside the shadow root appears once the
-module loads — `alacris.Pending` is the stylesheet that keeps that transition
+module loads. `alacris.Pending` is the stylesheet that keeps that transition
 from flashing.
 
-The useful consequence: **every prop crosses as an attribute, objects and arrays
-included.** alacris coerces an attribute using the type of the prop's default,
-and `JSON.parse` is what it uses for object and array defaults. A fully-formed
-component needs no post-load property assignment, and the page is complete
-before any JavaScript has run.
+**Every prop crosses as an attribute, objects and arrays included.** alacris
+coerces an attribute using the type of the prop's default, and `JSON.parse` is
+what it uses for object and array defaults. A fully-formed component needs no
+post-load property assignment, and the page is complete before any JavaScript
+has run.
 
 ## Three layers
 
@@ -157,14 +154,14 @@ contract:
 }
 ```
 
-Because the generator knows each prop's default, a value equal to it is left off
-the element — smaller HTML, and only this layer can know to do it.
+Because the generator knows each prop's default, a value equal to it is left
+off the element. Smaller HTML, and only this layer can know to do it.
 
 The scanner reads the `define()` call itself, so there is one source of truth
 and no second file to keep in step. It is a scanner, not a JavaScript engine: a
 props object it cannot read as literal data is **an error, never a guess**. When
 a component builds its props at runtime, write it into a manifest by hand and
-generate from that — `generate` accepts either.
+generate from that. `generate` accepts either.
 
 ```
 alacris-go generate <path>... -o <dir>   write Go wrappers
@@ -217,7 +214,7 @@ sess.OnOpen(func(s *live.Session) { push(s) })   // also runs after a reconnect
 cfg := alacris.Config{Live: true, Page: sess.ID(), /* ... */}
 ```
 
-Down — one property write per change, coalesced into one frame:
+Patches, one property write per change, coalesced into one frame:
 
 ```go
 sess.Batch(func() {
@@ -225,7 +222,7 @@ sess.Batch(func() {
 })
 ```
 
-Up — a component's `CustomEvent`s forwarded to named server actions:
+Actions: a component's `CustomEvent`s forwarded to named server actions:
 
 ```go
 @ui.Board(props).ID("board").On(ui.BoardEventAdd, "add-card")
@@ -238,7 +235,7 @@ live.On(srv, "add-card", func(c *live.Ctx, d ui.BoardAddDetail) error { ... })
 One delegated listener per event type covers every element, present and future;
 alacris events are composed and bubbling, so it works across shadow boundaries.
 
-The transport is SSE down and an ordinary POST up — no WebSocket, no extra
+The transport is SSE down and an ordinary POST up. No WebSocket, no extra
 dependency. `Handle.SetHTML` is there for the cases props express badly, but
 props are the better tool nearly every time.
 
@@ -248,7 +245,7 @@ The first two layers do not depend on it.
 ## Prop encoding
 
 The Go type decides the encoding, and it has to agree with the type of the
-prop's default in `define()` — which generated wrappers guarantee.
+prop's default in `define()`. Generated wrappers guarantee that.
 
 | Go | attribute | matching default |
 | --- | --- | --- |
@@ -257,8 +254,7 @@ prop's default in `define()` — which generated wrappers guarantee.
 | integers, floats | a number | a number |
 | slices, maps, structs | JSON | an object or array |
 
-Three rules exist because of sharp edges in the runtime, and they are the reason
-this is a library rather than a snippet:
+Three rules exist because of sharp edges in the runtime:
 
 - **Booleans are always written out**, never signalled by presence. Removing an
   attribute runs `coerce(null, default)`, which returns `false` even when the
@@ -285,7 +281,7 @@ and this library kebab-cases it into the attribute (`max-count`) exactly the way
 - **Action payloads are input.** A well-behaved component emits what it says it
   emits; a console can emit anything. Binding is strict, the body is size-capped,
   and cross-origin posts are refused. Validate what you decode.
-- Interpolated prop values are attribute values, never markup — there is nothing
+- Interpolated prop values are attribute values, never markup. There is nothing
   to escape and no way to forget.
 - `Style` and `Var` refuse anything that could escape a declaration, rather than
   silently substituting a placeholder.
@@ -302,7 +298,7 @@ go run ./examples/todo
 
 A live board the server owns. Components in JavaScript, wrappers generated
 from them, card state in Go, every change arriving as one prop write. Open it
-in two windows. Move a card in one — it slides columns in the other, and
+in two windows. Move a card in one and it slides columns in the other;
 whatever you were typing does not. Neither tab polls.
 
 ```bash
@@ -314,7 +310,7 @@ recording is enough to film the same trick.
 
 Each lane has its own `each()`, so the columns are real stacks. A card that
 stays in a lane keeps its node when the list is rewritten; a card that changes
-lane is created in the destination — that is the cost of the layout, and the
+lane is created in the destination. That is the cost of the layout, and the
 identity tests reorder inside a lane so they still catch an `each` placed
 inside a conditional.
 
@@ -328,13 +324,13 @@ go run ./internal/vendorjs             # fetch and write
 go run ./internal/vendorjs -check      # verify, change nothing
 ```
 
-A vendored copy of someone else's build goes stale silently; the failing test is
-the point.
+A vendored copy of someone else's build goes stale silently. The failing test
+is how you find out.
 
 ## Building with AI agents
 
 [`AGENTS.md`](https://bmartel.github.io/alacris-go/AGENTS.md) is a drop-in file
-that teaches coding agents the conventions here — the encoding rules, that `ui/`
+that teaches coding agents the conventions here: the encoding rules, that `ui/`
 is generated, that `each` must not sit inside a conditional, that a reconnecting
 page needs `OnOpen`. Put it in your project root:
 
@@ -351,7 +347,7 @@ Full documentation, with every Go example rendered by the library itself, is at
 **[bmartel.github.io/alacris-go](https://bmartel.github.io/alacris-go/)**.
 
 Every example on the site is extracted from `internal/docsgen/examples.go` with
-`go/ast` and then executed — the HTML shown beside the Go is what that Go
+`go/ast` and then executed. The HTML shown beside the Go is what that Go
 actually rendered, and `go test ./...` fails if the two stop matching.
 
 ## Development
@@ -365,7 +361,7 @@ go run ./internal/docsgen        # re-render the documentation examples
 cd docs && npm install && npm run dev
 ```
 
-Browser tests, for the claims `go test` cannot reach — that a server-driven
+Browser tests cover the claims `go test` cannot reach: that a server-driven
 update moves rows instead of rebuilding them, that focus and a half-typed draft
 survive it, and that every open tab stays in step:
 
@@ -374,9 +370,8 @@ cd e2e && npm install && npx playwright install chromium
 npx playwright test
 ```
 
-They run against `examples/todo` unmodified. If they ever need a fixture
-instead, the thing being tested has stopped being the thing people copy.
+They run against `examples/todo` unmodified.
 
 ## License
 
-MIT. The vendored alacris runtime is MIT too — see `assets/LICENSE.alacris`.
+MIT. The vendored alacris runtime is MIT too; see `assets/LICENSE.alacris`.

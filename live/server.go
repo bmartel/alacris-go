@@ -1,10 +1,9 @@
 // Package live makes the server authoritative over component state.
 //
-// The idea is small. An alacris prop is a signal and a DOM property, so a
-// change on the server can be expressed as "set this property on this element"
-// — one write, one binding, one DOM node. There is no HTML on the wire after
-// first paint, nothing to diff, nothing to morph, and nothing that disturbs
-// focus, scroll position or what the user has typed.
+// An alacris prop is a signal and a DOM property, so a change on the server
+// is "set this property on this element": one write, one binding, one DOM
+// node. There is no HTML on the wire after first paint, and nothing that
+// disturbs focus, scroll position or what the user has typed.
 //
 // Down, over Server-Sent Events:
 //
@@ -35,18 +34,18 @@
 //
 // The page id says which of a browser's open pages is talking. It travels in
 // the stream's query string, because EventSource cannot set headers, so it
-// does reach access logs — and that is fine: on its own it grants nothing.
+// does reach access logs. On its own it grants nothing.
 // There is nothing here to scrub.
 //
 // See cookie.go for why the two are split rather than combined.
 //
-// Action payloads are input like any other: bound to a Go type, size-limited,
-// and worth validating.
+// Action payloads are input like any other: bound to a Go type, size-limited.
+// Validate the values.
 //
 // Registering an action makes it callable: any browser holding a valid
 // session can invoke any registered action, with any element id and any
 // detail, regardless of what the page rendered. Authorisation is the
-// handler's job — check the session's own state (who this page belongs to,
+// handler's job: check the session's own state (who this page belongs to,
 // what it may touch) inside the handler, not the wiring on the page.
 package live
 

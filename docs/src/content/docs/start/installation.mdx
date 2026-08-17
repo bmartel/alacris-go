@@ -81,14 +81,14 @@ import GoExample from '../../../components/GoExample.astro';
 
 </Steps>
 
-## A project laid out
+## Project layout
 
 <FileTree>
 - go.mod
 - main.go
 - **web/**
   - components.js  every `define()` call, one module
-- **internal/components/**  generated app wrappers — see [Generating wrappers](/alacris-go/guides/codegen/)
+- **internal/components/**  generated app wrappers; see [Generating wrappers](/alacris-go/guides/codegen/)
   - components_gen.go
   - alacris_gen.go
 - **views/**
@@ -99,7 +99,7 @@ import GoExample from '../../../components/GoExample.astro';
 ## Serving your components
 
 The runtime handler serves alacris itself. Your own component module is an
-ordinary static asset — serve it however you serve the rest of them:
+ordinary static asset; serve it however you serve the rest of them:
 
 <Tabs>
   <TabItem label="embed">
@@ -130,7 +130,7 @@ ordinary static asset — serve it however you serve the rest of them:
 ## Caching
 
 Asset URLs carry no version by default, so the handler serves them
-`Cache-Control: public, no-cache` — cached, but revalidated. Revalidation costs
+`Cache-Control: public, no-cache`: cached, but revalidated. Revalidation costs
 one conditional request and almost always answers `304`.
 
 Set `Config.Version` to anything that changes with a deploy, and each release
@@ -157,9 +157,8 @@ alacris.Config{Dev: !isProduction}
 
 ## Next
 
-- [Your first component](/alacris-go/start/first-component/) — the full loop,
-  including generated wrappers.
-- [Alacris UI](/alacris-go/guides/alacris-ui/) — sixty-eight Material Design 3
-  components, vendored and typed. One flag.
-- [Rendering elements](/alacris-go/guides/rendering/) — the `Element` API in
-  full.
+- [Your first component](/alacris-go/start/first-component/): write one and
+  generate its wrapper.
+- [Alacris UI](/alacris-go/guides/alacris-ui/): sixty-eight Material Design 3
+  components, vendored and typed.
+- [Rendering elements](/alacris-go/guides/rendering/): the `Element` API.

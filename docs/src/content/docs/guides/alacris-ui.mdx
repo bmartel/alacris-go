@@ -10,9 +10,9 @@ import GoExample from '../../../components/GoExample.astro';
 
 Alacris UI is the design system that ships with this module: sixty-eight
 custom elements, a three-tier token system, and a theme engine. **Material
-Design 3 is the default. Your design system is the point.** Every visual
-decision flows through tokens you can override — from "change the brand
-colour" (one field) to "this is no longer Material at all".
+Design 3 is the default; the tokens are yours to override.** Every visual
+decision flows through them, from changing the brand colour (one field) to
+leaving Material behind.
 
 The JavaScript is vendored next to the alacris runtime. A Go project still
 needs no npm. The typed wrappers live in
@@ -34,13 +34,13 @@ mux.Handle("/_alacris/", alacris.RuntimeHandler())
 </head>
 ```
 
-That one flag is the whole design-system setup. It:
+That one flag is the design-system setup. It:
 
 1. Adds `@alacris/core`, `@alacris/ui`, and the theme / motion / tokens
    specifiers to the import map. `@alacris/core` points at the same bytes as
    `alacris`, so the page has one reactive graph.
 2. Loads **every** component in the catalog and calls `applyTheme` with
-   Material defaults — seed `#e8ad18`, Google Sans Flex, light/dark from the
+   Material defaults (seed `#e8ad18`, Google Sans Flex, light/dark from the
    OS.
 3. Leaves your own `Modules` to run afterwards, so app components and the
    design system share the runtime.
@@ -54,7 +54,7 @@ Hide the tags until they upgrade:
 @ui.Pending()
 ```
 
-`ui.Pending()` is `alacris.Pending{Tags: ui.Tags}` — every Alacris UI tag.
+`ui.Pending()` is `alacris.Pending{Tags: ui.Tags}`: every Alacris UI tag.
 Without it the page paints empty custom elements, then reflows when the
 module arrives.
 
@@ -74,14 +74,14 @@ import "github.com/bmartel/alacris-go/ui"
 <GoExample id="ui-button" title="A Material button from Go" live={false} />
 
 The wrappers are generated from the vendored sources. A renamed prop, a new
-slot, a theming token — regenerate and the Go side moves with it. Do not edit
+slot, or a theming token: regenerate and the Go side moves with it. Do not edit
 `ui/*_gen.go`.
 
 If you also generate wrappers for *your* components, put those in a different
 package (`./internal/components`, `./webui`) so the names do not collide. The
 design system **is** `github.com/bmartel/alacris-go/ui`. The example app
-generates into `examples/todo/ui` and aliases the design system as `m3` —
-that is a fixture layout, not the one to copy.
+generates into `examples/todo/ui` and aliases the design system as `m3`.
+That is a fixture layout, not the one to copy.
 
 ## The catalog
 
@@ -141,7 +141,7 @@ surface, grouped the way you reach for it.
 
 | Wrapper | Tag | Typical use |
 | --- | --- | --- |
-| `ui.Dialog` | `ui-dialog` | Modal editor. Nested dialogs need `@change.stop` / `@click.stop` on inner controls — delegated listeners skip nested shadow. |
+| `ui.Dialog` | `ui-dialog` | Modal editor. Nested dialogs need `@change.stop` / `@click.stop` on inner controls; delegated listeners skip nested shadow. |
 | `ui.Menu` / `ui.MenuItem` | `ui-menu`, `ui-menu-item` | Overflow actions on a list or card. |
 | `ui.Sheet` / `ui.SideSheet` | `ui-sheet`, `ui-side-sheet` | Bottom or side supplementary UI. |
 | `ui.Alert` | `ui-alert` | Inline status. |
@@ -156,7 +156,7 @@ surface, grouped the way you reach for it.
 
 | Wrapper | Tag | Typical use |
 | --- | --- | --- |
-| `ui.Card` | `ui-card` | A contained unit — a lane, a summary, a media tile. |
+| `ui.Card` | `ui-card` | A contained unit: a lane, a summary, a media tile. |
 | `ui.List` / `ui.ListItem` | `ui-list`, `ui-list-item` | Rows with leading/trailing slots. |
 | `ui.Table` / `ui.TableToolbar` / `ui.TableFooter` | `ui-table`, `ui-table-toolbar`, `ui-table-footer` | Tabular data with chrome. |
 | `ui.Text` | `ui-text` | Typed typography (headline, title, body, label). |
@@ -179,7 +179,7 @@ example board is the working proof:
   chips. It stays in the tree (`open=${() => !!draft()}`) so opening it is a
   prop write, not a mount.
 - **Member assignment** is an app element (`ala-member-select`) that puts
-  dismissible `ui-chip`s next to `ui-autocomplete` — multi-select the design
+  dismissible `ui-chip`s next to `ui-autocomplete`. Multi-select the design
   system does not ship as one tag, built from two it does.
 
 ```templ
@@ -187,7 +187,7 @@ example board is the working proof:
 @app.Board(app.BoardProps{Items: items, Columns: columns}).ID("board")
 ```
 
-Write a `define()` when the *behaviour* is yours — a live board whose cards
+Write a `define()` when the *behaviour* is yours: a live board whose cards
 must keep node identity under `each()`, a member picker that emits one
 `change` with a string array. Do not write a `define()` for a button.
 
@@ -213,11 +213,11 @@ alacris.Config{
 
 Three places to intervene, from broadest to narrowest:
 
-1. **Re-theme the system** — `Config.Theme`. Every component follows. Dark
+1. **Re-theme the system** with `Config.Theme`. Every component follows. Dark
    mode is generated automatically.
-2. **Re-skin one component type** — `ui-button { --ui-button-radius: 4px; }`
+2. **Re-skin one component type** with `ui-button { --ui-button-radius: 4px; }`
    in your stylesheet, or `ui.ButtonVars` from Go for a single instance.
-3. **Reach inside one instance** — `ui-dialog::part(surface) { … }`.
+3. **Reach inside one instance** with `ui-dialog::part(surface) { … }`.
 
 ### `Theme` fields
 
@@ -239,7 +239,7 @@ Three places to intervene, from broadest to narrowest:
   `Typography: "system"` to skip the network.
 </Aside>
 
-Per-component contracts and `::part` still work on top of a page theme — see
+Per-component contracts and `::part` still work on top of a page theme. See
 [Theming](/alacris-go/guides/theming/).
 
 ## Live handles

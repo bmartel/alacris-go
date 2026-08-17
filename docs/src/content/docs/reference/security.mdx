@@ -17,12 +17,12 @@ HTML escaping. There is nothing to escape by hand and no way to forget:
 
 <GoExample id="encoding-escaping" title="Hostile input, harmless output" />
 
-The JSON prop is the case worth noticing: quotes inside it are escaped so the
+The JSON prop is the interesting case: quotes inside it are escaped so the
 attribute cannot end early, and the `<script>` in the payload is text when it
 arrives.
 
-alacris itself never parses an interpolated value as HTML either — child
-bindings become text nodes and attribute bindings go through `setAttribute` —
+alacris itself never parses an interpolated value as HTML either: child
+bindings become text nodes and attribute bindings go through `setAttribute`,
 so the guarantee holds on both sides of the boundary.
 
 ### Inline CSS is checked, not escaped
@@ -103,8 +103,8 @@ script tag the library emits.
 
 <Aside type="danger" title="1. The live cookie is a capability">
   Anyone holding the client token can act as every page that browser has open.
-  The library sets it with the attributes that keep it that way — `HttpOnly`,
-  `SameSite=Lax`, path-scoped to the live endpoints, `Secure` over TLS — and
+  The library sets it with the attributes that keep it that way (`HttpOnly`,
+  `SameSite=Lax`, path-scoped to the live endpoints, `Secure` over TLS) and
   script never touches it.
 
   - Serve pages that set it with `Cache-Control: no-store, private`. The
@@ -129,7 +129,7 @@ script tag the library emits.
 
 <Aside type="note" title="The page id is not a capability">
   It is in the page and in the stream's query string, so it does reach access
-  logs — and on its own it reaches nothing. Both halves are required, and the
+  logs. On its own it reaches nothing. Both halves are required, and the
   half that authorises is the one that never appears in a URL.
 
   It exists because a cookie is per-browser while a session is per page render.
@@ -157,8 +157,8 @@ script tag the library emits.
 
 <Aside type="caution" title="3. SetHTML sends markup">
   It replaces a slot's children with a string, through a pass-through Trusted
-  Types policy. The markup is yours — render it with templ, which escapes
-  interpolated values — but anything you put in it unescaped arrives unescaped.
+  Types policy. The markup is yours (render it with templ, which escapes
+  interpolated values) but anything you put in it unescaped arrives unescaped.
 
   Props do not have this property, which is one more reason to prefer them.
 </Aside>
@@ -166,15 +166,14 @@ script tag the library emits.
 ## Two things to know about
 
 **Patches are not authorised per element.** A session can be told to write any
-prop on any element on its own page. That is not a hole — it is the same page
-the server rendered — but it means a handler must decide whether an action is
+prop on any element on its own page. That is the same page the server
+rendered, so a handler must decide whether an action is
 permitted *before* patching, not rely on the page not asking.
 
 **Errors do not reach the browser.** A handler returning an error logs it and
 answers `500`; the response body is a fixed string. If a user should see
-something, send a patch saying so in the page's own terms. This is deliberate:
-it stops internal detail leaking through an error path nobody was thinking
-about.
+something, send a patch saying so in the page's own terms. It stops internal
+detail leaking through an error path nobody was thinking about.
 
 ## Reporting
 

@@ -1,14 +1,14 @@
 ---
 title: Deploying
-description: Caching, CSP, proxies, session affinity and shutdown — what changes when a live server meets real infrastructure.
+description: Caching, CSP, proxies, session affinity and shutdown: what changes when a live server meets real infrastructure.
 sidebar:
   order: 8
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-The first two layers deploy like any Go server. The live layer has requirements,
-and they are worth knowing before you find them.
+The first two layers deploy like any Go server. The live layer has requirements
+you want to know about before you find them.
 
 ## Caching assets
 
@@ -25,7 +25,7 @@ alacris.Config{Version: build.Revision}
 Cache-Control: public, no-cache        Cache-Control: public, max-age=31536000, immutable
 ```
 
-Without it every page load revalidates each asset — one conditional request
+Without it every page load revalidates each asset: one conditional request
 that almost always answers `304`. Correct, but a needless round trip you can
 delete with one field.
 
@@ -39,7 +39,7 @@ delete with one field.
 
 `SecureAuto` looks at `r.TLS` and `X-Forwarded-Proto`. A proxy that terminates
 TLS and forwards plain HTTP without setting that header will produce a cookie
-with no `Secure` attribute — set `CookieSecure: live.SecureAlways` rather than
+with no `Secure` attribute. Set `CookieSecure: live.SecureAlways` rather than
 relying on the header being there.
 
 If the page and the live endpoint are on different origins you need three
@@ -56,7 +56,7 @@ live.New(live.Options{
 ```
 
 Without `AllowOrigin` naming the origin, no CORS headers are sent and the
-browser discards the response — which looks exactly like a server that never
+browser discards the response, which looks exactly like a server that never
 answers.
 
 <Aside type="tip" title="If you own the whole origin">
@@ -113,7 +113,7 @@ The live stream is a long-lived `text/event-stream` response. Three things
 routinely break it:
 
 - **Response buffering.** The handler sends `X-Accel-Buffering: no`, which nginx
-  honours. Other proxies need their own setting — without it nothing arrives
+  honours. Other proxies need their own setting; without it nothing arrives
   until the stream ends, which is never.
 - **Idle timeouts.** A comment is written every `Options.Heartbeat` (25s by
   default) to keep the connection from being reaped. Lower it if your proxy is
@@ -168,12 +168,12 @@ Sessions live in the memory of the process that created them. Two consequences:
 
 1. **Session affinity is required.** The `GET` that opens the stream and every
    `POST` that follows must reach the instance that minted the session, or the
-   session will not be found. Any sticky-session mechanism works — the id is
+   session will not be found. Any sticky-session mechanism works; the id is
    already in the page and on every request.
 
 2. **`Broadcast` reaches one instance's sessions.** For a change everyone should
-   see across instances, publish it on something they all read — Postgres
-   `LISTEN/NOTIFY`, Redis pub/sub, NATS — and have each instance turn the
+   see across instances, publish it on something they all read (Postgres
+   `LISTEN/NOTIFY`, Redis pub/sub, NATS) and have each instance turn the
    message into local patches:
 
    ```go
@@ -188,7 +188,7 @@ Sessions live in the memory of the process that created them. Two consequences:
 <Aside type="tip" title="Or skip the problem">
   Layers one and two are stateless and scale horizontally with no coordination
   at all. If server-driven updates are a nice-to-have on one screen rather than
-  the point of the product, consider whether that screen alone needs them.
+  the product, consider whether that screen alone needs them.
 </Aside>
 
 ## Sizing

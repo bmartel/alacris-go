@@ -1,16 +1,16 @@
 # alacris-go
 
-> Build alacris web components from Go and templ. Typed Go wrappers generated
+> Render alacris web components from Go and templ. Typed Go wrappers generated
 > from your define() calls, the alacris runtime vendored and served from Go with
 > no npm, a Material Design 3 design system in the module (`Config.UI`), and an
-> optional layer that makes the server authoritative over component state — one
+> optional layer that makes the server authoritative over component state: one
 > property write per change, with no HTML on the wire.
 
-The one fact that shapes the library: a component's shadow content is produced
-by setup() in the browser, so the server renders the element, its attributes,
-and its light-DOM slot children — never the component's internals. Every prop
-crosses as an attribute, objects and arrays included, because alacris coerces
-using the type of the prop's default and parses object defaults with JSON.parse.
+A component's shadow content is produced by setup() in the browser, so the
+server renders the element, its attributes, and its light-DOM slot children,
+never the component's internals. Every prop crosses as an attribute, objects
+and arrays included, because alacris coerces using the type of the prop's
+default and parses object defaults with JSON.parse.
 
 Three layers, each usable alone: `alacris` (render, stateless), `gen` + the
 `alacris-go` CLI (typed wrappers), `live` (server-driven props and component
@@ -25,7 +25,7 @@ events over SSE and POST).
 
 ## Guides
 
-- [Rendering elements](https://bmartel.github.io/alacris-go/guides/rendering/): The Element API — props, attributes, classes, styles, slots, children, and Pending.
+- [Rendering elements](https://bmartel.github.io/alacris-go/guides/rendering/): The Element API: props, attributes, classes, styles, slots, children, and Pending.
 - [Props and encoding](https://bmartel.github.io/alacris-go/guides/props/): The encoding table, booleans, the safe-integer limit, attribute naming, custom types.
 - [Generating wrappers](https://bmartel.github.io/alacris-go/guides/codegen/): What the generator emits, what it refuses to guess, the manifest escape hatch, naming.
 - [Theming](https://bmartel.github.io/alacris-go/guides/theming/): Custom properties, VarSet contracts, @cssprop, Config.Theme, what inline CSS is refused.
@@ -42,7 +42,7 @@ events over SSE and POST).
 - [JSDoc tags](https://bmartel.github.io/alacris-go/reference/jsdoc/): @prop, @fires, @slot, @cssprop, @goname, @goimport, and the type vocabulary.
 - [Wire protocol](https://bmartel.github.io/alacris-go/reference/wire-protocol/): Endpoints, SSE frame format, the five patch operations, the action payload.
 - [Security](https://bmartel.github.io/alacris-go/reference/security/): What is handled, and the three things that are yours.
-- [Performance](https://bmartel.github.io/alacris-go/reference/performance/): Bytes, server cost, and the one mistake that undoes the update path.
+- [Performance](https://bmartel.github.io/alacris-go/reference/performance/): Bytes, server cost, and why each() must sit outside conditionals.
 - [Limitations](https://bmartel.github.io/alacris-go/reference/limitations/): What it will not do, and when to use something else.
 - [AI agents](https://bmartel.github.io/alacris-go/reference/agents/): The drop-in AGENTS.md and how these docs stay honest.
 
@@ -51,4 +51,4 @@ events over SSE and POST).
 - [AGENTS.md](https://bmartel.github.io/alacris-go/AGENTS.md): Drop-in conventions file for coding agents.
 - [Go package documentation](https://pkg.go.dev/github.com/bmartel/alacris-go): Generated API reference.
 - [Source](https://github.com/bmartel/alacris-go): Repository, including the runnable live Kanban board in examples/todo.
-- [alacris](https://bmartel.github.io/alacris/): The web component runtime itself — read this for writing component internals.
+- [alacris](https://bmartel.github.io/alacris/): The web component runtime itself. Read this for writing component internals.

@@ -1,6 +1,6 @@
 ---
 title: What is alacris-go?
-description: The model behind the library — what a Go server can and cannot render for a web component, and why every prop can cross as an attribute.
+description: What a Go server can and cannot render for a web component, and why every prop can cross as an attribute.
 sidebar:
   order: 1
 ---
@@ -12,10 +12,10 @@ import BoardClip from '../../../components/BoardClip.astro';
 <BoardClip />
 
 alacris-go renders [alacris](https://bmartel.github.io/alacris/) web components
-from Go and [templ](https://templ.guide). It is three layers, each usable on its
-own, and one fact that shapes all of them.
+from Go and [templ](https://templ.guide). It is three layers, each usable on
+its own.
 
-## The fact that shapes everything
+## What Go actually renders
 
 A component's shadow content is produced by its `setup()` function when the
 element connects, **in the browser**. There is no server-side rendering of
@@ -25,20 +25,19 @@ So what a Go server renders is the element itself:
 
 <GoExample id="slots" title="What the server produces" />
 
-Two consequences worth internalising:
+Two consequences:
 
 - **Slot content is real HTML in the document.** It is in the first paint and in
-  a crawler's view of the page, and it is the right place for the content that
-  matters for SEO or for readers with JavaScript disabled.
+  a crawler's view of the page. Put content that matters for SEO, or for readers
+  with JavaScript disabled, here.
 - **Everything inside the shadow root appears when the module loads.** Between
-  first paint and that moment the element is present but empty, which is what
+  first paint and that moment the element is present but empty.
   [`alacris.Pending`](/alacris-go/guides/rendering/#hiding-elements-until-they-are-defined)
-  exists to smooth over.
+  hides it until then.
 
 <Aside type="caution" title="If you need the component's internals in the HTML">
-  You need a different tool. alacris-go will not render them, and no amount of
-  configuration changes that. What it will do is make the parts a server *can*
-  own — props, slot content, and state — pleasant and type-safe.
+  You need a different tool. alacris-go will not render them. What it will do is
+  make the parts a server *can* own (props, slot content, and state) type-safe.
 </Aside>
 
 ## Why every prop can cross as an attribute
@@ -58,14 +57,13 @@ const coerce = (v, d) => {
 };
 ```
 
-`JSON.parse` is the object path. That means **objects and arrays round-trip
-through attributes**, so a fully-formed component needs no post-load property
+`JSON.parse` is the object path. **Objects and arrays round-trip through
+attributes**, so a fully-formed component needs no post-load property
 assignment and no hydration payload:
 
-<GoExample id="encoding-composites" title="A struct, a map, a time — all attributes" />
+<GoExample id="encoding-composites" title="A struct, a map, a time: all attributes" />
 
-This is the single most useful thing to know about the library. The page is
-complete before any JavaScript has run.
+The page is complete before any JavaScript has run.
 
 ## The three layers
 
@@ -75,10 +73,9 @@ complete before any JavaScript has run.
 | [`gen` + CLI](/alacris-go/guides/codegen/) | Typed Go wrappers from your `define()` calls. | A generate step, next to templ's. |
 | [`live`](/alacris-go/guides/live-props/) | Server-driven props and component events. | A stateful server and session affinity. |
 
-Most applications want the first two. Reach for the third when the server is
-genuinely the owner of what the page shows — a shared board, a dashboard, a
-queue — and you would otherwise be writing polling or a bespoke WebSocket
-protocol.
+Most applications want the first two. Use the third when the server owns what
+the page shows (a shared board, a dashboard, a queue) and you would otherwise
+be writing polling or a custom WebSocket protocol.
 
 The module's example is that third layer in a page: `examples/todo` is a live
 Kanban board (lanes, cards, members, labels) whose chrome is Alacris UI and
@@ -93,7 +90,7 @@ go run ./examples/todo
 
 - **Not a component framework.** Component internals are JavaScript, because
   `setup()` runs in a browser. alacris-go does not invent a Go DSL for
-  templates and signals, and would be worse if it did.
+  templates and signals.
 - **Not a replacement for htmx or Datastar.** Those swap HTML. This writes
   properties, which is a smaller and more precise operation, but only works for
   state a component already models as a prop.
@@ -102,14 +99,13 @@ go run ./examples/todo
 
 ## Where to go next
 
-- [Installation](/alacris-go/start/installation/) — the five minutes that get a
+- [Installation](/alacris-go/start/installation/): serve the runtime and get a
   component on a page.
-- [Your first component](/alacris-go/start/first-component/) — writing one,
-  generating its wrapper, using it.
-- [Alacris UI](/alacris-go/guides/alacris-ui/) — the Material Design 3 design
-  system that ships with the module: sixty-eight components, a theme engine,
-  and `Config.UI` to turn it on.
-- [Live: props from the server](/alacris-go/guides/live-props/) — the board
-  pattern: one property write, every open tab.
-- [Props and encoding](/alacris-go/guides/props/) — the rules, and the two
-  footguns the library exists to absorb.
+- [Your first component](/alacris-go/start/first-component/): write one, generate
+  its wrapper, use it.
+- [Alacris UI](/alacris-go/guides/alacris-ui/): sixty-eight Material Design 3
+  components, a theme engine, and `Config.UI` to turn it on.
+- [Live: props from the server](/alacris-go/guides/live-props/): one property
+  write, every open tab.
+- [Props and encoding](/alacris-go/guides/props/): the encoding table, and the
+  two rules that exist because of sharp edges in the runtime.

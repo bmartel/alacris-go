@@ -1,7 +1,7 @@
 // Package livetest makes live action handlers unit-testable.
 //
 // Testing a handler used to mean a real HTTP server, a cookie exchange, and
-// hand-parsed SSE frames — so handlers went untested. This package removes the
+// hand-parsed SSE frames, so handlers went untested. This package removes the
 // transport: NewSession mints a session with a Recorder attached in place of a
 // browser, Invoke runs a registered handler the way an incoming action would,
 // and the Recorder holds every patch the handler produced.

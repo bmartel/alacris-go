@@ -1,4 +1,4 @@
-# AGENTS.md — building Go applications with alacris-go
+# AGENTS.md: building Go applications with alacris-go
 
 You are working in a Go project that uses **alacris-go** to render
 [alacris](https://github.com/bmartel/alacris) web components from Go and
@@ -6,13 +6,13 @@ You are working in a Go project that uses **alacris-go** to render
 
 Follow this file exactly unless the project's own conventions visibly differ.
 
-## The mental model (read this first)
+## How it works
 
 1. **A component's shadow content is rendered in the browser, never on the
    server.** `setup()` runs on `connectedCallback`. What Go renders is the
    element, its attributes, and its light-DOM slot children. There is no SSR of
    component internals and no declarative shadow DOM. Do not try to add one.
-2. **Every prop crosses as an attribute — objects and arrays included.** alacris
+2. **Every prop crosses as an attribute, objects and arrays included.** alacris
    coerces using the type of the prop's default in `define()`, and object
    defaults are parsed with `JSON.parse`. So no post-load property assignment is
    ever needed, and the page is complete before JavaScript runs.
@@ -25,8 +25,8 @@ Follow this file exactly unless the project's own conventions visibly differ.
 ## Project layout
 
 ```
-web/components.js          every define() call — one module, imported once
-internal/components/       GENERATED app wrappers — never edit
+web/components.js          every define() call; one module, imported once
+internal/components/       GENERATED app wrappers; never edit
   components_gen.go
   alacris_gen.go           Tags, package docs
 views/*.templ              pages that use ui.* (design system) and app wrappers
@@ -68,13 +68,13 @@ import "github.com/bmartel/alacris-go/ui"
 (seed `#e8ad18`, Google Sans Flex, scheme from the OS). `Config.Theme` re-skins
 the page. Omit `Modules` if the page only uses the design system.
 
-`Scripts` MUST be in `<head>` before any other module script — an import map has
+`Scripts` MUST be in `<head>` before any other module script. An import map has
 to precede the first import it applies to.
 
 The alacris runtime and Alacris UI are vendored in the Go module. **Do not add
 npm, a bundler, or a CDN link for them.**
 
-Under a CSP, set `Config.Nonce` — or put the nonce on the context with
+Under a CSP, set `Config.Nonce`, or put the nonce on the context with
 `templ.WithNonce` and leave the field empty, which is the usual way. Every tag
 `Scripts` emits then carries it. Do not reach for `unsafe-inline`.
 
@@ -143,7 +143,7 @@ important rule in alacris.
 //go:generate go run github.com/a-h/templ/cmd/templ@latest generate
 ```
 
-Wrappers first — the templates use them. In CI use `check`:
+Wrappers first; the templates use them. In CI use `check`:
 
 ```bash
 alacris-go check ./web -o ./internal/components -strip ala-
@@ -189,11 +189,11 @@ Rules that are not negotiable:
   do not "simplify" it to `bool`.
 - **Integers past 2^53-1 are an error.** Send large ids as strings.
 - **The Go type must match the type of the prop's default.** A mismatch does not
-  error — `JSON.parse` fails silently on the client and the default is kept.
+  error. `JSON.parse` fails silently on the client and the default is kept.
 
 ## The live layer
 
-Only when the server genuinely owns what the page shows. Do not add it for state
+Only when the server owns what the page shows. Do not add it for state
 the browser can own.
 
 ```go
@@ -240,21 +240,21 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
   differs.
 - **The capability is an HttpOnly cookie, not `sess.ID()`.** The page id is not
   a secret and needs no protecting. Do not put a session id in a URL, a log or
-  a template variable that ends up in one — there is no longer one to put.
+  a template variable that ends up in one. There is no longer one to put.
 - **Always register `OnOpen`** and push the full state there. A reconnecting
   `EventSource` missed everything sent while it was away.
 - **Use `Session.Context()` for `SetHTML`, never the request's.** The request
   that rendered the page has finished by the time `OnOpen` runs, so its context
   is cancelled. Same for a push to another session from an action handler.
 - **Validate the detail.** Strict binding checks the shape, not the values.
-- Action names are strings on both sides — put them in constants.
+- Action names are strings on both sides. Put them in constants.
 - A handler error is logged and answered 500; it never reaches the browser. If a
   user should see something, send a patch.
 
 ### Before this goes to production
 
 - **A session per page render is a session per unauthenticated GET.** Anything
-  that follows links — a crawler, a scanner, a load test — leaves one behind,
+  that follows links (a crawler, a scanner, a load test) leaves one behind,
   each holding a buffer until its TTL. `Options.MaxSessions` (default 10,000)
   is a backstop, not a substitute for **rate limiting the handler that calls
   `NewSession`**. Create the session only where a page will actually use it.
@@ -264,8 +264,8 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
   and a proxy that does not buffer. The handler sets `X-Accel-Buffering: no`
   for nginx; other proxies need their own equivalent.
 - **Cross-origin is off unless you turn it on.** Only if the page and the live
-  endpoint are genuinely on different origins: set `Options.AllowOrigin` to a
-  function naming the origins you trust — never one that returns `true` — and
+  endpoint are on different origins: set `Options.AllowOrigin` to a
+  function naming the origins you trust (never one that returns `true`) and
   `CookieSameSite` to `http.SameSiteNoneMode`, which browsers honour only with
   `Secure`. Same-origin deployments need none of this and should not have it.
 - Behind a TLS-terminating proxy that does not set `X-Forwarded-Proto`, set
@@ -298,12 +298,12 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
 
 Before declaring a task done:
 
-1. `go generate ./...` then `go build ./...` — generated code is current.
+1. `go generate ./...` then `go build ./...`. Generated code is current.
 2. `go test ./...`, and `go test -race ./...` if you touched the live layer.
 3. `alacris-go check` passes.
 4. Load a page: no console errors, elements upgrade, no flash of empty elements.
-5. If you changed a list or the live layer: run the browser tests —
-   `cd e2e && npx playwright test`. They assert that an update keeps focus and
+5. If you changed a list or the live layer: run the browser tests
+   (`cd e2e && npx playwright test`). They assert that an update keeps focus and
    typed text and that the row nodes are the same nodes afterwards. If node
    identity fails, an `each` is inside a conditional.
 6. Nothing untrusted flows into `SetHTML`, and no action handler trusts its

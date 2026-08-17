@@ -1,14 +1,14 @@
 ---
 title: Wire protocol
-description: The endpoints, the frame format and the patch operations — enough to write another client, or to debug the one you have.
+description: The endpoints, the frame format and the patch operations. Enough to write another client, or to debug the one you have.
 sidebar:
   order: 4
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Small enough to read in one sitting, which is the point: there is no framework
-protocol to learn, and no opaque payload to trust.
+Small enough to read in one sitting. There is no framework protocol to learn,
+and no opaque payload to trust.
 
 ## Endpoints
 
@@ -31,8 +31,8 @@ A request is authorised by a pair:
 | **Page id** | the page's markup, and the stream's query string | which of a browser's pages is talking |
 
 The cookie is never in a URL, a page or a log, and script cannot read it. The
-page id is in a URL and therefore in access logs — and on its own it reaches
-nothing, which is the point of the split.
+page id is in a URL and therefore in access logs. On its own it reaches
+nothing, which is why they are split.
 
 It is a pair rather than one secret because a cookie is per-browser while a
 session is per page render. Two tabs share a cookie, so a cookie carrying the
@@ -69,7 +69,7 @@ data: [{"o":"p","i":"board","k":"items","v":[{"id":1,"text":"Cut the trailer","c
 - JSON escapes newlines, so a payload is always exactly one line.
 
 Status codes: `404` for an unknown page, an expired session, **or a page this
-browser does not own** — all the same answer, because telling them apart would
+browser does not own**. All the same answer, because telling them apart would
 make the endpoint an oracle for which page ids exist. `403` for a disallowed
 origin, `410` if the session closed between lookup and subscribe, `500` if the
 response does not support flushing.
@@ -90,7 +90,7 @@ response does not support flushing.
 <Aside type="note" title="Why k is never omitted">
   The default slot's name is the empty string. If `k` were omitted when empty, a
   patch for the default slot would be indistinguishable from one with no key at
-  all — so `k` is always on the wire, and there is a test pinning that.
+  all, so `k` is always on the wire, and there is a test pinning that.
 </Aside>
 
 ### Operations
@@ -104,7 +104,7 @@ response does not support flushing.
 | `x` | reload | `location.reload()` |
 
 `p` is the one that matters. Because an alacris prop is a signal, writing the
-property wakes exactly the bindings that read it — no diffing, and nothing else
+property wakes exactly the bindings that read it. No diffing, and nothing else
 on the page is touched. It also uses the **JavaScript** prop name from
 `define()`, not the kebab-cased attribute.
 
@@ -131,7 +131,7 @@ Cookie: alacris_live=<client token>
 | `i` | The id of the element that emitted the event, or `""`. |
 | `d` | The `CustomEvent` detail, or `null`. |
 
-`Content-Type: application/json` is required, not merely expected — see below.
+`Content-Type: application/json` is required, not merely expected. See below.
 
 Responses: `204` on success, `400` for a malformed body, `403` for a
 disallowed origin, `404` for an unknown session, a page the cookie does not
@@ -140,9 +140,9 @@ content type, `500` when the handler returns an error.
 
 ## Why the action endpoint is safe
 
-The capability is a cookie, which the browser attaches to whatever a page can
-cause — the property CSRF is built on. Three things replace the secret that
-used to sit in the body:
+The capability is a cookie, so the browser attaches it to whatever a page can
+cause. CSRF exploits that. Three things replace the secret that used to sit in
+the body:
 
 1. **`SameSite=Lax` on the cookie.** A cross-site `POST` is not a safe method,
    so the browser does not attach the cookie at all and the request arrives
@@ -152,7 +152,7 @@ used to sit in the body:
    preflight, and the preflight only succeeds for an origin `AllowOrigin`
    named. A form cannot reach a handler even if a cookie were attached.
 3. **The page id.** It is in markup the same-origin policy keeps a hostile page
-   from reading, so requiring it is a double-submit token — and it is checked
+   from reading, so requiring it is a double-submit token, and it is checked
    against the cookie, so one without the other is refused.
 
 Any one of them is enough against the ordinary case. All three are there
@@ -176,7 +176,7 @@ server controls.
 
 Space-separated `event:action` pairs. The client attaches one listener per
 event type to the document and walks `composedPath()` to find the element
-carrying the declaration — so it works across shadow boundaries and for elements
+carrying the declaration, so it works across shadow boundaries and for elements
 added later, with one listener regardless of how many elements declare it.
 
 ## The client
@@ -193,7 +193,7 @@ There is no capability in that tag, and the client never handles one: it
 connects with `withCredentials` and `credentials: 'include'` and lets the
 browser attach the cookie.
 
-It exports `apply` and `send`, so a page can drive it directly — the demos on
+It exports `apply` and `send`, so a page can drive it directly. The demos on
 this site feed `apply` the same frames a Go server would send, rather than
 reimplementing it.
 

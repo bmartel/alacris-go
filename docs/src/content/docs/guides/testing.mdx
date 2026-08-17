@@ -1,6 +1,6 @@
 ---
 title: Testing live handlers
-description: Unit-test action handlers with livetest — no HTTP server, no SSE parsing, no waiting.
+description: Unit-test action handlers with livetest. No HTTP server, no SSE parsing, no waiting.
 sidebar:
   order: 9
 ---
@@ -9,7 +9,7 @@ import { Aside } from '@astrojs/starlight/components';
 
 A handler's contract is "given this action, these patches come out." Before
 `livetest`, asserting that meant a real HTTP server, a cookie exchange, and
-hand-parsed SSE frames — so handlers went untested. `livetest` removes the
+hand-parsed SSE frames, so handlers went untested. `livetest` removes the
 transport and keeps the contract.
 
 ```go
@@ -45,14 +45,14 @@ Three moving parts:
 
 - **`livetest.NewSession`** mints a session the way a page render would and
   attaches a `Recorder` in place of the browser.
-- **`livetest.Invoke`** runs the registered handler — session-scoped or
-  server-wide, the same lookup an incoming POST uses — with the detail
+- **`livetest.Invoke`** runs the registered handler (session-scoped or
+  server-wide, the same lookup an incoming POST uses) with the detail
   marshalled for you.
 - **`rec`** holds every patch the handler sent. `Last(id, key)` answers the
   question a test usually asks: what would the page be showing?
 
 Everything is synchronous. A `Send` inside a handler has reached the recorder
-by the time `Invoke` returns — no polling, no sleeps, no eventual consistency.
+by the time `Invoke` returns. No polling, no sleeps, no eventual consistency.
 
 ## Testing OnOpen
 
@@ -106,7 +106,7 @@ if !errors.Is(livetest.Invoke(t, sess, "add-cards", "", nil), live.ErrNoAction) 
 
 <Aside type="note" title="The recorder has a browser's obligations">
   A session drops a subscriber that falls more than 16 frames behind, recorder
-  included — that is the same backpressure a slow browser gets. Reading
+  included. That is the same backpressure a slow browser gets. Reading
   (`Patches`, `Frames`, `Last`) drains everything queued, so tests that assert
   between actions never get near the limit; a stress test that fires hundreds
   of unbatched patches in one handler should batch them, which is the advice
@@ -115,8 +115,7 @@ if !errors.Is(livetest.Invoke(t, sess, "add-cards", "", nil), live.ErrNoAction) 
 
 ## What still belongs in a browser
 
-`livetest` proves the right patches leave the server. It cannot prove what
-justifies the live layer — that applying them leaves focus, scroll position
-and typed text alone. Those claims live in the Playwright suite under `e2e/`,
-which drives the real example app in a real DOM. Test handler logic here;
-test DOM identity there.
+`livetest` proves the right patches leave the server. It cannot prove that
+applying them leaves focus, scroll position and typed text alone. Those claims
+live in the Playwright suite under `e2e/`, which drives the real example app
+in a real DOM. Test handler logic here; test DOM identity there.

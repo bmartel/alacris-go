@@ -12,7 +12,7 @@ and they are the same few things every time: it hand-writes attribute names,
 it puts `each` inside a conditional, it edits generated files, and it forgets
 that a reconnecting page has missed everything.
 
-`AGENTS.md` is a drop-in file that heads all of that off.
+`AGENTS.md` is a drop-in file that covers those.
 
 ## Install it
 
@@ -24,7 +24,7 @@ Put it in your project root. Claude Code, Cursor, Copilot, Codex and others read
 it automatically; for tools that do not, paste it into the system prompt or
 whatever the equivalent is.
 
-If you also write component internals — the JavaScript half — take alacris' own
+If you also write component internals (the JavaScript half), take alacris' own
 file too, and keep both:
 
 ```bash
@@ -36,12 +36,12 @@ curl -o AGENTS.alacris.md https://bmartel.github.io/alacris/AGENTS.md
 - The model: shadow content is client-rendered, every prop crosses as an
   attribute, a prop is a signal.
 - Project layout, and that generated wrappers must not be edited. App wrappers
-  go in a package that is not named `ui` — that path is the Alacris UI design
+  go in a package that is not named `ui`. That path is the Alacris UI design
   system.
-- The encoding rules, including the two that look odd — booleans always written
+- The encoding rules, including the two that look odd: booleans always written
   out, and `*bool` for a default of `true`.
-- The live layer: `OnOpen` is not optional, details are user input, the session
-  id is a capability.
+- The live layer: `OnOpen` is not optional, details are user input, the cookie
+  is the capability (not the page id).
 - A wrong → right table of the mistakes that actually happen.
 - A verification checklist, including the focus-and-node-identity check that
   catches an `each` in a conditional.
@@ -58,7 +58,7 @@ https://bmartel.github.io/alacris-go/llms.txt
 Every page is also plain content at its own URL, so an agent can fetch a
 specific guide rather than the whole site.
 
-## Why the examples on this site are trustworthy
+## How the examples stay current
 
 Every Go example is extracted from
 [`internal/docsgen/examples.go`](https://github.com/bmartel/alacris-go/blob/main/internal/docsgen/examples.go)
@@ -67,8 +67,7 @@ actually rendered, and `go test ./...` fails if the committed output stops
 matching the library.
 
 <Aside type="tip" title="This matters more for agents than for people">
-  A person notices when an example looks stale. An agent copies it. Examples
-  that cannot drift are worth the machinery.
+  A person notices when an example looks stale. An agent copies it.
 </Aside>
 
 The live-tier demos are the one exception, and they say so on the page: a static
@@ -87,5 +86,5 @@ Point at the specific thing rather than the general one:
 
 > Review `web/components.js` for `each` used inside a conditional template.
 
-The last one is worth running on any codebase using this library — it is the
-mistake that silently undoes the whole point of the update path.
+The last one is worth running on any codebase using this library. An `each`
+inside a conditional rebuilds every row on every change.
