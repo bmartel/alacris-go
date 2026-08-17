@@ -4,6 +4,7 @@ package app
 
 /*
 #cgo LDFLAGS: -luser32
+#include <stdlib.h>
 void appWinInstallMenu(void *hwnd);
 void appWinAddMenuItem(int id, const char* title, const char* key, int shift, int alt, int ctrl);
 void appWinAddSeparator(void);

@@ -4,30 +4,25 @@ package app
 
 import (
 	"context"
-	"os/exec"
 	"strings"
 )
 
 func writeClipboard(ctx context.Context, text string) error {
-	if _, err := exec.LookPath("wl-copy"); err == nil {
-		_, err := clipExec(ctx, "wl-copy", text)
-		return err
+	if _, err := clipExec(ctx, "wl-copy", text); err == nil {
+		return nil
 	}
-	if _, err := exec.LookPath("xclip"); err == nil {
-		_, err := clipExec(ctx, "xclip", text, "-selection", "clipboard")
-		return err
+	if _, err := clipExec(ctx, "xclip", text, "-selection", "clipboard"); err == nil {
+		return nil
 	}
 	return clipUnavailable("wl-copy/xclip")
 }
 
 func readClipboard(ctx context.Context) (string, error) {
-	if _, err := exec.LookPath("wl-paste"); err == nil {
-		out, err := clipExec(ctx, "wl-paste", "")
-		return strings.TrimRight(out, "\n"), err
+	if out, err := clipExec(ctx, "wl-paste", ""); err == nil {
+		return strings.TrimRight(out, "\n"), nil
 	}
-	if _, err := exec.LookPath("xclip"); err == nil {
-		out, err := clipExec(ctx, "xclip", "", "-selection", "clipboard", "-o")
-		return strings.TrimRight(out, "\n"), err
+	if out, err := clipExec(ctx, "xclip", "", "-selection", "clipboard", "-o"); err == nil {
+		return strings.TrimRight(out, "\n"), nil
 	}
 	return "", clipUnavailable("wl-paste/xclip")
 }

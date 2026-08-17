@@ -5,6 +5,7 @@ package app
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
 #cgo LDFLAGS: -framework Cocoa
+#include <stdlib.h>
 #import <Cocoa/Cocoa.h>
 
 void appInstallMenu(void);

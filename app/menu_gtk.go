@@ -4,6 +4,7 @@ package app
 
 /*
 #cgo pkg-config: gtk+-3.0
+#include <stdlib.h>
 void appGtkInstallMenu(void *win);
 void appGtkAddMenuItem(int id, const char* title, const char* key, int shift, int alt, int ctrl);
 void appGtkAddSeparator(void);
