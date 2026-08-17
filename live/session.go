@@ -175,10 +175,10 @@ func (s *Session) Send(patches ...Patch) {
 		s.mu.Unlock()
 		return
 	}
-	sub, out := s.take(patches)
+	ok := s.deliver(patches)
 	s.mu.Unlock()
 
-	if !s.deliver(sub, out) {
+	if !ok {
 		s.resync()
 	}
 }
@@ -209,8 +209,18 @@ func (s *Session) vetted(patches []Patch) []Patch {
 	return out
 }
 
-// take decides, under the lock, whether patches go out now or wait.
-func (s *Session) take(patches []Patch) (chan []Patch, []Patch) {
+// deliver buffers patches when nothing is attached, otherwise hands them to
+// the subscriber. It reports whether the frame was taken; false means the
+// subscriber has stopped keeping up and the caller should resync.
+//
+// It must be called with s.mu held, and the send must stay under the lock.
+// Every path that closes s.sub — subscribe, release, resync, Close — first
+// nils the field under this same lock, so a send made under the lock can
+// never see a closed channel. A send made outside the lock on a channel
+// captured earlier can, and a select send on a closed channel panics rather
+// than taking default. The lock cannot stall the caller on a slow reader,
+// because the send is non-blocking either way.
+func (s *Session) deliver(patches []Patch) bool {
 	if s.sub == nil {
 		s.pending = append(s.pending, patches...)
 		if max := s.srv.opts.Buffer; len(s.pending) > max {
@@ -220,19 +230,14 @@ func (s *Session) take(patches []Patch) (chan []Patch, []Patch) {
 			s.pending = append(s.pending[:0], s.pending[len(s.pending)-max:]...)
 			s.dropped = true
 		}
-		return nil, nil
-	}
-	return s.sub, patches
-}
-
-// deliver hands a frame to the subscriber, outside the lock so a slow reader
-// cannot block the caller. It reports whether the frame was taken.
-func (s *Session) deliver(sub chan []Patch, out []Patch) bool {
-	if sub == nil || len(out) == 0 {
 		return true
 	}
+	// The capacity clamp keeps the frame's backing array private. Broadcast
+	// hands the same slice to every session, and the stream loop coalesces
+	// with append — without the clamp, an append into spare capacity would
+	// write into an array other goroutines are marshalling concurrently.
 	select {
-	case sub <- out:
+	case s.sub <- patches[:len(patches):len(patches)]:
 		return true
 	default:
 		return false
@@ -295,9 +300,9 @@ func (s *Session) Batch(fn func()) {
 		}
 		batch := s.batch
 		s.batch = nil
-		sub, out := s.take(batch)
+		ok := s.deliver(batch)
 		s.mu.Unlock()
-		if !s.deliver(sub, out) {
+		if !ok {
 			s.resync()
 		}
 	}()
