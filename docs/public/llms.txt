@@ -2,8 +2,9 @@
 
 > Build alacris web components from Go and templ. Typed Go wrappers generated
 > from your define() calls, the alacris runtime vendored and served from Go with
-> no npm, and an optional layer that makes the server authoritative over
-> component state — one property write per change, with no HTML on the wire.
+> no npm, a Material Design 3 design system in the module (`Config.UI`), and an
+> optional layer that makes the server authoritative over component state — one
+> property write per change, with no HTML on the wire.
 
 The one fact that shapes the library: a component's shadow content is produced
 by setup() in the browser, so the server renders the element, its attributes,
@@ -17,8 +18,8 @@ events over SSE and POST).
 
 ## Start here
 
-- [What is alacris-go?](https://bmartel.github.io/alacris-go/start/what-is-alacris-go/): The model, what a server can and cannot render, and why every prop can be an attribute.
-- [Installation](https://bmartel.github.io/alacris-go/start/installation/): go get, serving the runtime, script tags, caching and the dev build.
+- [What is alacris-go?](https://bmartel.github.io/alacris-go/start/what-is-alacris-go/): The model, what a server can and cannot render, why every prop can be an attribute, and the live Kanban example.
+- [Installation](https://bmartel.github.io/alacris-go/start/installation/): go get, serving the runtime, Config.UI, script tags, caching and the dev build.
 - [Your first component](https://bmartel.github.io/alacris-go/start/first-component/): Write a component, generate its wrapper, render it from templ.
 - [Upgrading](https://bmartel.github.io/alacris-go/start/upgrading/): What changed between releases. 0.2.0 moved the live session credential from the URL into a cookie.
 
@@ -27,8 +28,8 @@ events over SSE and POST).
 - [Rendering elements](https://bmartel.github.io/alacris-go/guides/rendering/): The Element API — props, attributes, classes, styles, slots, children, and Pending.
 - [Props and encoding](https://bmartel.github.io/alacris-go/guides/props/): The encoding table, booleans, the safe-integer limit, attribute naming, custom types.
 - [Generating wrappers](https://bmartel.github.io/alacris-go/guides/codegen/): What the generator emits, what it refuses to guess, the manifest escape hatch, naming.
-- [Theming](https://bmartel.github.io/alacris-go/guides/theming/): Custom properties, VarSet contracts, @cssprop, what inline CSS is refused.
-- [Alacris UI](https://bmartel.github.io/alacris-go/guides/alacris-ui/): Sixty-eight Material Design 3 components, vendored and typed, and a theme engine driven from Go.
+- [Theming](https://bmartel.github.io/alacris-go/guides/theming/): Custom properties, VarSet contracts, @cssprop, Config.Theme, what inline CSS is refused.
+- [Alacris UI](https://bmartel.github.io/alacris-go/guides/alacris-ui/): Sixty-eight Material Design 3 components, the catalog, composing chips with autocomplete, and a theme engine driven from Go.
 - [Live: props from the server](https://bmartel.github.io/alacris-go/guides/live-props/): Sessions, Handle.Set, batching, broadcasting, and when SetHTML is the right tool.
 - [Live: actions from the page](https://bmartel.github.io/alacris-go/guides/live-actions/): Forwarding CustomEvents to typed Go handlers, per-session handlers, error handling.
 - [Sessions and reconnects](https://bmartel.github.io/alacris-go/guides/sessions/): The cookie that carries the capability, the page id that does not, OnOpen, buffering, TTL, per-page state.
@@ -49,5 +50,5 @@ events over SSE and POST).
 
 - [AGENTS.md](https://bmartel.github.io/alacris-go/AGENTS.md): Drop-in conventions file for coding agents.
 - [Go package documentation](https://pkg.go.dev/github.com/bmartel/alacris-go): Generated API reference.
-- [Source](https://github.com/bmartel/alacris-go): Repository, including the runnable example in examples/todo.
+- [Source](https://github.com/bmartel/alacris-go): Repository, including the runnable live Kanban board in examples/todo.
 - [alacris](https://bmartel.github.io/alacris/): The web component runtime itself — read this for writing component internals.

@@ -2,8 +2,30 @@
    Named after what it styles, so a change here is easy to trace back. */
 
 :root {
-  --ala-accent: #ffb300;
+  /* Gopher Blue — the alacris-go mark. Not Alacris amber. */
+  --ala-accent: #00add8;
+  --ala-accent-deep: #007d9c;
   --ala-radius: 12px;
+}
+
+html[data-has-hero] {
+	overflow-x: clip;
+}
+[data-has-hero] .content-panel:first-child {
+	padding-inline: 0;
+	padding-block: 0;
+}
+[data-has-hero] .content-panel:first-child .sl-container {
+	max-width: none;
+	min-width: 0;
+}
+[data-has-hero] .content-panel:first-child .sl-markdown-content {
+	position: relative;
+	z-index: 1;
+	max-width: min(72rem, 100%);
+	margin-inline: auto;
+	padding-inline: var(--sl-content-pad-x, 1.5rem);
+	padding-top: 1.25rem;
 }
 
 /* --------------------------------------------------------------- examples */
@@ -150,6 +172,38 @@
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--sl-color-gray-2);
+}
+
+/* -------------------------------------------------------------- guide hero */
+
+.guide-hero {
+  margin: 0 0 1.6rem;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  background: #070b0d;
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.06),
+    inset 0 0 0 1px rgb(0 173 216 / 0.1),
+    0 24px 60px -28px rgb(0 0 0 / 0.55);
+}
+.guide-hero video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: center 28%;
+  -webkit-mask-image: radial-gradient(95% 90% at 50% 45%, #000 52%, transparent 86%);
+  mask-image: radial-gradient(95% 90% at 50% 45%, #000 52%, transparent 86%);
+}
+.guide-hero figcaption {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0.7rem 0.2rem 0.15rem;
+  font-size: 0.82rem;
+  color: var(--sl-color-gray-3);
 }
 
 /* ------------------------------------------------------------------ misc */

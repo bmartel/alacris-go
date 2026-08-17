@@ -84,8 +84,8 @@ so:
 ```go
 sess.OnOpen(func(s *live.Session) {
     s.Batch(func() {
-        s.Element("todos").Set("items", list.Items())
-        s.Element("todos").Set("filter", filterFor(s))
+        s.Element("board").Set("items", list.Items())
+        s.Element("board").Set("columns", list.Columns())
     })
 })
 ```
@@ -154,7 +154,7 @@ Sending to a closed session is a no-op rather than an error:
 
 ```go
 sess.Close()
-sess.Element("todos").Set("items", items)   // discarded, no panic, no error
+sess.Element("board").Set("items", items)   // discarded, no panic, no error
 ```
 
 That is deliberate. The page it was for is gone, and making every call site

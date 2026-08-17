@@ -163,6 +163,28 @@ a category colour, a progress percentage — rather than from design.
 ## The design system
 
 [Alacris UI](/alacris-go/guides/alacris-ui/) is the page-level version of the
-same idea. `Config.Theme` writes one stylesheet of system tokens; every
-component consumes them, so a seed colour re-skins the page without touching
-an element. Per-component `ui.ButtonVars` and `::part` still work on top.
+same idea. `Config.UI: true` loads sixty-eight Material Design 3 components
+and calls `applyTheme` with the module's defaults (seed `#e8ad18`, Google
+Sans Flex, scheme from the OS). `Config.Theme` then writes one stylesheet of
+system tokens; every component consumes them, so a seed colour re-skins the
+page without touching an element.
+
+```go
+zero := 0.0
+alacris.Config{
+    UI: true,
+    Theme: alacris.Theme{
+        Seed:   "#0b57d0",
+        Scheme: "dark",
+        Radius: &zero, // square corners; a pointer so 0 is distinct from unset
+    },
+}
+```
+
+`Theme.Colors` names palettes directly (`Primary`, `Error`, …). `Theme.Overrides`
+writes raw tokens last (`color-primary`, `radius-md`) for light, dark, or
+both. Per-component `ui.ButtonVars` and `::part` still work on top.
+
+`Radius`, `Motion`, `Density` and `LoadFonts` are pointers so Go's zero value
+means "leave the Material default" rather than "square / instant / compact /
+don't load fonts".

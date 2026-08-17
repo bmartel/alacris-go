@@ -7,6 +7,9 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import GoExample from '../../../components/GoExample.astro';
+import BoardClip from '../../../components/BoardClip.astro';
+
+<BoardClip />
 
 alacris-go renders [alacris](https://bmartel.github.io/alacris/) web components
 from Go and [templ](https://templ.guide). It is three layers, each usable on its
@@ -73,9 +76,18 @@ complete before any JavaScript has run.
 | [`live`](/alacris-go/guides/live-props/) | Server-driven props and component events. | A stateful server and session affinity. |
 
 Most applications want the first two. Reach for the third when the server is
-genuinely the owner of what the page shows — a shared list, a dashboard, a
+genuinely the owner of what the page shows — a shared board, a dashboard, a
 queue — and you would otherwise be writing polling or a bespoke WebSocket
 protocol.
+
+The module's example is that third layer in a page: `examples/todo` is a live
+Kanban board (lanes, cards, members, labels) whose chrome is Alacris UI and
+whose state lives on the server. Two windows stay in step because a move is
+one property write.
+
+```bash
+go run ./examples/todo
+```
 
 ## What this is not
 
@@ -95,6 +107,9 @@ protocol.
 - [Your first component](/alacris-go/start/first-component/) — writing one,
   generating its wrapper, using it.
 - [Alacris UI](/alacris-go/guides/alacris-ui/) — the Material Design 3 design
-  system that ships with the module.
+  system that ships with the module: sixty-eight components, a theme engine,
+  and `Config.UI` to turn it on.
+- [Live: props from the server](/alacris-go/guides/live-props/) — the board
+  pattern: one property write, every open tab.
 - [Props and encoding](/alacris-go/guides/props/) — the rules, and the two
   footguns the library exists to absorb.

@@ -1,0 +1,229 @@
+---
+import { Image } from 'astro:assets';
+import LinkButton from '../../node_modules/@astrojs/starlight/user-components/LinkButton.astro';
+import mark from '../assets/logo.svg';
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<div class="hero" style={`--hero-poster: url('${base}/board-hero.jpg')`}>
+	<div class="hero-back" aria-hidden="true">
+		<video
+			autoplay
+			muted
+			loop
+			playsinline
+			preload="metadata"
+			poster={`${base}/board-hero.jpg`}
+		>
+			<source src={`${base}/board-hero.webm`} type="video/webm" />
+		</video>
+	</div>
+	<div class="hero-inner">
+		<div class="sl-flex stack">
+			<div class="sl-flex copy">
+				<h1 id="_top" data-page-title set:html={title} />
+				{tagline && <div class="tagline" set:html={tagline} />}
+			</div>
+			{
+				actions.length > 0 && (
+					<div class="sl-flex actions">
+						{actions.map(
+							({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+								<LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+									{text}
+									{icon?.html && <Fragment set:html={icon.html} />}
+								</LinkButton>
+							),
+						)}
+					</div>
+				)
+			}
+		</div>
+		<div class="hero-visual">
+			<div class="hero-flare" aria-hidden="true"></div>
+			<Image src={mark} alt="" width={280} height={280} class="hero-mark" />
+		</div>
+	</div>
+</div>
+
+<style>
+	.hero {
+		--go: #00add8;
+		--hero-ink: #070b0d;
+		position: relative;
+		overflow: hidden;
+		width: 100vw;
+		max-width: 100vw;
+		min-width: 0;
+		margin-inline: calc(50% - 50vw);
+		margin-bottom: -4.5rem;
+		min-height: min(38rem, 82vh);
+	}
+
+	.hero-back {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		/* Dissolve the clip into the page instead of cropping it to a rectangle. */
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 46%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 0%, #000 46%, transparent 100%);
+	}
+	.hero-back video {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: 50% 38%;
+		transform: scale(1.28);
+		filter: saturate(0.68) brightness(0.24) contrast(1.06);
+	}
+	/* Recessed well: board still reads at the edges, then falls away. */
+	.hero-back::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(
+			ellipse 120% 90% at 50% 36%,
+			transparent 18%,
+			rgb(7 11 13 / 0.22) 62%,
+			rgb(7 11 13 / 0.55) 100%
+		);
+	}
+	.hero-back::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background:
+			linear-gradient(
+				to right,
+				rgb(7 11 13 / 0.42) 0%,
+				rgb(7 11 13 / 0.16) 22%,
+				transparent 48%
+			),
+			radial-gradient(ellipse 42% 48% at 76% 40%, rgb(0 173 216 / 0.08), transparent 70%);
+	}
+
+	.hero-inner {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		align-items: center;
+		gap: 1rem;
+		min-height: min(38rem, 82vh);
+		max-width: 72rem;
+		margin-inline: auto;
+		padding: clamp(2.5rem, 8vmin, 6.5rem) var(--sl-content-pad-x, 1.5rem) 7.5rem;
+	}
+
+	.stack {
+		flex-direction: column;
+		gap: clamp(1.5rem, calc(1.5rem + 1vw), 2rem);
+		text-align: start;
+		min-width: 0;
+		max-width: 42rem;
+	}
+	.copy {
+		flex-direction: column;
+		gap: 1rem;
+		align-items: flex-start;
+	}
+	.copy > * {
+		max-width: 50ch;
+	}
+	h1 {
+		margin: 0;
+		font-size: clamp(var(--sl-text-3xl), calc(0.25rem + 5vw), var(--sl-text-6xl));
+		line-height: var(--sl-line-height-headings);
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+	.tagline {
+		font-size: clamp(var(--sl-text-base), calc(0.0625rem + 2vw), var(--sl-text-xl));
+		color: var(--sl-color-gray-2);
+	}
+	.actions {
+		flex-wrap: wrap;
+		gap: 1rem 2rem;
+		justify-content: flex-start;
+	}
+	.hero :global(.sl-link-button.primary) {
+		background: var(--go);
+		border-color: var(--go);
+		color: #041318;
+		font-weight: 650;
+		box-shadow: 0 8px 24px rgb(0 173 216 / 0.22);
+	}
+	.hero :global(.sl-link-button.primary:hover) {
+		background: #1bc0e8;
+		border-color: #1bc0e8;
+		color: #041318;
+	}
+
+	.hero-visual {
+		position: relative;
+		display: grid;
+		place-items: center;
+		justify-self: center;
+		width: min(70%, 20rem);
+	}
+	.hero-flare {
+		position: absolute;
+		inset: -30%;
+		z-index: 0;
+		background-image: radial-gradient(circle, rgb(0 173 216 / 0.38) 1.05px, transparent 1.2px);
+		background-size: 20px 20px;
+		-webkit-mask-image: radial-gradient(circle at 50% 48%, #000 0%, rgb(0 0 0 / 0.28) 42%, transparent 72%);
+		mask-image: radial-gradient(circle at 50% 48%, #000 0%, rgb(0 0 0 / 0.28) 42%, transparent 72%);
+		pointer-events: none;
+	}
+	.hero-mark {
+		position: relative;
+		z-index: 1;
+		display: block;
+		width: 100%;
+		height: auto;
+		filter: drop-shadow(0 0 18px rgb(0 173 216 / 0.16));
+	}
+
+	@media (min-width: 50rem) {
+		.hero-inner {
+			grid-template-columns: 7fr 4fr;
+			gap: 3%;
+		}
+		.hero-visual {
+			width: min(100%, 22rem);
+		}
+	}
+
+	@media (max-width: 49.99rem) {
+		.stack {
+			text-align: center;
+			align-items: center;
+			margin-inline: auto;
+		}
+		.copy,
+		.actions {
+			align-items: center;
+			justify-content: center;
+		}
+		.hero-visual {
+			width: min(55%, 14rem);
+		}
+		.hero-back::after {
+			background: linear-gradient(to bottom, rgb(7 11 13 / 0.28), transparent 42%);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero-back video {
+			display: none;
+		}
+		.hero-back {
+			background: center 26% / cover no-repeat var(--hero-poster);
+		}
+	}
+</style>

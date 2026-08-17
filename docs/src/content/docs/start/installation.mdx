@@ -31,13 +31,19 @@ import GoExample from '../../../components/GoExample.astro';
 
 3. **Put the script tags in `<head>`.**
 
+   ```go
+   import "github.com/bmartel/alacris-go/ui"
+   ```
+
    <GoExample id="scripts" title="What Scripts renders" live={false} />
 
    ```templ
    templ layout() {
        <html>
            <head>
+               @ui.Pending()
                @alacris.Scripts(alacris.Config{
+                   UI:      true, // Material Design 3 catalog + theme
                    Modules: []string{"/web/components.js"},
                    Version: buildRevision,
                })
@@ -46,6 +52,11 @@ import GoExample from '../../../components/GoExample.astro';
        </html>
    }
    ```
+
+   `Config.UI` loads every Alacris UI component and applies Material defaults
+   (seed `#e8ad18`, Google Sans Flex, scheme from the OS). Omit `Modules` if
+   the page only uses the design system. See
+   [Alacris UI](/alacris-go/guides/alacris-ui/).
 
    <Aside type="caution" title="Order matters">
      `Scripts` belongs in `<head>`, before any other module script. An import

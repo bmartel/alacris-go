@@ -5,3 +5,6 @@ node_modules/
 
 # Synced from the repository — regenerate with `npm run sync-lib`
 public/lib/
+
+# Playwright scratch dir for docs/scripts/record-hero.mjs
+.hero-record/

@@ -36,6 +36,12 @@ changed something" compiles to a single DOM property write and a single node
 update — no HTML over the wire, nothing to diff, nothing to morph, and nothing
 that disturbs focus, scroll position or what the user has typed.
 
+Those names are the example app's: `examples/todo` generates wrappers into
+package `ui` and aliases the design system as `m3`. In a new project, generate
+app wrappers to `./internal/components` and import
+[`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui)
+as `ui`.
+
 ## Install
 
 ```bash
@@ -102,8 +108,9 @@ mux.Handle("/_alacris/", alacris.RuntimeHandler())
 
 ```templ
 <head>
-    @alacris.Pending{Tags: ui.Tags}
+    @ui.Pending()
     @alacris.Scripts(alacris.Config{
+        UI:      true,                 // Material Design 3 catalog + theme
         Modules: []string{"/web/components.js"},
         Version: build.Revision,   // makes each release a distinct URL
     })
@@ -136,7 +143,7 @@ define('user-card', {
 ```
 
 ```bash
-alacris-go generate ./web/components -o ./internal/ui
+alacris-go generate ./web/components -o ./internal/components
 ```
 
 You get a `UserCardProps` struct, a `UserCard` function returning an
@@ -144,9 +151,9 @@ You get a `UserCardProps` struct, a `UserCard` function returning an
 contract:
 
 ```go
-@ui.UserCard(ui.UserCardProps{Name: "Ada", Age: 36}).
-    Apply(ui.UserCardVars, map[string]string{"--card-bg": "#ffe9a8"}) {
-    <span slot={ ui.UserCardSlotTitle }>Ada Lovelace</span>
+@components.UserCard(components.UserCardProps{Name: "Ada", Age: 36}).
+    Apply(components.UserCardVars, map[string]string{"--card-bg": "#ffe9a8"}) {
+    <span slot={ components.UserCardSlotTitle }>Ada Lovelace</span>
 }
 ```
 
@@ -168,7 +175,7 @@ alacris-go manifest <path>...            write what it found, as JSON
 Wire it next to the templ step:
 
 ```go
-//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui -strip ala-
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./internal/components -strip ala-
 //go:generate go run github.com/a-h/templ/cmd/templ@latest generate
 ```
 

@@ -18,24 +18,24 @@ import (
     "github.com/bmartel/alacris-go/live/livetest"
 )
 
-func TestAddTodo(t *testing.T) {
+func TestAddCard(t *testing.T) {
     srv := live.New()
     defer srv.Close()
     registerHandlers(srv)   // the code under test, exactly as production wires it
 
     sess, rec := livetest.NewSession(t, srv)
 
-    err := livetest.Invoke(t, sess, "add-todo", "todos", ui.TodoListAddDetail{Text: "milk"})
+    err := livetest.Invoke(t, sess, "add-card", "board", components.BoardAddDetail{Text: "Cut the trailer", Column: "todo"})
     if err != nil {
         t.Fatal(err)
     }
 
-    p, ok := rec.Last("todos", "items")
+    p, ok := rec.Last("board", "items")
     if !ok {
-        t.Fatal("add-todo did not patch the items prop")
+        t.Fatal("add-card did not patch the items prop")
     }
     items := p.Value.([]todo.Item)
-    if len(items) != 1 || items[0].Text != "milk" {
+    if len(items) != 1 || items[0].Text != "Cut the trailer" {
         t.Errorf("items = %v", items)
     }
 }
@@ -65,8 +65,8 @@ sess.OnOpen(func(s *live.Session) { pushAll(s) })   // the code under test
 
 rec := livetest.Attach(t, sess)                     // "the browser connects"
 
-if _, ok := rec.Last("todos", "items"); !ok {
-    t.Error("OnOpen did not restate the list")
+if _, ok := rec.Last("board", "items"); !ok {
+    t.Error("OnOpen did not restate the board")
 }
 ```
 
@@ -91,9 +91,9 @@ if len(frames) != 1 {
 `Invoke` returns whatever the handler returned, so error paths are plain Go:
 
 ```go
-err := livetest.Invoke(t, sess, "set-filter", "", ui.TodoListFilterDetail{Filter: "bogus"})
+err := livetest.Invoke(t, sess, "move-card", "", components.BoardMoveDetail{Column: ""})
 if err == nil {
-    t.Fatal("an unknown filter must be rejected")
+    t.Fatal("an empty column must be rejected")
 }
 ```
 
@@ -101,7 +101,7 @@ An action nobody registered is `live.ErrNoAction`, which catches the rename
 that only happened on one side:
 
 ```go
-if !errors.Is(livetest.Invoke(t, sess, "add-todos", "", nil), live.ErrNoAction) { ... }
+if !errors.Is(livetest.Invoke(t, sess, "add-cards", "", nil), live.ErrNoAction) { ... }
 ```
 
 <Aside type="note" title="The recorder has a browser's obligations">

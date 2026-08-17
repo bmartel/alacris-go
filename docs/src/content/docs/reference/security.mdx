@@ -146,11 +146,9 @@ script tag the library emits.
   values are allowed.
 
   ```go
-  live.On(srv, "set-filter", func(c *live.Ctx, d ui.TodoListFilterDetail) error {
-      switch d.Filter {
-      case "all", "active", "done":
-      default:
-          return fmt.Errorf("unknown filter %q", d.Filter)
+  live.On(srv, "move-card", func(c *live.Ctx, d components.BoardMoveDetail) error {
+      if d.Column == "" {
+          return fmt.Errorf("missing column")
       }
       ...
   })

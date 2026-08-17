@@ -13,7 +13,7 @@ asks, the server decides, and the answer arrives as a prop write.
 
 ```
 component emits 'add'  ->  POST /_alacris/live  ->  handler mutates state
-                                                 -> sess.Element("todos").Set("items", ...)
+                                                 -> sess.Element("board").Set("items", ...)
                                                  -> SSE frame -> one DOM update
 ```
 
@@ -24,13 +24,13 @@ No HTML crosses in either direction.
 `On` forwards a `CustomEvent` the component emits to a named server action:
 
 ```templ
-@ui.TodoList(props).
-    ID("todos").
-    On(ui.TodoListEventAdd, "add-todo").
-    On(ui.TodoListEventToggle, "toggle-todo")
+@components.Board(props).
+    ID("board").
+    On(components.BoardEventAdd, "add-card").
+    On(components.BoardEventMove, "move-card")
 ```
 
-That renders `data-ala-on="add:add-todo toggle:toggle-todo"`. The client
+That renders `data-ala-on="add:add-card move:move-card"`. The client
 attaches one listener per event type to the document — alacris events are
 composed and bubbling, so a single listener reaches every element, across shadow
 boundaries, including elements added later.
@@ -38,25 +38,25 @@ boundaries, including elements added later.
 ## Handling one
 
 ```go
-live.On(srv, "add-todo", func(c *live.Ctx, d ui.TodoListAddDetail) error {
-    if _, err := list.Add(d.Text); err != nil {
+live.On(srv, "add-card", func(c *live.Ctx, d components.BoardAddDetail) error {
+    if _, err := list.Add(d.Text, d.Column); err != nil {
         return nil            // nothing changed; nothing to push
     }
-    c.Session.Element("todos").Set("items", list.Items())
+    c.Session.Element("board").Set("items", list.Items())
     return nil
 })
 ```
 
 `live.On` is generic: the event detail is decoded into the type parameter
-before your handler runs, and `ui.TodoListAddDetail` is the struct the
+before your handler runs, and `components.BoardAddDetail` is the struct the
 generator wrote from the component's `@fires` tag. Rename the field in the
 component and this stops compiling — which is the point.
 
 The untyped form is there when you want the raw payload:
 
 ```go
-srv.On("add-todo", func(c *live.Ctx) error {
-    var d ui.TodoListAddDetail
+srv.On("add-card", func(c *live.Ctx) error {
+    var d components.BoardAddDetail
     if err := c.Bind(&d); err != nil {
         return err
     }
@@ -70,19 +70,19 @@ A handler registered on a session takes precedence over the server-wide one and
 can close over that page's state:
 
 ```go
-sess.On("set-filter", func(c *live.Ctx) error {
-    var d ui.TodoListFilterDetail
+sess.On("rename-list", func(c *live.Ctx) error {
+    var d components.BoardRenameDetail
     if err := c.Bind(&d); err != nil {
         return err
     }
-    c.Session.Set(filterKey{}, d.Filter)
-    c.Session.Element("todos").Set("filter", d.Filter)
+    c.Session.Set(titleKey{}, d.Title)
+    c.Session.Element("board").Set("columns", list.Columns())
     return nil
 })
 ```
 
-Use it for anything that belongs to one page — a filter, a selection, a
-wizard step. Server-wide handlers are for changes everyone shares.
+Use it for anything that belongs to one page — a selection, a wizard
+step, a draft. Server-wide handlers are for changes everyone shares.
 
 ## What the context carries
 
@@ -113,10 +113,10 @@ and that is deliberate: what a user should see is a patch, sent from the
 handler, in whatever terms the page already understands.
 
 ```go
-live.On(srv, "add-todo", func(c *live.Ctx, d ui.TodoListAddDetail) error {
-    if _, err := list.Add(d.Text); err != nil {
+live.On(srv, "add-card", func(c *live.Ctx, d components.BoardAddDetail) error {
+    if _, err := list.Add(d.Text, d.Column); err != nil {
         // Say so in the page's own vocabulary rather than leaking an error.
-        c.Session.Element("todos").Set("error", "A todo needs some text.")
+        c.Session.Element("board").Set("busy", false)
         return nil
     }
     ...
@@ -132,11 +132,9 @@ live.On(srv, "add-todo", func(c *live.Ctx, d ui.TodoListAddDetail) error {
   your domain rules.
 
   ```go
-  live.On(srv, "set-filter", func(c *live.Ctx, d ui.TodoListFilterDetail) error {
-      switch d.Filter {
-      case "all", "active", "done":
-      default:
-          return fmt.Errorf("unknown filter %q", d.Filter)
+  live.On(srv, "move-card", func(c *live.Ctx, d components.BoardMoveDetail) error {
+      if d.Column == "" {
+          return fmt.Errorf("missing column")
       }
       ...
   })
@@ -149,8 +147,8 @@ Both halves of an action are strings, so put them in one place:
 
 ```go
 const (
-    actionAdd    = "add-todo"
-    actionToggle = "toggle-todo"
+    actionAdd  = "add-card"
+    actionMove = "move-card"
 )
 ```
 
@@ -162,5 +160,5 @@ very hard to find.
 
 If a change is entirely the browser's business — a disclosure toggle, a hover
 state, a local draft — leave it in the component. Signals already handle it,
-and a round trip makes it worse. The example app's counter keeps its own state
-for exactly this reason and only tells the server what it settled on.
+and a round trip makes it worse. A card's inline title draft stays in the
+component until the user commits it; only then does the server hear about it.

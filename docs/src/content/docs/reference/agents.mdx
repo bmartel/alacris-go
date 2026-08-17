@@ -79,10 +79,10 @@ the real one, imported from the bytes the Go module embeds.
 
 Point at the specific thing rather than the general one:
 
-> Add a `priority` prop to `<ala-todo-item>`: an integer, default 0. Update the
-> JSDoc, regenerate the wrappers, and use it in `views/list.templ`.
+> Add a `priority` prop to `<ala-board>` cards: an integer, default 0. Update the
+> JSDoc, regenerate the wrappers, and use it in `views/page.templ`.
 
-> The todo list should update every open tab when an item changes. Use the live
+> The board should update every open tab when a card moves. Use the live
 > layer, and make sure `OnOpen` pushes the full state.
 
 > Review `web/components.js` for `each` used inside a conditional template.

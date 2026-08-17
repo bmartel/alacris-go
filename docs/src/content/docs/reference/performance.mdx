@@ -20,6 +20,11 @@ A page using the first two ships roughly **7.5 kB** of framework, gzipped, and
 no hydration payload at all — the props are already in the HTML that was going
 to be sent anyway.
 
+[Alacris UI](/alacris-go/guides/alacris-ui/) is a design system on top of that
+runtime, not a second 6 kB library. `Config.UI` loads the whole catalog and
+applies a theme; the payload is larger on purpose. There is no bundler step
+that tree-shakes unused tags — that is the trade for one flag.
+
 ## Bytes on the wire, after first paint
 
 This is where the live layer earns its keep. One update to one list:
@@ -31,7 +36,7 @@ This is where the live layer earns its keep. One update to one list:
 | **A prop patch** | **the changed value as JSON** | **one property write** |
 
 ```json
-[{"o":"p","i":"todos","k":"items","v":[...]}]
+[{"o":"p","i":"board","k":"items","v":[...]}]
 ```
 
 There is no diffing step, because there is nothing to diff: a prop is a signal,

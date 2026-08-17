@@ -109,24 +109,24 @@ Generated wrappers leave a prop off when the value is the Go zero value **or**
 equal to the component's own default. Both mean "I did not set this".
 
 ```go
-ui.UserCard(ui.UserCardProps{Name: ""})       // no name attribute; component uses 'anon'
-ui.UserCard(ui.UserCardProps{Name: "anon"})   // same
+components.UserCard(components.UserCardProps{Name: ""})       // no name attribute; component uses 'anon'
+components.UserCard(components.UserCardProps{Name: "anon"})   // same
 ```
 
 To send a zero value on purpose, set it on the returned element:
 
 ```go
-ui.UserCard(ui.UserCardProps{}).Prop("name", "")   // name=""
+components.UserCard(components.UserCardProps{}).Prop("name", "")   // name=""
 ```
 
 If that trade is wrong for your project, generate with pointer fields instead:
 
 ```bash
-alacris-go generate ./web -o ./ui -optional=pointer
+alacris-go generate ./web -o ./internal/components -optional=pointer
 ```
 
 ```go
-ui.UserCard(ui.UserCardProps{Name: ptr("")})   // unambiguous, more typing
+components.UserCard(components.UserCardProps{Name: ptr("")})   // unambiguous, more typing
 ```
 
 ## Attribute names

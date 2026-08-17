@@ -52,7 +52,7 @@ sess.Batch(func() {
       ],
     },
   ]}
-  note="The frames are scripted here because a static site has no Go server, but the client applying them is the one the Go module embeds."
+  note="The frames are scripted here because a static site has no Go server, but the client applying them is the one the Go module embeds. The runnable example in the module is a live Kanban board (`examples/todo`); the pattern is the same — one property write, every open tab."
 />
 
 ## Setting it up
@@ -85,6 +85,7 @@ sess.Batch(func() {
 
        cfg := alacris.Config{
            Modules: []string{"/web/components.js"},
+           UI:      true,
            Live:    true,
            Page:    sess.ID(),
        }
@@ -96,13 +97,13 @@ sess.Batch(func() {
    its `id`, and generated wrappers return an `*Element`, so:
 
    ```templ
-   @ui.TodoList(props).ID("todos")
+   @components.Board(props).ID("board")
    ```
 
 4. **Patch.**
 
    ```go
-   sess.Element("todos").Set("items", list.Items())
+   sess.Element("board").Set("items", list.Items())
    ```
 
 </Steps>
@@ -110,7 +111,7 @@ sess.Batch(func() {
 ## The API
 
 ```go
-h := sess.Element("todos")
+h := sess.Element("board")
 
 h.Set("items", list.Items())        // a component prop
 h.SetAttr("data-state", "ready")    // an ordinary attribute; nil removes it
@@ -138,8 +139,8 @@ the page does not paint half an update:
 
 ```go
 sess.Batch(func() {
-    sess.Element("todos").Set("items", items)
-    sess.Element("remaining").Set("count", n)
+    sess.Element("board").Set("items", items)
+    sess.Element("board").Set("columns", columns)
 })
 ```
 
@@ -149,7 +150,7 @@ sess.Batch(func() {
 srv.Broadcast(live.Prop("ticker", "price", 42.5))
 
 for _, s := range srv.Sessions() {
-    s.Element("todos").Set("items", items)   // when each page needs different data
+    s.Element("board").Set("items", items)   // when each page needs different data
 }
 ```
 

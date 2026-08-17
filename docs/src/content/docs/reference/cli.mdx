@@ -103,7 +103,7 @@ something the scanner cannot see — props built at runtime, an event whose deta
 deserves a hand-written Go type — then commit the file and generate from it:
 
 ```bash
-alacris-go generate ./alacris.components.json ./web/other -o ./ui
+alacris-go generate ./alacris.components.json ./web/other -o ./internal/components
 ```
 
 The manifest is the same shape the scanner produces, so switching one component
@@ -133,7 +133,7 @@ to it loses nothing.
 ## In `go:generate`
 
 ```go
-//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui -strip ala-
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./internal/components -strip ala-
 //go:generate go run github.com/a-h/templ/cmd/templ@latest generate
 ```
 

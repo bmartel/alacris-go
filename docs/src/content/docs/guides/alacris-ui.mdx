@@ -15,9 +15,10 @@ decision flows through tokens you can override — from "change the brand
 colour" (one field) to "this is no longer Material at all".
 
 The JavaScript is vendored next to the alacris runtime. A Go project still
-needs no npm.
+needs no npm. The typed wrappers live in
+[`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui).
 
-## One flag
+## What `Config.UI` turns on
 
 ```go
 mux.Handle("/_alacris/", alacris.RuntimeHandler())
@@ -33,14 +34,19 @@ mux.Handle("/_alacris/", alacris.RuntimeHandler())
 </head>
 ```
 
-`Config.UI` does three things:
+That one flag is the whole design-system setup. It:
 
-1. Adds `@alacris/core`, `@alacris/ui`, and the theme/motion/tokens specifiers
-   to the import map. `@alacris/core` points at the same bytes as `alacris`,
-   so the page has one reactive graph.
-2. Loads every component and calls `applyTheme` with Material defaults.
+1. Adds `@alacris/core`, `@alacris/ui`, and the theme / motion / tokens
+   specifiers to the import map. `@alacris/core` points at the same bytes as
+   `alacris`, so the page has one reactive graph.
+2. Loads **every** component in the catalog and calls `applyTheme` with
+   Material defaults — seed `#e8ad18`, Google Sans Flex, light/dark from the
+   OS.
 3. Leaves your own `Modules` to run afterwards, so app components and the
    design system share the runtime.
+
+Omit `Modules` when the page only uses Alacris UI. Keep them when you also
+`define()` your own elements.
 
 Hide the tags until they upgrade:
 
@@ -49,6 +55,15 @@ Hide the tags until they upgrade:
 ```
 
 `ui.Pending()` is `alacris.Pending{Tags: ui.Tags}` — every Alacris UI tag.
+Without it the page paints empty custom elements, then reflows when the
+module arrives.
+
+<Aside type="note" title="What is *not* on by default">
+  `Config.UI` does not enable the live layer, does not mint a session, and
+  does not load your app components. Those stay `Config.Live`,
+  `srv.NewSession`, and `Config.Modules`. It also does not lock you into
+  Material: `Config.Theme` re-skins the same components.
+</Aside>
 
 ## Render a component
 
@@ -64,7 +79,120 @@ slot, a theming token — regenerate and the Go side moves with it. Do not edit
 
 If you also generate wrappers for *your* components, put those in a different
 package (`./internal/components`, `./webui`) so the names do not collide. The
-design system is `github.com/bmartel/alacris-go/ui`.
+design system **is** `github.com/bmartel/alacris-go/ui`. The example app
+generates into `examples/todo/ui` and aliases the design system as `m3` —
+that is a fixture layout, not the one to copy.
+
+## The catalog
+
+Every tag in `ui.Tags` has a matching `ui.Foo` constructor, `ui.FooProps`,
+`ui.FooVars` when the component declares a theming contract, event constants
+when it fires, and `ui.FooElement(sess, id)` for a typed live handle.
+
+The JavaScript catalog with interactive demos lives at
+[Alacris UI](https://bmartel.github.io/alacris/ui/). What follows is the Go
+surface, grouped the way you reach for it.
+
+### Actions
+
+| Wrapper | Tag | Typical use |
+| --- | --- | --- |
+| `ui.Button` | `ui-button` | Filled, tonal, outlined, text. The default control. |
+| `ui.ButtonGroup` | `ui-button-group` | Related actions in a row. |
+| `ui.IconButton` | `ui-icon-button` | Icon-only, for toolbars and cards. |
+| `ui.SplitButton` | `ui-split-button` | A primary action plus a menu of alternatives. |
+| `ui.Fab` / `ui.FabMenu` | `ui-fab`, `ui-fab-menu` | Floating action, and a speed-dial of them. |
+| `ui.ToggleButton` / `ui.ToggleGroup` | `ui-toggle-button`, `ui-toggle-group` | Mutually exclusive or multi-select toggles. |
+
+### Input
+
+| Wrapper | Tag | Typical use |
+| --- | --- | --- |
+| `ui.TextField` | `ui-text-field` | Labels, supporting text, error, prefix/suffix. |
+| `ui.Search` | `ui-search` | Filter chrome. The example board uses this. |
+| `ui.Select` | `ui-select` | A closed list of options. |
+| `ui.Autocomplete` | `ui-autocomplete` | Type-ahead over a list. Compose with chips for multi-select. |
+| `ui.Option` | `ui-option` | A choice inside select, autocomplete, or a menu. |
+| `ui.Checkbox` | `ui-checkbox` | A single boolean. |
+| `ui.Radio` / `ui.RadioGroup` | `ui-radio`, `ui-radio-group` | Exclusive choice. |
+| `ui.Switch` | `ui-switch` | On/off with an immediate effect. |
+| `ui.Slider` | `ui-slider` | A numeric range. |
+| `ui.Rating` | `ui-rating` | Star (or similar) scoring. |
+| `ui.DatePicker` / `ui.TimePicker` | `ui-date-picker`, `ui-time-picker` | Calendar and clock. |
+| `ui.Chip` / `ui.ChipSet` | `ui-chip`, `ui-chip-set` | Filter, input, and assist chips. Input chips dismiss. |
+
+### Structure and navigation
+
+| Wrapper | Tag | Typical use |
+| --- | --- | --- |
+| `ui.AppBar` / `ui.BottomAppBar` | `ui-app-bar`, `ui-bottom-app-bar` | Top or bottom bars. |
+| `ui.Toolbar` | `ui-toolbar` | A row of icon buttons and titles. |
+| `ui.NavRail` / `ui.NavItem` | `ui-nav-rail`, `ui-nav-item` | Side navigation for larger screens. |
+| `ui.BottomNav` | `ui-bottom-nav` | Three-to-five destinations on small screens. |
+| `ui.Drawer` | `ui-drawer` | A sliding pane of navigation or filters. |
+| `ui.Breadcrumbs` | `ui-breadcrumbs` | Where this page sits. |
+| `ui.Tabs` / `ui.Tab` / `ui.TabPanel` | `ui-tabs`, `ui-tab`, `ui-tab-panel` | Peer views of the same object. |
+| `ui.Stepper` / `ui.Step` | `ui-stepper`, `ui-step` | A linear flow. |
+| `ui.Pagination` | `ui-pagination` | Page through a collection. |
+| `ui.Container` / `ui.Stack` / `ui.Surface` | `ui-container`, `ui-stack`, `ui-surface` | Layout and elevation, not chrome. |
+| `ui.Divider` | `ui-divider` | A rule between sections. |
+
+### Overlay and feedback
+
+| Wrapper | Tag | Typical use |
+| --- | --- | --- |
+| `ui.Dialog` | `ui-dialog` | Modal editor. Nested dialogs need `@change.stop` / `@click.stop` on inner controls — delegated listeners skip nested shadow. |
+| `ui.Menu` / `ui.MenuItem` | `ui-menu`, `ui-menu-item` | Overflow actions on a list or card. |
+| `ui.Sheet` / `ui.SideSheet` | `ui-sheet`, `ui-side-sheet` | Bottom or side supplementary UI. |
+| `ui.Alert` | `ui-alert` | Inline status. |
+| `ui.Snackbar` | `ui-snackbar` | A transient confirmation. |
+| `ui.Tooltip` | `ui-tooltip` | A label on hover or focus. |
+| `ui.Badge` | `ui-badge` | A count or mark on another control. |
+| `ui.Progress` / `ui.Spinner` / `ui.LoadingIndicator` | `ui-progress`, `ui-spinner`, `ui-loading-indicator` | Determinate, indeterminate, and page-level wait. |
+| `ui.Skeleton` | `ui-skeleton` | A placeholder with the shape of the content. |
+| `ui.Backdrop` | `ui-backdrop` | Dims the page behind a dialog or sheet. |
+
+### Content
+
+| Wrapper | Tag | Typical use |
+| --- | --- | --- |
+| `ui.Card` | `ui-card` | A contained unit — a lane, a summary, a media tile. |
+| `ui.List` / `ui.ListItem` | `ui-list`, `ui-list-item` | Rows with leading/trailing slots. |
+| `ui.Table` / `ui.TableToolbar` / `ui.TableFooter` | `ui-table`, `ui-table-toolbar`, `ui-table-footer` | Tabular data with chrome. |
+| `ui.Text` | `ui-text` | Typed typography (headline, title, body, label). |
+| `ui.Avatar` | `ui-avatar` | A person or entity. Overlap them in a slot. |
+| `ui.Icon` | `ui-icon` | A named glyph from the theme's icon set. |
+| `ui.Accordion` / `ui.AccordionItem` | `ui-accordion`, `ui-accordion-item` | Progressive disclosure. |
+| `ui.Carousel` / `ui.CarouselItem` | `ui-carousel`, `ui-carousel-item` | A horizontal pager. |
+
+`ui.Tags` is the source of truth for what `Pending` should hide. If a
+component is missing from the tables above, it is still in that slice.
+
+## Compose rather than wrap
+
+Most "new components" you want are already in the catalog, composed. The
+example board is the working proof:
+
+- **Filter chrome** is `ui-search`, not a custom input.
+- **Labels** are `ui-chip` inside `ui-chip-set`.
+- **The card editor** is `ui-dialog` with `ui-text-field`, `ui-select`, and
+  chips. It stays in the tree (`open=${() => !!draft()}`) so opening it is a
+  prop write, not a mount.
+- **Member assignment** is an app element (`ala-member-select`) that puts
+  dismissible `ui-chip`s next to `ui-autocomplete` — multi-select the design
+  system does not ship as one tag, built from two it does.
+
+```templ
+@ui.Button(ui.ButtonProps{Variant: "filled"}) { Save }
+@app.Board(app.BoardProps{Items: items, Columns: columns}).ID("board")
+```
+
+Write a `define()` when the *behaviour* is yours — a live board whose cards
+must keep node identity under `each()`, a member picker that emits one
+`change` with a string array. Do not write a `define()` for a button.
+
+The import map already has `alacris` for your module and `@alacris/core` for
+the design system, pointing at the same file.
 
 ## Re-theme the page
 
@@ -91,11 +219,19 @@ Three places to intervene, from broadest to narrowest:
    in your stylesheet, or `ui.ButtonVars` from Go for a single instance.
 3. **Reach inside one instance** — `ui-dialog::part(surface) { … }`.
 
-`Theme.Colors` names palettes directly when a seed is not enough
-(`Primary`, `Tertiary`, `Error`, …). `Radius` and `Motion` are pointers so
-`0` (square corners, instant motion) is distinct from "unset". `Density` is
-`0`, `-1` or `-2`. `Typography` is a preset (`"google-sans-flex"`,
-`"google-sans"`, `"roboto"`, `"system"`) or a CSS family.
+### `Theme` fields
+
+| Field | What it does |
+| --- | --- |
+| `Seed` | One colour the whole scheme is grown from. |
+| `Colors` | Named palettes when a seed is not enough: `Primary`, `Secondary`, `Tertiary`, `Neutral`, `NeutralVariant`, `Error`, `Success`, `Warning`, `Info`. Empty roles still derive from `Seed`. |
+| `Scheme` | `"light"`, `"dark"`, or `"auto"` (the default) to follow the OS. |
+| `Typography` | `"google-sans-flex"` (default), `"google-sans"`, `"roboto"`, `"system"`, or a CSS family. |
+| `Radius` | Multiplier on the Material shape scale. A pointer so `0` (square) is distinct from unset. `2` is extra round. |
+| `Motion` | Multiplier on durations. `0` is instant. |
+| `Density` | `0`, `-1` or `-2`. |
+| `LoadFonts` | Whether `applyTheme` injects the typeface stylesheet. `false` when you self-host. |
+| `Overrides` | Last-write token maps: `Common`, `Light`, `Dark`. Keys are token names without the `--ui-` prefix (`color-primary`, `radius-md`). |
 
 <Aside type="tip" title="Fonts">
   The default face is Google Sans Flex, loaded from Google Fonts by
@@ -103,19 +239,21 @@ Three places to intervene, from broadest to narrowest:
   `Typography: "system"` to skip the network.
 </Aside>
 
-## Your components next to it
+Per-component contracts and `::part` still work on top of a page theme — see
+[Theming](/alacris-go/guides/theming/).
 
-`Config.UI` does not replace writing your own `define()` calls. App-specific
-elements still live in your module; generate their wrappers into a package
-that is not also named `ui` unless you alias one of the imports.
+## Live handles
 
-```templ
-@ui.Button(ui.ButtonProps{Variant: "filled"}) { Save }
-@app.TodoList(app.TodoListProps{Items: items}).ID("todos")
+A generated wrapper is an `*alacris.Element` at render time. After the page
+is live, patch the same tag through a typed handle:
+
+```go
+ui.ButtonElement(sess, "save").SetDisabled(true)
 ```
 
-The import map already has `alacris` for your module and `@alacris/core` for
-the design system, pointing at the same file.
+That is `sess.Element("save")` with compile-checked prop names. Use it when
+the element is an Alacris UI tag; use `sess.Element("board")` (or the
+generated `BoardElement`) for an app component.
 
 ## What is on the page
 
@@ -127,5 +265,8 @@ the design system, pointing at the same file.
 | `ui.ButtonElement(sess, id)` | Typed live handles. |
 | `alacris.Theme` | The `applyTheme` config, on `Config`. |
 
-The catalog of what each element does lives with the JavaScript:
-[Alacris UI](https://bmartel.github.io/alacris/ui/).
+Run the example to see the catalog composed into a real page:
+
+```bash
+go run ./examples/todo
+```

@@ -81,7 +81,9 @@ Under a CSP, set `Config.Nonce` — or put the nonce on the context with
 ## Alacris UI
 
 Sixty-eight Material Design 3 components ship with the module. Prefer them to
-hand-rolled buttons, fields, dialogs, and lists.
+hand-rolled buttons, fields, dialogs, and lists. Compose what is missing
+(dismissible chips next to autocomplete, a search field as filter chrome)
+rather than wrapping a tag the catalog already has.
 
 ```templ
 @ui.Button(ui.ButtonProps{Variant: "tonal"}) { Save }
@@ -204,7 +206,7 @@ live.Mount(mux, alacris.DefaultBase, srv)
 // Call it before writing anything to w.
 sess := srv.NewSession(w, r)
 sess.OnOpen(func(s *live.Session) { pushEverything(s) })   // do not skip this
-cfg := alacris.Config{Live: true, Page: sess.ID(), ...}
+cfg := alacris.Config{UI: true, Live: true, Page: sess.ID(), ...}
 w.Header().Set("Cache-Control", "no-store, private")       // the response carries a Set-Cookie
 ```
 
@@ -212,23 +214,23 @@ Down:
 
 ```go
 sess.Batch(func() {
-    sess.Element("todos").Set("items", list.Items())
-    sess.Element("todos").Set("filter", "done")
+    sess.Element("board").Set("items", list.Items())
+    sess.Element("board").Set("columns", list.Columns())
 })
 ```
 
 Up:
 
 ```templ
-@components.TodoList(props).ID("todos").On(components.TodoListEventAdd, actionAdd)
+@components.Board(props).ID("board").On(components.BoardEventAdd, actionAdd)
 ```
 
 ```go
-live.On(srv, actionAdd, func(c *live.Ctx, d components.TodoListAddDetail) error {
-    if _, err := list.Add(d.Text); err != nil {
+live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
+    if _, err := list.Add(d.Text, d.Column); err != nil {
         return nil
     }
-    c.Session.Element("todos").Set("items", list.Items())
+    c.Session.Element("board").Set("items", list.Items())
     return nil
 })
 ```
@@ -275,6 +277,7 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.TodoListAddDetail) error 
 | Wrong | Right | Why |
 | --- | --- | --- |
 | `each` inside a conditional template | `<ul ?hidden=...>` with `each` outside | The conditional rebuilds every row on every change |
+| One `each` for a whole board | One `each` per lane, each outside a conditional | A card that changes lane is a new node; identity still holds inside a lane |
 | `${todo().text}` in an `each` row | `${() => todo().text}` | The row signal must be read in a thunk |
 | Editing `*_gen.go` | Change the component, regenerate | It is overwritten |
 | Generating app wrappers into `./ui` | `./internal/components` | `github.com/bmartel/alacris-go/ui` is the design system |

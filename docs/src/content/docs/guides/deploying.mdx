@@ -177,10 +177,10 @@ Sessions live in the memory of the process that created them. Two consequences:
    message into local patches:
 
    ```go
-   for msg := range bus.Subscribe(ctx, "todos") {
+   for msg := range bus.Subscribe(ctx, "board") {
        items := decode(msg)
        for _, s := range srv.Sessions() {
-           s.Element("todos").Set("items", items)
+           s.Element("board").Set("items", items)
        }
    }
    ```

@@ -1,11 +1,9 @@
 ---
 title: alacris-go
-description: Build alacris web components from Go and templ — typed wrappers generated from your define() calls, the runtime served from Go, and server-driven props with no HTML on the wire.
+description: Build alacris web components from Go and templ — typed wrappers generated from your define() calls, the runtime served from Go, a Material Design 3 system in the module, and server-driven props with no HTML on the wire.
 template: splash
 hero:
-  tagline: Web components from Go and templ. Typed wrappers generated from your components, the runtime served from Go, and server-driven props with no HTML on the wire.
-  image:
-    file: ../../assets/hero.svg
+  tagline: Web components from Go and templ. Typed wrappers generated from your components, the runtime served from Go, a Material Design 3 system in the module, and server-driven props with no HTML on the wire.
   actions:
     - text: Start here
       link: /alacris-go/start/what-is-alacris-go/
@@ -38,7 +36,7 @@ updates **one DOM node**.
 
 ```go
 // The whole update. No HTML on the wire, nothing to diff, nothing to morph.
-sess.Element("todos").Set("items", list.Items())
+sess.Element("board").Set("items", list.Items())
 ```
 
 Focus, scroll position and half-typed text survive, because no node is replaced.
@@ -63,7 +61,8 @@ Focus, scroll position and half-typed text survive, because no node is replaced.
   </Card>
   <Card title="A design system" icon="star">
     Alacris UI ships in the module: sixty-eight Material Design 3 components,
-    typed wrappers, and a theme engine. `Config.UI` turns it on.
+    typed wrappers, and a theme engine. `Config.UI` turns it on — buttons,
+    dialogs, chips, tables, pickers — without a second toolchain.
   </Card>
 </CardGrid>
 
@@ -79,7 +78,11 @@ mux.Handle("/_alacris/", alacris.RuntimeHandler())
 
 That is the whole setup for the first layer. [Start here](/alacris-go/start/what-is-alacris-go/)
 for what the server can and cannot render — it is the fact that shapes
-everything else.
+everything else. The runnable example is a live Kanban board:
+
+```bash
+go run ./examples/todo
+```
 
 ## Honest about the trade
 

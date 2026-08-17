@@ -16,7 +16,7 @@ export default defineConfig({
     starlight({
       title: 'alacris-go',
       description:
-        'Build alacris web components from Go and templ: typed wrappers generated from your define() calls, the runtime served from Go, and server-driven props with no HTML on the wire.',
+        'Build alacris web components from Go and templ: typed wrappers generated from your define() calls, the runtime served from Go, a Material Design 3 system in the module, and server-driven props with no HTML on the wire.',
       logo: { src: './src/assets/logo.svg', replacesTitle: false },
       favicon: '/favicon.svg',
       social: [
@@ -26,6 +26,9 @@ export default defineConfig({
       editLink: { baseUrl: `${REPO}/edit/main/docs/` },
       lastUpdated: true,
       customCss: ['./src/styles/docs.css'],
+      components: {
+        Hero: './src/components/Hero.astro',
+      },
 
       head: [
         // Every live example on this site imports alacris under its real

@@ -54,11 +54,11 @@ X-Accel-Buffering: no
 
 retry: 2000
 
-data: [{"o":"p","i":"todos","k":"items","v":[{"id":1,"text":"Read the docs","done":false}]}]
+data: [{"o":"p","i":"board","k":"items","v":[{"id":1,"text":"Cut the trailer","column":"todo"}]}]
 
 : ping
 
-data: [{"o":"p","i":"todos","k":"filter","v":"done"},{"o":"c","i":"todos","k":"is-busy","v":false}]
+data: [{"o":"p","i":"board","k":"items","v":[{"id":1,"text":"Cut the trailer","column":"doing"}]},{"o":"c","i":"board","k":"is-busy","v":false}]
 ```
 
 - Each `data:` line is a **JSON array of patches**, applied in order. A batch is
@@ -77,7 +77,7 @@ response does not support flushing.
 ## A patch
 
 ```json
-{ "o": "p", "i": "todos", "k": "items", "v": [ ... ] }
+{ "o": "p", "i": "board", "k": "items", "v": [ ... ] }
 ```
 
 | Field | Meaning |
@@ -121,7 +121,7 @@ POST /_alacris/live
 Content-Type: application/json
 Cookie: alacris_live=<client token>
 
-{"p":"PAZlOnTCMes0TtjTNqisWV0V","a":"add-todo","i":"todos","d":{"text":"buy milk"}}
+{"p":"PAZlOnTCMes0TtjTNqisWV0V","a":"add-card","i":"board","d":{"text":"Cut the trailer","column":"todo"}}
 ```
 
 | Field | Meaning |
@@ -171,7 +171,7 @@ server controls.
 ## Declaring an action in the markup
 
 ```html
-<ala-todo-list id="todos" data-ala-on="add:add-todo toggle:toggle-todo"></ala-todo-list>
+<ala-board id="board" data-ala-on="add:add-card move:move-card"></ala-board>
 ```
 
 Space-separated `event:action` pairs. The client attaches one listener per

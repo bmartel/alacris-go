@@ -127,7 +127,7 @@ When a component genuinely builds its props at runtime, describe it by hand:
 3. **Generate from it**, alone or mixed with sources:
 
    ```bash
-   alacris-go generate ./alacris.components.json ./web/other -o ./ui
+   alacris-go generate ./alacris.components.json ./web/other -o ./internal/components
    ```
 
 </Steps>
@@ -145,7 +145,7 @@ A project prefix on every tag would put it on every identifier too, so strip
 it:
 
 ```bash
-alacris-go generate ./web -o ./ui -strip ala-
+alacris-go generate ./web -o ./internal/components -strip ala-
 # <ala-counter> generates Counter, not AlaCounter
 ```
 

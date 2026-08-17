@@ -47,24 +47,26 @@ browser, so it stays in JavaScript; everything around it can be typed.
 2. **Generate the wrapper.**
 
    ```bash
-   go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui
+   go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./internal/components
    ```
 
    ```text
-   alacris-go: 1 component(s) -> ./ui
-     wrote   ui/components_gen.go
-     wrote   ui/alacris_gen.go
+   alacris-go: 1 component(s) -> ./internal/components
+     wrote   internal/components/components_gen.go
+     wrote   internal/components/alacris_gen.go
    ```
 
    <Aside type="note">
-     If you also import the [Alacris UI](/alacris-go/guides/alacris-ui/) design
-     system (`github.com/bmartel/alacris-go/ui`), generate *your* wrappers into
-     a different package — `./internal/components` is the usual choice.
+     Do not generate app wrappers into a package named `ui`. That import path
+     is the [Alacris UI](/alacris-go/guides/alacris-ui/) design system
+     (`github.com/bmartel/alacris-go/ui`). `./internal/components` is the usual
+     choice; alias the design system as `m3` only if a project already
+     generates to `./ui`.
    </Aside>
 
 3. **Read what you got.**
 
-   ```go title="ui/components_gen.go"
+   ```go title="internal/components/components_gen.go"
    const UserCardTag = "user-card"
 
    const UserCardSlotTitle = "title"
@@ -91,12 +93,12 @@ browser, so it stays in JavaScript; everything around it can be typed.
 4. **Use it.**
 
    ```templ
-   @ui.UserCard(ui.UserCardProps{
+   @components.UserCard(components.UserCardProps{
        Name: "Ada",
        Age:  36,
        Tags: []string{"math", "code"},
    }) {
-       <span slot={ ui.UserCardSlotTitle }>Ada Lovelace</span>
+       <span slot={ components.UserCardSlotTitle }>Ada Lovelace</span>
    }
    ```
 
@@ -129,7 +131,7 @@ Three more things it did that are easy to miss:
 ## Wire it into your build
 
 ```go title="main.go"
-//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./ui
+//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web -o ./internal/components
 //go:generate go run github.com/a-h/templ/cmd/templ@latest generate
 ```
 
@@ -138,7 +140,7 @@ Order matters: the wrappers first, because the templates use them.
 In CI, check rather than regenerate:
 
 ```bash
-alacris-go check ./web -o ./ui
+alacris-go check ./web -o ./internal/components
 ```
 
 <Aside type="tip">
