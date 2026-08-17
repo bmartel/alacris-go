@@ -109,6 +109,26 @@ func TestEncodePropRejectsUnrepresentableNumbers(t *testing.T) {
 	}
 }
 
+func TestEncodePropRejectsSelfReferentialValues(t *testing.T) {
+	// A value that dereferences to itself would recurse until the goroutine
+	// stack overflows — a fatal error recover() cannot catch, taking the whole
+	// process down. The indirection cap turns it into an ordinary error.
+	var i any
+	i = &i
+	if _, _, err := EncodeProp(i); err == nil {
+		t.Fatal("EncodeProp(self-referential value) = nil error, want indirection error")
+	}
+
+	// A legitimate chain of pointers still encodes.
+	n := 7
+	p := &n
+	pp := &p
+	s, ok, err := EncodeProp(&pp)
+	if err != nil || !ok || s != "7" {
+		t.Fatalf("EncodeProp(***int) = %q, %v, %v; want \"7\", true, nil", s, ok, err)
+	}
+}
+
 func TestEncodeAttrFollowsHTMLBooleanRules(t *testing.T) {
 	// Ordinary HTML attributes are the opposite of props: presence is the
 	// value, so false has to disappear rather than render as "false".
