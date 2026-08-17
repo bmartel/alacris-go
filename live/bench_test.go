@@ -65,6 +65,25 @@ func BenchmarkSessions(b *testing.B) {
 	}
 }
 
+// NewSession at the cap is the overload path: every render past MaxSessions
+// evicts. This is what says whether eviction amplifies the load the cap
+// exists to absorb.
+func BenchmarkNewSessionAtCap(b *testing.B) {
+	for _, cap := range []int{1000, 10000} {
+		b.Run(itoa(cap), func(b *testing.B) {
+			srv := quietServer(b, Options{MaxSessions: cap})
+			for i := 0; i < cap; i++ {
+				newSession(srv)
+			}
+
+			b.ReportAllocs()
+			for b.Loop() {
+				newSession(srv)
+			}
+		})
+	}
+}
+
 func BenchmarkSendToAttachedSession(b *testing.B) {
 	srv := quietServer(b)
 	sess := newSession(srv)
