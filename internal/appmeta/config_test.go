@@ -36,6 +36,38 @@ func TestParseRejectsSpacedIdentifier(t *testing.T) {
 	}
 }
 
+// A newline in a metadata field would inject a directive into a line-oriented
+// bundle file — a second Exec= into a .desktop entry, a postinstall hook into
+// nfpm YAML — that runs when a victim installs or launches the app. Parse must
+// refuse it rather than let an emitter paste it through.
+func TestParseRejectsControlCharactersInBundleFields(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"name":      `{"name":"Evil\nExec=/bin/sh -c pwn","identifier":"com.x"}`,
+		"copyright": `{"name":"X","identifier":"com.x","copyright":"c\npostinstall: pwn"}`,
+		"version":   `{"name":"X","identifier":"com.x","version":"1.0\nurl: evil"}`,
+		"category":  `{"name":"X","identifier":"com.x","bundle":{"linux":{"categories":["Utility\nExec=pwn"]}}}`,
+	}
+	for field, in := range cases {
+		if _, err := Parse([]byte(in)); err == nil {
+			t.Errorf("%s: expected Parse to reject a control character", field)
+		}
+	}
+}
+
+func TestParseRejectsBadDeepLinkScheme(t *testing.T) {
+	t.Parallel()
+	for _, s := range []string{"ev il", "ev/il", "1evil", "evil\n"} {
+		in := `{"name":"X","identifier":"com.x","deepLinkScheme":"` + s + `"}`
+		if _, err := Parse([]byte(in)); err == nil {
+			t.Errorf("expected Parse to reject deepLinkScheme %q", s)
+		}
+	}
+	if _, err := Parse([]byte(`{"name":"X","identifier":"com.x","deepLinkScheme":"my-app.v2"}`)); err != nil {
+		t.Errorf("a valid scheme was rejected: %v", err)
+	}
+}
+
 func TestSlug(t *testing.T) {
 	t.Parallel()
 	if g, w := slug("Ship It"), "ship-it"; g != w {
