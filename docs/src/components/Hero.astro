@@ -53,6 +53,15 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 	.hero {
 		--go: #00add8;
 		--hero-ink: #070b0d;
+		--hero-fg: #f4f7f8;
+		--hero-muted: rgb(214 224 228 / 0.88);
+		/* Starlight inverts these in light mode. The clip stays a dark well. */
+		--sl-color-white: var(--hero-fg);
+		--sl-color-gray-1: #e4eef2;
+		--sl-color-gray-2: var(--hero-muted);
+		--sl-color-gray-3: rgb(190 204 210 / 0.8);
+		--sl-color-text: var(--hero-fg);
+		--sl-color-text-accent: #7fd4ea;
 		position: relative;
 		overflow: hidden;
 		width: 100vw;
@@ -139,11 +148,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		font-size: clamp(var(--sl-text-3xl), calc(0.25rem + 5vw), var(--sl-text-6xl));
 		line-height: var(--sl-line-height-headings);
 		font-weight: 600;
-		color: var(--sl-color-white);
+		color: var(--hero-fg);
+		text-shadow: 0 1px 18px rgb(7 11 13 / 0.45);
 	}
 	.tagline {
 		font-size: clamp(var(--sl-text-base), calc(0.0625rem + 2vw), var(--sl-text-xl));
-		color: var(--sl-color-gray-2);
+		color: var(--hero-muted);
+		text-shadow: 0 1px 16px rgb(7 11 13 / 0.4);
 	}
 	.actions {
 		flex-wrap: wrap;
@@ -161,6 +172,69 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		background: #1bc0e8;
 		border-color: #1bc0e8;
 		color: #041318;
+	}
+	.hero :global(.sl-link-button.minimal),
+	.hero :global(.sl-link-button.secondary) {
+		color: var(--hero-fg);
+		text-shadow: 0 1px 14px rgb(7 11 13 / 0.55);
+	}
+	.hero :global(.sl-link-button.minimal):hover,
+	.hero :global(.sl-link-button.secondary):hover {
+		color: #fff;
+	}
+
+	:global(html[data-theme='light']) .hero {
+		--hero-fg: #17181c;
+		--hero-muted: rgb(55 60 68 / 0.88);
+		--sl-color-white: var(--hero-fg);
+		--sl-color-gray-1: #2c3138;
+		--sl-color-gray-2: var(--hero-muted);
+		--sl-color-gray-3: rgb(70 76 84 / 0.8);
+		--sl-color-text: var(--hero-fg);
+		--sl-color-text-accent: #007d9c;
+	}
+	:global(html[data-theme='light']) .hero-back video {
+		/* Same recess as dark, toward paper instead of ink. */
+		filter: invert(1) hue-rotate(180deg) saturate(0.28) brightness(1.2) contrast(0.58);
+		opacity: 0.38;
+	}
+	:global(html[data-theme='light']) .hero-back::before {
+		background: radial-gradient(
+			ellipse 110% 85% at 50% 38%,
+			rgb(255 255 255 / 0.18) 0%,
+			rgb(255 255 255 / 0.55) 52%,
+			rgb(255 255 255 / 0.9) 100%
+		);
+	}
+	:global(html[data-theme='light']) .hero-back::after {
+		background:
+			linear-gradient(to bottom, transparent 48%, var(--sl-color-bg) 90%),
+			linear-gradient(
+				to right,
+				rgb(255 255 255 / 0.82) 0%,
+				rgb(255 255 255 / 0.42) 30%,
+				rgb(255 255 255 / 0.22) 58%,
+				rgb(255 255 255 / 0.5) 100%
+			),
+			rgb(255 255 255 / 0.32);
+	}
+	:global(html[data-theme='light']) h1,
+	:global(html[data-theme='light']) .tagline {
+		text-shadow: none;
+	}
+	:global(html[data-theme='light']) .hero :global(.sl-link-button.minimal),
+	:global(html[data-theme='light']) .hero :global(.sl-link-button.secondary) {
+		text-shadow: none;
+	}
+	:global(html[data-theme='light']) .hero :global(.sl-link-button.minimal):hover,
+	:global(html[data-theme='light']) .hero :global(.sl-link-button.secondary):hover {
+		color: #007d9c;
+	}
+	:global(html[data-theme='light']) .hero-flare {
+		background-image: radial-gradient(circle, rgb(0 125 156 / 0.35) 1.05px, transparent 1.2px);
+	}
+	:global(html[data-theme='light']) .hero-mark {
+		filter: drop-shadow(0 8px 18px rgb(0 125 156 / 0.18));
 	}
 
 	.hero-visual {
@@ -216,6 +290,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		.hero-back::after {
 			background: linear-gradient(to bottom, rgb(7 11 13 / 0.28), transparent 42%);
 		}
+		:global(html[data-theme='light']) .hero-back::after {
+			background:
+				linear-gradient(to bottom, rgb(255 255 255 / 0.35), transparent 42%),
+				linear-gradient(to bottom, transparent 58%, var(--sl-color-bg) 92%);
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -224,6 +303,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		}
 		.hero-back {
 			background: center 26% / cover no-repeat var(--hero-poster);
+		}
+		:global(html[data-theme='light']) .hero-back {
+			filter: invert(1) hue-rotate(180deg) saturate(0.5) brightness(1.12);
+		}
+		:global(html[data-theme='light']) .hero-back::before,
+		:global(html[data-theme='light']) .hero-back::after {
+			display: none;
 		}
 	}
 </style>
