@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.7.0](https://github.com/bmartel/alacris-go/compare/v0.6.0...v0.7.0) (2026-08-17)
+
+### Features
+
+* close the desktop host against a Tauri-shaped product ([53531e7](https://github.com/bmartel/alacris-go/commit/53531e7cd917d27d2ee14875c3b4fefe3f480f98))
+
 ## [0.6.0](https://github.com/bmartel/alacris-go/compare/v0.5.0...v0.6.0) (2026-08-17)
 
 ### Features
