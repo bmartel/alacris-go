@@ -8,17 +8,9 @@ sidebar:
 import { Aside } from '@astrojs/starlight/components';
 import GoExample from '../../../components/GoExample.astro';
 
-Alacris UI is the design system that ships with this module: sixty-eight
-custom elements, a three-tier token system, and a theme engine. **Material
-Design 3 is the default; the tokens are yours to override.** Every visual
-decision flows through them, from changing the brand colour (one field) to
-leaving Material behind.
-
-The JavaScript is vendored next to the alacris runtime. A Go project still
-needs no npm. The typed wrappers live in
-[`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui).
-
-## What `Config.UI` turns on
+Alacris UI is sixty-eight Material Design 3 components, a three-tier token
+system, and a theme engine, vendored in this module. Material is the default;
+override the tokens to change the brand colour, or to leave Material behind.
 
 ```go
 mux.Handle("/_alacris/", alacris.RuntimeHandler())
@@ -34,14 +26,18 @@ mux.Handle("/_alacris/", alacris.RuntimeHandler())
 </head>
 ```
 
-That one flag is the design-system setup. It:
+The JavaScript is vendored next to the alacris runtime. A Go project still
+needs no npm. The typed wrappers live in
+[`github.com/bmartel/alacris-go/ui`](https://pkg.go.dev/github.com/bmartel/alacris-go/ui).
+
+## What `Config.UI` turns on
 
 1. Adds `@alacris/core`, `@alacris/ui`, and the theme / motion / tokens
    specifiers to the import map. `@alacris/core` points at the same bytes as
    `alacris`, so the page has one reactive graph.
 2. Loads **every** component in the catalog and calls `applyTheme` with
    Material defaults (seed `#e8ad18`, Google Sans Flex, light/dark from the
-   OS.
+   OS).
 3. Leaves your own `Modules` to run afterwards, so app components and the
    design system share the runtime.
 
@@ -171,7 +167,7 @@ component is missing from the tables above, it is still in that slice.
 ## Compose rather than wrap
 
 Most "new components" you want are already in the catalog, composed. The
-example board is the working proof:
+example board:
 
 - **Filter chrome** is `ui-search`, not a custom input.
 - **Labels** are `ui-chip` inside `ui-chip-set`.

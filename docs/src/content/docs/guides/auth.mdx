@@ -70,7 +70,7 @@ func (a *app) user(c *live.Ctx) (UserID, error) {
     return uid, nil
 }
 
-live.On(srv, "delete-item", func(c *live.Ctx, d ui.ItemListRemoveDetail) error {
+live.On(srv, "delete-item", func(c *live.Ctx, d components.ItemListRemoveDetail) error {
     uid, err := a.user(c)
     if err != nil {
         return err   // logged server-side, a bare 500 to the page

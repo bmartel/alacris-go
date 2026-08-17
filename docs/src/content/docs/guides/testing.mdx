@@ -7,10 +7,9 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-A handler's contract is "given this action, these patches come out." Before
-`livetest`, asserting that meant a real HTTP server, a cookie exchange, and
-hand-parsed SSE frames, so handlers went untested. `livetest` removes the
-transport and keeps the contract.
+A handler's contract is "given this action, these patches come out."
+`livetest` drops the HTTP transport (no server, no SSE parsing) and keeps
+that contract.
 
 ```go
 import (

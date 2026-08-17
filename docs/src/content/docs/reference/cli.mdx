@@ -31,7 +31,7 @@ order you can type.
 ## `generate`
 
 ```bash
-alacris-go generate ./web/components -o ./internal/ui -strip ala-
+alacris-go generate ./web/components -o ./internal/components -strip ala-
 ```
 
 | Flag | Default | What it does |
@@ -54,11 +54,11 @@ disturb build caches or file watchers. Generated files this run did not produce
 // zero (default): a field left at its zero value, or equal to the component's
 // own default, is left off the element.
 type UserCardProps struct{ Name string }
-ui.UserCard(ui.UserCardProps{})            // no name attribute
+components.UserCard(components.UserCardProps{})            // no name attribute
 
 // pointer: unset and "the zero value" are different things.
 type UserCardProps struct{ Name *string }
-ui.UserCard(ui.UserCardProps{Name: ptr("")})   // name=""
+components.UserCard(components.UserCardProps{Name: ptr("")})   // name=""
 ```
 
 `zero` reads better and covers almost every case; the escape hatch is calling
@@ -71,7 +71,7 @@ See [Props and encoding](/alacris-go/guides/props/#booleans).
 ## `check`
 
 ```bash
-alacris-go check ./web/components -o ./internal/ui -strip ala-
+alacris-go check ./web/components -o ./internal/components -strip ala-
 ```
 
 Takes the same flags as `generate`, writes nothing, and exits non-zero when the
@@ -79,10 +79,10 @@ package on disk does not match the components:
 
 ```text
 alacris-go: the generated package does not match the components:
-  out of date: internal/ui/components_gen.go
-  left over: internal/ui/old_widget_gen.go
+  out of date: internal/components/components_gen.go
+  left over: internal/components/old_widget_gen.go
 
-run: alacris-go generate ... -o ./internal/ui
+run: alacris-go generate ... -o ./internal/components
 ```
 
 <Aside type="tip" title="Put this in CI">

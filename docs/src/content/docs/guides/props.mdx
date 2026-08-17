@@ -37,10 +37,9 @@ that; hand-written `Prop` calls are on your own.
 
 ## Objects and arrays cross too
 
-This is the part that makes server rendering useful. Because object defaults
-are parsed with `JSON.parse`, a struct or a map crosses as an attribute. No
-post-load property assignment, no hydration payload, and a page that is
-complete before any JavaScript has run.
+Because object defaults are parsed with `JSON.parse`, a struct or a map
+crosses as an attribute. No post-load property assignment, no hydration
+payload, and a page that is complete before any JavaScript has run.
 
 <GoExample id="encoding-composites" title="Composites" />
 

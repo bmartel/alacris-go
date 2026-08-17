@@ -100,7 +100,7 @@ type Ctx struct {
 what you want:
 
 ```go
-live.On(srv, "greet", func(c *live.Ctx, d ui.UserCardGreetDetail) error {
+live.On(srv, "greet", func(c *live.Ctx, d components.UserCardGreetDetail) error {
     c.Handle().Set("greeted", true)   // patch whatever emitted the event
     return nil
 })

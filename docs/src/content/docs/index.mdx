@@ -52,7 +52,6 @@ because no node is replaced.
   </Card>
   <Card title="Go live" icon="rocket">
     Push prop changes over SSE, receive component events over POST.
-    Server-owned state, fine-grained updates, no client framework.
   </Card>
   <Card title="No npm required" icon="approve-check">
     The alacris runtime is vendored into the Go module and served from Go. A Go
@@ -75,9 +74,8 @@ go get github.com/bmartel/alacris-go
 mux.Handle("/_alacris/", alacris.RuntimeHandler())
 ```
 
-That is the setup for the first layer. [Start here](/alacris-go/start/what-is-alacris-go/)
-covers what the server can and cannot render. The runnable example is a live
-Kanban board:
+[Start here](/alacris-go/start/what-is-alacris-go/) covers what the server can
+and cannot render. The runnable example is a live Kanban board:
 
 ```bash
 go run ./examples/todo

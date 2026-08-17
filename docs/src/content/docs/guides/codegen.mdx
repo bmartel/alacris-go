@@ -12,7 +12,7 @@ The generator reads the `define()` call itself. There is no second file to keep
 in step, and no manifest to maintain until you want one.
 
 ```bash
-alacris-go generate ./web/components -o ./internal/ui
+alacris-go generate ./web/components -o ./internal/components
 ```
 
 ## What comes out
@@ -20,7 +20,7 @@ alacris-go generate ./web/components -o ./internal/ui
 For each component: a tag constant, a props struct, a constructor, slot and
 event constants, typed event details, and the theming contract.
 
-```go title="internal/ui/components_gen.go"
+```go title="internal/components/components_gen.go"
 const UserCardTag = "user-card"
 
 const (
@@ -52,7 +52,7 @@ Plus a shared file with `Tags`, the list every component in the package
 registers, which is what `alacris.Pending` wants:
 
 ```templ
-@alacris.Pending{Tags: ui.Tags}
+@alacris.Pending{Tags: components.Tags}
 ```
 
 <GoExample id="generated" title="What a call expands to" />

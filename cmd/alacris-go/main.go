@@ -1,12 +1,12 @@
 // Command alacris-go generates typed Go wrappers for alacris web components.
 //
-//	alacris-go generate ./web/components -o ./internal/ui
+//	alacris-go generate ./web/components -o ./internal/components
 //	alacris-go manifest ./web/components -o ./alacris.components.json
-//	alacris-go check    ./web/components -o ./internal/ui
+//	alacris-go check    ./web/components -o ./internal/components
 //
 // The usual place to put it is a go:generate line next to the templ one:
 //
-//	//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web/components -o ./internal/ui
+//	//go:generate go run github.com/bmartel/alacris-go/cmd/alacris-go generate ./web/components -o ./internal/components
 //	//go:generate templ generate
 package main
 
