@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.6.0](https://github.com/bmartel/alacris-go/compare/v0.5.0...v0.6.0) (2026-08-17)
+
+### Features
+
+* host the live app in a native OS webview ([8d499ca](https://github.com/bmartel/alacris-go/commit/8d499cae59529617ca1985aa684feca149be50b9))
+
 ## [0.5.0](https://github.com/bmartel/alacris-go/compare/v0.4.0...v0.5.0) (2026-08-17)
 
 ### Features
