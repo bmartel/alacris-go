@@ -69,6 +69,17 @@ func isASCIIUpper(r rune) bool { return r >= 'A' && r <= 'Z' }
 // ok is false when v is nil or a nil pointer, meaning the attribute should be
 // left off entirely so the component keeps its declared default.
 func EncodeProp(v any) (s string, ok bool, err error) {
+	return encodeProp(v, 0)
+}
+
+// maxIndirection bounds how many pointer/interface layers encodeProp will
+// unwrap. A self-referential value (var i any; i = &i) re-boxes to itself on
+// every Elem().Interface(), and unbounded recursion there is not a panic but a
+// fatal stack overflow that recover() cannot catch. json.Marshal detects its
+// own cycles; this arm runs before it, so it needs its own limit.
+const maxIndirection = 32
+
+func encodeProp(v any, depth int) (s string, ok bool, err error) {
 	switch t := v.(type) {
 	case nil:
 		return "", false, nil
@@ -147,7 +158,10 @@ func EncodeProp(v any) (s string, ok bool, err error) {
 		if rv.IsNil() {
 			return "", false, nil
 		}
-		return EncodeProp(rv.Elem().Interface())
+		if depth >= maxIndirection {
+			return "", false, fmt.Errorf("alacris: encoding prop: more than %d levels of pointer indirection (self-referential value?)", maxIndirection)
+		}
+		return encodeProp(rv.Elem().Interface(), depth+1)
 	case reflect.Slice, reflect.Map:
 		if rv.IsNil() {
 			return "", false, nil

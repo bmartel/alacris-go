@@ -1,9 +1,12 @@
 package live
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -107,6 +110,52 @@ func TestOriginSchemeMustMatch(t *testing.T) {
 
 // A zero-value Server has no collector and no session table; the panic should
 // say so instead of blaming a nil map.
+// A Send racing a reconnect, a detach, or Close must never land on a closed
+// channel. Every path that closes the subscriber channel nils the field under
+// the session lock, and deliver sends under that same lock — this test is why.
+// It once panicked "send on closed channel": Send captured the channel under
+// the lock but sent after releasing it, racing the close. Run with -race.
+func TestSendRacingReconnectDoesNotPanic(t *testing.T) {
+	srv := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	defer srv.Close()
+	sess := newSession(srv)
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					sess.Send(Prop("x", "count", 1))
+					sess.Batch(func() { sess.Send(Prop("x", "count", 2)) })
+				}
+			}
+		}()
+	}
+
+	// Churn attach/detach so closes constantly race in-flight deliveries.
+	// Draining a frame or two first keeps the channel near-full, which is
+	// what pushes senders into the racy select arm.
+	for i := 0; i < 500; i++ {
+		frames, _, release, err := sess.Subscribe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-frames:
+		default:
+		}
+		release()
+	}
+	close(done)
+	wg.Wait()
+}
+
 func TestZeroValueServerFailsLoudly(t *testing.T) {
 	defer func() {
 		r := recover()

@@ -8,9 +8,9 @@ import (
 )
 
 func openURL(ctx context.Context, raw string) error {
-	return openExec(ctx, "xdg-open", raw)
+	return openExec(ctx, "xdg-open", "--", raw)
 }
 
 func reveal(ctx context.Context, path string) error {
-	return openExec(ctx, "xdg-open", filepath.Dir(path))
+	return openExec(ctx, "xdg-open", "--", filepath.Dir(path))
 }

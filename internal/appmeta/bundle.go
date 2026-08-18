@@ -205,7 +205,7 @@ func winresFile(c Config) string {
   "RT_VERSION": {
     "#1": {
       "0000": {
-        "fixed": {"file_version": "%s", "product_version": "%s"},
+        "fixed": {"file_version": %q, "product_version": %q},
         "info": {
           "0409": {
             "ProductName": %q,

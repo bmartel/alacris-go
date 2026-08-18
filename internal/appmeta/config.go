@@ -109,7 +109,50 @@ func (c Config) validate() error {
 	if strings.ContainsAny(c.Identifier, " \t") {
 		return fmt.Errorf("appmeta: identifier %q must not contain spaces", c.Identifier)
 	}
+	// These strings are interpolated raw into line-oriented bundle files — a
+	// .desktop entry (Exec=), nfpm YAML (a postinstall hook), an Info.plist.
+	// A newline or other control character in any of them would inject a new
+	// directive that runs when a victim installs or launches the app, so the
+	// config is refused at the door rather than escaped at each emitter.
+	fields := []struct{ name, val string }{
+		{"name", c.Name},
+		{"identifier", c.Identifier},
+		{"version", c.Version},
+		{"copyright", c.Copyright},
+		{"category", c.Category},
+		{"windows.fileDescription", c.Bundle.Windows.FileDescription},
+		{"linux.desktop", c.Bundle.Linux.Desktop},
+	}
+	for _, cat := range c.Bundle.Linux.Categories {
+		fields = append(fields, struct{ name, val string }{"linux.categories entry", cat})
+	}
+	for _, f := range fields {
+		if i := strings.IndexFunc(f.val, isControl); i >= 0 {
+			return fmt.Errorf("appmeta: %s must not contain control characters (found one at byte %d)", f.name, i)
+		}
+	}
+	// The scheme becomes an x-scheme-handler MIME type and a plist URL scheme;
+	// keep it to the characters RFC 3986 allows in one.
+	if c.DeepLinkScheme != "" && !validScheme(c.DeepLinkScheme) {
+		return fmt.Errorf("appmeta: deepLinkScheme %q is not a valid URL scheme", c.DeepLinkScheme)
+	}
 	return nil
+}
+
+func isControl(r rune) bool { return r < 0x20 || r == 0x7f }
+
+// validScheme reports whether s is a syntactically valid URL scheme: an ASCII
+// letter followed by letters, digits, '+', '-' or '.'.
+func validScheme(s string) bool {
+	for i, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case i > 0 && (r >= '0' && r <= '9' || r == '+' || r == '-' || r == '.'):
+		default:
+			return false
+		}
+	}
+	return s != ""
 }
 
 // WriteJSON writes the config as indented JSON.

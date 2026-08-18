@@ -205,6 +205,34 @@ func (w *writer) doc(text string) {
 	}
 }
 
+// comment writes text as indent-prefixed // comment lines, one per physical
+// line. Splitting on the newline here is a security boundary, not cosmetics:
+// doc text comes from parsed JSDoc and from hand-authored manifests, and a
+// comment is the one emitted context that is not a quoted literal. Without the
+// split, a newline in the text would end the // and the rest would land as
+// top-level Go source — a wrappable component could inject an init() that runs
+// at the consumer's build time. It also renders a genuinely multi-line
+// description as the several comment lines it is.
+func (w *writer) comment(indent, text string) {
+	for _, l := range strings.Split(text, "\n") {
+		l = strings.TrimRight(strings.TrimRight(l, "\r"), " ")
+		if l == "" {
+			w.line("%s//", indent)
+			continue
+		}
+		w.line("%s// %s", indent, l)
+	}
+}
+
+// inlineComment flattens text destined for a trailing // comment on a line
+// that carries code before it, where a newline cannot be turned into a fresh
+// comment line without breaking that code. Same boundary as comment.
+func inlineComment(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	return strings.ReplaceAll(s, "\n", " ")
+}
+
 func emitShared(m *Manifest, opts Options) ([]byte, error) {
 	var w writer
 	pkgDoc := opts.PackageDoc
@@ -319,7 +347,7 @@ func emitComponent(w *writer, c Component, opts Options) error {
 		w.line("const (")
 		for _, s := range c.Slots {
 			if s.Doc != "" {
-				w.line("\t// %s", s.Doc)
+				w.comment("\t", s.Doc)
 			}
 			w.line("\t%s = %s", slotIdent(name, s), strconv.Quote(s.Name))
 		}
@@ -333,7 +361,7 @@ func emitComponent(w *writer, c Component, opts Options) error {
 		w.line("const (")
 		for _, e := range c.Events {
 			if e.Doc != "" {
-				w.line("\t// %s", e.Doc)
+				w.comment("\t", e.Doc)
 			}
 			w.line("\t%sEvent%s = %s", name, exportedName(e.Name), strconv.Quote(e.Name))
 		}
@@ -353,7 +381,7 @@ func emitComponent(w *writer, c Component, opts Options) error {
 			w.line("type %s struct {", typeName)
 			for _, f := range e.Detail {
 				if f.Doc != "" {
-					w.line("\t// %s", f.Doc)
+					w.comment("\t", f.Doc)
 				}
 				w.line("\t%s %s `json:%s`", exportedName(f.Name), f.GoType, strconv.Quote(f.Name))
 			}
@@ -377,11 +405,11 @@ component turns up here rather than as styling that silently stops working.`,
 			line := "\t" + strconv.Quote(p.Name) + ","
 			switch {
 			case p.Doc != "" && p.Default != "":
-				line += fmt.Sprintf(" // %s (defaults to %s)", p.Doc, p.Default)
+				line += fmt.Sprintf(" // %s (defaults to %s)", inlineComment(p.Doc), inlineComment(p.Default))
 			case p.Doc != "":
-				line += " // " + p.Doc
+				line += " // " + inlineComment(p.Doc)
 			case p.Default != "":
-				line += " // defaults to " + p.Default
+				line += " // defaults to " + inlineComment(p.Default)
 			}
 			w.line("%s", line)
 		}
@@ -519,13 +547,11 @@ func emitPropDoc(w *writer, p Prop, opts Options) {
 	if p.Deprecated != "" {
 		lines = append(lines, "", "Deprecated: "+p.Deprecated)
 	}
-	for _, l := range lines {
-		if l == "" {
-			w.line("\t//")
-			continue
-		}
-		w.line("\t// %s", l)
-	}
+	// A single entry can itself be multi-line — p.Doc is joined JSDoc lines and
+	// p.Default is a possibly multi-line template literal — so route through
+	// comment, which re-prefixes every physical line and keeps a newline from
+	// escaping into top-level Go source.
+	w.comment("\t", strings.Join(lines, "\n"))
 }
 
 func lowerFirst(s string) string {

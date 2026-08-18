@@ -280,10 +280,24 @@ func (s *Server) NewSession(w http.ResponseWriter, r *http.Request) *Session {
 	return sess
 }
 
-// evict closes the least useful sessions to get back under the cap.
+// evictionBatch is how far under the cap eviction aims, as a fraction of
+// MaxSessions. Evicting one session per render at the cap costs an O(n log n)
+// rank of the whole table on every render — 1.5ms per page at the default
+// 10,000, which turns the backstop into an amplifier for exactly the overload
+// it exists to absorb. Retiring the ~1% longest-idle disconnected sessions in
+// one pass amortises that rank across the next ~1% of renders; the extras are
+// the ones the very next renders would have evicted anyway, and connected
+// sessions are never part of the surplus.
+const evictionBatch = 100
+
+// evict closes the least useful sessions to get back under the cap, plus a
+// margin of the longest-idle disconnected ones so the rank is not repaid on
+// the very next render (see evictionBatch).
 //
 // A session with a browser attached is someone looking at a page, so idle ones
-// go first and, among those, the ones idle longest.
+// go first and, among those, the ones idle longest. Only the first n closes —
+// the ones the cap strictly requires — may take a connected session; the
+// batch margin never does.
 func (s *Server) evict(candidates []*Session, n int) {
 	type scored struct {
 		sess      *Session
@@ -303,9 +317,13 @@ func (s *Server) evict(candidates []*Session, n int) {
 		return ranked[i].idleSince.Before(ranked[j].idleSince)
 	})
 
+	want := n
+	if batch := s.opts.MaxSessions / evictionBatch; batch > want {
+		want = batch
+	}
 	closed := 0
 	for _, r := range ranked {
-		if closed >= n {
+		if closed >= want || (closed >= n && r.connected) {
 			break
 		}
 		r.sess.Close()

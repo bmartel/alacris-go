@@ -7,12 +7,44 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
+
+// requireHTTPS refuses a plaintext update URL. The manifest is not signed —
+// only the artifact bytes are — so its authenticity rests on TLS. Over plain
+// http a network attacker could serve a manifest that points a bumped version
+// number at an older, still-validly-signed build and roll the app back to a
+// known-vulnerable release, or suppress updates outright. Loopback is allowed
+// so tests and local mirrors can serve over http.
+func requireHTTPS(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("app: updater URL %q: %w", raw, err)
+	}
+	if u.Scheme == "https" {
+		return nil
+	}
+	if u.Scheme == "http" && isLoopbackHost(u.Hostname()) {
+		return nil
+	}
+	return fmt.Errorf("app: updater URL %q must use https", raw)
+}
+
+func isLoopbackHost(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
+}
 
 // Manifest is the JSON an updater endpoint serves. The shape matches
 // Tauri's updater so a GitHub Release can host one file both tools read.
@@ -81,6 +113,9 @@ func (u Updater) Check(ctx context.Context) (*Update, error) {
 	if len(u.PublicKey) != ed25519.PublicKeySize {
 		return nil, fmt.Errorf("app: Updater.PublicKey is required")
 	}
+	if err := requireHTTPS(u.Endpoint); err != nil {
+		return nil, err
+	}
 	client := u.HTTP
 	if client == nil {
 		client = http.DefaultClient
@@ -128,6 +163,9 @@ func (u Updater) Apply(ctx context.Context, upd *Update) error {
 	}
 	if len(u.PublicKey) != ed25519.PublicKeySize {
 		return fmt.Errorf("app: Updater.PublicKey is required")
+	}
+	if err := requireHTTPS(upd.URL); err != nil {
+		return err
 	}
 	client := u.HTTP
 	if client == nil {

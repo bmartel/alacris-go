@@ -11,6 +11,35 @@ import (
 	"testing"
 )
 
+// The manifest is unsigned, so its authenticity rests on TLS. A plaintext
+// endpoint (except loopback) is refused before any bytes are fetched, which is
+// what keeps a network attacker from advertising a bumped version that points
+// at an older validly-signed artifact.
+func TestCheckRequiresHTTPS(t *testing.T) {
+	t.Parallel()
+	pub, _, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := Updater{Endpoint: "http://updates.example.com/latest.json", PublicKey: pub, Current: "0.1.0"}
+	if _, err := u.Check(context.Background()); err == nil {
+		t.Fatal("Check accepted a plaintext non-loopback endpoint")
+	}
+}
+
+func TestApplyRequiresHTTPS(t *testing.T) {
+	t.Parallel()
+	pub, _, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := Updater{PublicKey: pub}
+	upd := &Update{URL: "http://dl.example.com/app.tar.gz", Version: "9.9.9"}
+	if err := u.Apply(context.Background(), upd); err == nil {
+		t.Fatal("Apply accepted a plaintext non-loopback artifact URL")
+	}
+}
+
 func TestVerifyRoundTrip(t *testing.T) {
 	t.Parallel()
 	pub, priv, err := ed25519.GenerateKey(nil)
