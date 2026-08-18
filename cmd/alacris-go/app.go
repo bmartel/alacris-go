@@ -67,7 +67,13 @@ func appInit(args []string, stdout, stderr io.Writer) error {
 	if fs.NArg() > 0 {
 		dir = fs.Arg(0)
 	}
-	opts := appmeta.InitOptions{Dir: dir, Name: *name, Identifier: *id, Module: *mod}
+	opts := appmeta.InitOptions{
+		Dir:            dir,
+		Name:           *name,
+		Identifier:     *id,
+		Module:         *mod,
+		AlacrisVersion: appmeta.RunningVersion(),
+	}
 	if err := appmeta.Init(opts); err != nil {
 		return err
 	}

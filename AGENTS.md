@@ -189,6 +189,10 @@ taken back once `proxy.golang.org` has cached it.
 - The module version is a **git tag**, created by semantic-release. The
   `version` in [package.json](package.json) is never read — that file exists
   only to hold the release tooling, and nothing here is published to npm.
+- The nested `app` module is tagged `app/vX.Y.Z` at the same commit as `vX.Y.Z`.
+  Root `go.mod` requires a resolvable version (a pseudo-version, or `app/vX.Y.Z`
+  once that tag exists). A local `replace` covers in-repo development; consumers
+  never see it. Do not require `v0.0.0`.
 - `CHANGELOG.md` is generated. Do not edit it.
 
 ## Commits decide the version
@@ -219,6 +223,7 @@ is not a mistake; leave it alone until then.
 | A `perf:` commit with no benchmark | Numbers before and after | Otherwise it is a `refactor:` |
 | Adding a runtime dependency casually | Justify it, or put it in `internal/` | The public packages carry `templ` and nothing else |
 | Adding webview or CGO to the root `go.mod` | Put it in `app/` | Nested module, `-tags desktop` |
+| `require .../app v0.0.0` | a pseudo-version or `app/vX.Y.Z` | A `replace` in this repo is ignored by consumers |
 | A Wails/Fyne/JS `invoke` bridge | `live.On` plus `app.SaveFile` | The live protocol is the interop |
 | Bumping a major for a breaking change | `!` and let it cut a minor | Below 1.0.0 by deliberate configuration |
 

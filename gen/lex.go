@@ -384,54 +384,33 @@ func (l *lexer) lexTemplate() (token, error) {
 }
 
 // skipSubstitution consumes a template substitution up to its closing brace,
-// having already consumed "${".
+// having already consumed "${". The body is tokenised with next() so a regex
+// literal (including one that contains a quote) is not read as a string.
 func (l *lexer) skipSubstitution(openedAt int) error {
+	saved := l.prev
+	defer func() { l.prev = saved }()
+	// After "${", a regex is allowed the same way it is after "{".
+	l.prev = token{kind: tPunct, val: "{"}
 	depth := 1
 	for {
-		if l.pos >= len(l.src) {
+		tok, err := l.next()
+		if err != nil {
+			return err
+		}
+		if tok.kind == tEOF {
 			return l.errf(openedAt, "unterminated template substitution")
 		}
-		switch c := l.src[l.pos]; c {
-		case '{':
+		if tok.kind != tPunct {
+			continue
+		}
+		switch tok.val {
+		case "{":
 			depth++
-			l.pos++
-		case '}':
+		case "}":
 			depth--
-			l.pos++
 			if depth == 0 {
 				return nil
 			}
-		case '\'', '"':
-			if _, err := l.lexString(c); err != nil {
-				return err
-			}
-		case '`':
-			if _, err := l.lexTemplate(); err != nil {
-				return err
-			}
-		case '/':
-			switch l.peekAt(1) {
-			case '/':
-				for l.pos < len(l.src) && l.src[l.pos] != '\n' {
-					l.pos++
-				}
-			case '*':
-				l.pos += 2
-				for l.pos < len(l.src) && !(l.src[l.pos] == '*' && l.peekAt(1) == '/') {
-					if l.src[l.pos] == '\n' {
-						l.line++
-					}
-					l.pos++
-				}
-				l.pos += 2
-			default:
-				l.pos++
-			}
-		case '\n':
-			l.line++
-			l.pos++
-		default:
-			l.pos++
 		}
 	}
 }

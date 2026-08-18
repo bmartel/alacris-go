@@ -63,3 +63,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+      # Consumers of github.com/bmartel/alacris-go/app need a tag app/vX.Y.Z.
+      # The root module's replace => ./app is ignored outside this repo.
+      - name: Tag the app nested module
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+          if [ -z "${VERSION}" ]; then
+            echo "No vX.Y.Z tag on HEAD; no release this run"
+            exit 0
+          fi
+          if git ls-remote --exit-code origin "refs/tags/app/${VERSION}" >/dev/null 2>&1; then
+            echo "app/${VERSION} already exists"
+            exit 0
+          fi
+          git tag "app/${VERSION}"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "app/${VERSION}"
