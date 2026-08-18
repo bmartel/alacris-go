@@ -275,7 +275,9 @@ live.On(srv, actionAdd, func(c *live.Ctx, d components.BoardAddDetail) error {
 ## Desktop apps
 
 Same live handler, in an OS webview. Nested module
-`github.com/bmartel/alacris-go/app`. Rebuild with `-tags desktop`.
+`github.com/bmartel/alacris-go/app`, tagged `app/vX.Y.Z` in lockstep with the
+root module. `go get github.com/bmartel/alacris-go/app@vX.Y.Z`, not `v0.0.0`.
+Rebuild with `-tags desktop`.
 
 ```go
 live.New(live.Options{CookieSecure: live.SecureNever})

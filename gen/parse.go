@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -102,7 +103,14 @@ func ParseSource(name, src string) ([]Component, error) {
 		if ok {
 			c.Source = fmt.Sprintf("%s:%d", name, t.line)
 			if hasDoc {
-				if err := applyDoc(&c, parseDoc(docTok.val, docTok.line)); err != nil {
+				doc := parseDoc(docTok.val, docTok.line)
+				if err := applyDoc(&c, doc); err != nil {
+					var u unknownPropError
+					if errors.As(err, &u) {
+						if tag, line, found := suggestDocOwner(p, i, doc); found {
+							return nil, fmt.Errorf("%s:%d: doc block documents props not on <%s>; did you mean <%s> at line %d?", name, docTok.line, c.Tag, tag, line)
+						}
+					}
 					return nil, fmt.Errorf("%s:%d: <%s>: %w", name, docTok.line, c.Tag, err)
 				}
 				documented[c.Tag] = true
@@ -306,8 +314,10 @@ func applyPropDoc(c *Component, t docTag) error {
 	if idx < 0 {
 		// A documented prop that define() does not declare is a rename that
 		// was only half done; generating a field for it would render an
-		// attribute the component ignores.
-		return fmt.Errorf("line %d: %q is not one of the props declared by define()", t.line, name)
+		// attribute the component ignores. It is also the failure when a
+		// doc block is attached to the next define() rather than the one
+		// it was written for — suggestDocOwner turns that into a better error.
+		return unknownPropError{line: t.line, name: name}
 	}
 
 	if hasType {
@@ -321,6 +331,74 @@ func applyPropDoc(c *Component, t docTag) error {
 		c.Props[idx].Doc = d
 	}
 	return nil
+}
+
+// unknownPropError is a @prop name that define() does not declare. Usually a
+// half-done rename; sometimes a doc block that belongs to a later define().
+type unknownPropError struct {
+	line int
+	name string
+}
+
+func (e unknownPropError) Error() string {
+	return fmt.Sprintf("line %d: %q is not one of the props declared by define()", e.line, e.name)
+}
+
+func docPropNames(doc docBlock) []string {
+	var names []string
+	for _, t := range doc.all("prop", "property") {
+		_, rest, _ := splitType(t.text)
+		name, _ := splitPropIdent(rest)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func componentHasAllProps(c Component, names []string) bool {
+	have := make(map[string]bool, len(c.Props))
+	for _, p := range c.Props {
+		have[p.Name] = true
+	}
+	for _, n := range names {
+		if !have[n] {
+			return false
+		}
+	}
+	return len(names) > 0
+}
+
+// suggestDocOwner looks past the define() that just stole a doc block for a
+// later component that actually declares those @prop names.
+func suggestDocOwner(p *parser, afterDefineIdent int, doc docBlock) (tag string, line int, ok bool) {
+	names := docPropNames(doc)
+	if len(names) == 0 {
+		return "", 0, false
+	}
+	saved := p.pos
+	defer func() { p.pos = saved }()
+	for i := afterDefineIdent + 1; i < len(p.toks); i++ {
+		t := p.toks[i]
+		if t.kind != tIdent || t.val != "define" || !p.at(i+1).is("(") {
+			continue
+		}
+		if p.at(i-1).is(".") && p.at(i-2).kind == tIdent && p.at(i-2).val == "customElements" {
+			continue
+		}
+		p.pos = i + 2
+		c, parsed, err := p.parseDefine("")
+		if err != nil || !parsed {
+			continue
+		}
+		if componentHasAllProps(c, names) {
+			return c.Tag, t.line, true
+		}
+		if p.pos > i {
+			i = p.pos - 1
+		}
+	}
+	return "", 0, false
 }
 
 // parseCSSPropTag reads the custom element manifest spelling:

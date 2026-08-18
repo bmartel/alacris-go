@@ -12,6 +12,7 @@ func TestLexerSkipsCodeThatLooksLikeData(t *testing.T) {
 		"const re = /define\\('fake-tag', \\{ props: \\{ x: 1 \\} \\}\\)/g;\n" +
 		"const s  = 'define(\"also-fake\", { props: { y: 2 } })';\n" +
 		"const t  = `define(\"template-fake\", ${ `${ nested }` } { props: { z: 3 } })`;\n" +
+		"const q  = `url(\"${src.replace(/\"/g, '%22')}\")`;\n" +
 		"// define('comment-fake', { props: { a: 1 } })\n" +
 		"/* define('block-fake', { props: { b: 1 } }) */\n" +
 		"const div = a / b / c;\n" +
@@ -27,6 +28,23 @@ func TestLexerSkipsCodeThatLooksLikeData(t *testing.T) {
 			tags = append(tags, c.Tag)
 		}
 		t.Fatalf("found %v, want only real-one", tags)
+	}
+}
+
+func TestLexerSkipsRegexQuoteInsideTemplateSubstitution(t *testing.T) {
+	src := "import { define, html, css } from 'alacris';\n" +
+		"export function ghostFor(src) {\n" +
+		"  return `background-image:url(\"${src.replace(/\"/g, '%22')}\");`;\n" +
+		"}\n" +
+		"define('x-b', { props: { src: '' }, setup({ src }) {\n" +
+		"  return html`<div style=${() => ghostFor(src())}></div>`;\n" +
+		"} });\n"
+	got, err := ParseSource("web/b.js", src)
+	if err != nil {
+		t.Fatalf("ParseSource: %v", err)
+	}
+	if len(got) != 1 || got[0].Tag != "x-b" {
+		t.Fatalf("found %+v, want x-b", got)
 	}
 }
 
@@ -330,6 +348,60 @@ export const Card = define('x-card', { setup });
 	}
 	if got := byTag["x-card"].Doc; got != "Belongs to this one." {
 		t.Errorf("x-card doc = %q", got)
+	}
+}
+
+func TestParseDocBlockDoesNotBindAcrossAnInterveningDefine(t *testing.T) {
+	src := `
+define('x-first', {
+  props: {},
+  setup() { return html` + "`" + `<span>first</span>` + "`" + `; },
+});
+
+/**
+ * The grid.
+ *
+ * @prop {integer} rows how many rows
+ */
+define('x-second', {
+  props: { rows: 0 },
+  setup({ rows }) { return html` + "`" + `<span>${rows}</span>` + "`" + `; },
+});
+`
+	cs, err := ParseSource("web/c.js", src)
+	if err != nil {
+		t.Fatalf("adjacent doc should generate: %v", err)
+	}
+	if len(cs) != 2 {
+		t.Fatalf("found %d components, want 2", len(cs))
+	}
+
+	moved := `
+/**
+ * The grid.
+ *
+ * @prop {integer} rows how many rows
+ */
+define('x-first', {
+  props: {},
+  setup() { return html` + "`" + `<span>first</span>` + "`" + `; },
+});
+
+define('x-second', {
+  props: { rows: 0 },
+  setup({ rows }) { return html` + "`" + `<span>${rows}</span>` + "`" + `; },
+});
+`
+	_, err = ParseSource("web/c.js", moved)
+	if err == nil {
+		t.Fatal("expected an error when the doc block is stolen by x-first")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "doc block documents props not on <x-first>") {
+		t.Errorf("error should name the wrong component: %v", err)
+	}
+	if !strings.Contains(msg, "did you mean <x-second>") {
+		t.Errorf("error should point at the documented component: %v", err)
 	}
 }
 

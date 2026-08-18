@@ -88,6 +88,10 @@ func TestModulePath(t *testing.T) {
 		if strings.Contains(trim, "webview") && !strings.Contains(trim, "// indirect") {
 			t.Fatal("root go.mod must not directly require a webview library; it belongs in the app module")
 		}
+		if strings.HasPrefix(trim, "require github.com/bmartel/alacris-go/app v0.0.0") &&
+			!strings.Contains(trim, "v0.0.0-") {
+			t.Fatal("root go.mod must require a resolvable app version, not v0.0.0")
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"text/template"
 )
@@ -14,6 +15,12 @@ type InitOptions struct {
 	Name       string
 	Identifier string
 	Module     string
+	// AlacrisVersion is the module version to pin in the scaffold go.mod
+	// (v0.7.2). Empty means this CLI is a development build: omit the
+	// require and tell the user to `go get @latest`. Never write v0.0.0 —
+	// that tag does not exist, and a nested-module require of it cannot
+	// be resolved.
+	AlacrisVersion string
 }
 
 // Init writes a desktop-first alacris-go project into dir.
@@ -38,14 +45,18 @@ func Init(opts InitOptions) error {
 	if opts.Module == "" {
 		opts.Module = "example.com/" + slug(opts.Name)
 	}
+	if opts.AlacrisVersion == "v0.0.0" || opts.AlacrisVersion == "(devel)" {
+		opts.AlacrisVersion = ""
+	}
 	if err := os.MkdirAll(opts.Dir, 0o755); err != nil {
 		return err
 	}
 	data := scaffoldData{
-		Name:       opts.Name,
-		Identifier: opts.Identifier,
-		Module:     opts.Module,
-		Slug:       slug(opts.Name),
+		Name:           opts.Name,
+		Identifier:     opts.Identifier,
+		Module:         opts.Module,
+		Slug:           slug(opts.Name),
+		AlacrisVersion: opts.AlacrisVersion,
 	}
 	files := map[string]string{
 		FileName:            appJSON,
@@ -83,7 +94,7 @@ func Init(opts InitOptions) error {
 }
 
 type scaffoldData struct {
-	Name, Identifier, Module, Slug string
+	Name, Identifier, Module, Slug, AlacrisVersion string
 }
 
 func (s scaffoldData) Package() string {
@@ -107,11 +118,14 @@ const goMod = `module {{.Module}}
 
 go 1.26.5
 
+require github.com/a-h/templ v0.3.1020
+{{- if .AlacrisVersion }}
+
 require (
-	github.com/a-h/templ v0.3.1020
-	github.com/bmartel/alacris-go v0.0.0
-	github.com/bmartel/alacris-go/app v0.0.0
+	github.com/bmartel/alacris-go {{.AlacrisVersion}}
+	github.com/bmartel/alacris-go/app {{.AlacrisVersion}}
 )
+{{- end }}
 `
 
 const mainGo = `package main
@@ -201,3 +215,18 @@ define('hello-world', {
   setup: ({ name }) => html` + "`" + `<p>Hello, ${name}!</p>` + "`" + `,
 });
 `
+
+// RunningVersion is the alacris-go version this CLI was built from, or empty
+// for a development tree. Used to pin the scaffold go.mod so `app init`
+// does not write v0.0.0, which consumers cannot resolve.
+func RunningVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	v := info.Main.Version
+	if v == "" || v == "(devel)" || v == "v0.0.0" {
+		return ""
+	}
+	return v
+}

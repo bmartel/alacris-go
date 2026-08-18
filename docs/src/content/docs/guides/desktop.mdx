@@ -46,6 +46,10 @@ It has its own `go.mod`. The root module still depends on `templ` and nothing
 else; CGO and the webview library live only here. A project that never opens a
 window never sees them.
 
+Releases tag `app/vX.Y.Z` at the same commit as `vX.Y.Z`. `go get` that version,
+not `v0.0.0`. A `replace` in this repository's `go.mod` is ignored when the
+module is a dependency.
+
 ```
 go get github.com/bmartel/alacris-go
 go get github.com/bmartel/alacris-go/app
