@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.7.3](https://github.com/bmartel/alacris-go/compare/v0.7.2...v0.7.3) (2026-08-18)
+
+### Bug Fixes
+
+* make the generator and nested app module usable from a consumer app ([74ab9b9](https://github.com/bmartel/alacris-go/commit/74ab9b9ea95ca97a595bed9462ad899fb75cc83a)), closes [#2](https://github.com/bmartel/alacris-go/issues/2) [#3](https://github.com/bmartel/alacris-go/issues/3) [#4](https://github.com/bmartel/alacris-go/issues/4)
+
 ## [0.7.2](https://github.com/bmartel/alacris-go/compare/v0.7.1...v0.7.2) (2026-08-18)
 
 ### Bug Fixes
