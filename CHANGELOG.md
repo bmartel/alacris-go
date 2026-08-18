@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.7.2](https://github.com/bmartel/alacris-go/compare/v0.7.1...v0.7.2) (2026-08-18)
+
+### Bug Fixes
+
+* authenticate the single-instance channel ([121db1f](https://github.com/bmartel/alacris-go/commit/121db1fa29e3cd7f8f10846fc25c304ca33d80ac))
+* bound pointer indirection in EncodeProp ([6442d93](https://github.com/bmartel/alacris-go/commit/6442d9348b75733694a8e7b3aad7d78ca4240950))
+* deliver live patches under the session lock ([2dce0fe](https://github.com/bmartel/alacris-go/commit/2dce0fe44ea41dc5509c8ab583d2677f464c991e))
+* keep the Windows instance lock off the handover bytes ([306bdb3](https://github.com/bmartel/alacris-go/commit/306bdb3777cf01def7b3fa9071ea41fbc7fe8393))
+* re-prefix every line of a generated doc comment ([c1470a8](https://github.com/bmartel/alacris-go/commit/c1470a8e46b22f69a1b691620a9b3244741e703e))
+* reject control characters in app bundle metadata ([68ba772](https://github.com/bmartel/alacris-go/commit/68ba772cf098146f4ff41cf5fe12db672712a3ae))
+* restrict OpenURL to safe schemes and require https for updates ([974b714](https://github.com/bmartel/alacris-go/commit/974b71470da5f7b629c4b840b096f47604e285ba))
+
+### Performance
+
+* batch live session eviction at the cap ([fd1ecae](https://github.com/bmartel/alacris-go/commit/fd1ecae762f55264283838007c2756cc4932ebd4))
+
 ## [0.7.1](https://github.com/bmartel/alacris-go/compare/v0.7.0...v0.7.1) (2026-08-17)
 
 ### Bug Fixes
