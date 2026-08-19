@@ -19,10 +19,10 @@ import (
 // bumping, which is exactly the moment to check the changelog.
 var vendoredHashes = map[string]string{
 	"alacris.dev.js":                        "e6b6dd7fadb8ad6bf35e7bf47924104e3b450298ab27dff2450324a2f4ad5586",
-	"alacris.js":                            "dabe211572e78c0ccda35be3af364b9c14977b539cd00d709fe8097c95610188",
-	"context.js":                            "24407e2d094023e53c9e3fc026d1aecde182fc34b1aa1a4658a919adf91e32c3",
-	"signal.js":                             "05c8c71ea849ca984e8aafa7598c6d02684b0bfa6754a9359ed97545178a4595",
-	"store.js":                              "357f36e96fa45f78582e52a89f889ce613ff35eb170914c0c94c8685f4276d53",
+	"alacris.js":                            "4bfd289b8f7cb17eb93d1593964ad098032082c3d17fbad29ad2281faf912d47",
+	"context.js":                            "9f6faf8a48d5153b1caf83aacf0f0264c82108622cf9d09b7bcfb7547a3c0927",
+	"signal.js":                             "4c37780e666a0b3d4397b961c2f69fa7fd6c8632f3094c3bd60e65545e3b0f65",
+	"store.js":                              "0416469dadd5e849649e741c6300115e25691f1512f4f674aa253cdfa3a2f855",
 	"ui/components/base.js":                 "d50b0de6c32d2249e0f3646249546806283e254385ae9c719ede9eb5b9d0042a",
 	"ui/components/ui-accordion-item.js":    "3dd4b27507c2c99873710f8992b203b0d4884ca7b25defc119eda1a925ab599b",
 	"ui/components/ui-accordion.js":         "030b507720c34e5b10e65a86983834af938b9d92e5e834c22926b4f98399e634",

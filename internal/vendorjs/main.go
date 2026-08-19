@@ -61,7 +61,7 @@ func main() {
 	log.SetPrefix("vendorjs: ")
 
 	var (
-		version   = flag.String("v", "", "alacris version to vendor (default: RuntimeVersion)")
+		version   = flag.String("v", "", "@alacris/core version to vendor (default: RuntimeVersion)")
 		uiVersion = flag.String("ui", "", "@alacris/ui version to vendor (default: UIVersion)")
 		check     = flag.Bool("check", false, "report differences without writing")
 		bump      = flag.Bool("bump", false, "vendor the latest releases and rewrite version pins and hashes")
@@ -99,7 +99,7 @@ func main() {
 		}
 	}
 
-	coreFiles, resolved, err := fetch("alacris", coreTarget, corePick, wantedNames())
+	coreFiles, resolved, err := fetch("@alacris/core", coreTarget, corePick, wantedNames())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func main() {
 	}
 
 	if *check && changed > 0 {
-		log.Fatalf("%d vendored file(s) differ from alacris@%s / @alacris/ui@%s", changed, resolved, uiResolved)
+		log.Fatalf("%d vendored file(s) differ from @alacris/core@%s / @alacris/ui@%s", changed, resolved, uiResolved)
 	}
 
 	if *bump {
@@ -166,9 +166,9 @@ func main() {
 			log.Fatal(err)
 		}
 		if resolved == current && uiResolved == currentUI && changed == 0 {
-			fmt.Printf("\nalacris@%s and @alacris/ui@%s are already vendored and current\n", current, currentUI)
+			fmt.Printf("\n@alacris/core@%s and @alacris/ui@%s are already vendored and current\n", current, currentUI)
 		} else {
-			fmt.Printf("\nbumped alacris %s -> %s, @alacris/ui %s -> %s; pins updated\n",
+			fmt.Printf("\nbumped @alacris/core %s -> %s, @alacris/ui %s -> %s; pins updated\n",
 				current, resolved, currentUI, uiResolved)
 		}
 		return
@@ -180,7 +180,7 @@ func main() {
 		if err := gofmtFile("assets_test.go"); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("\nvendored alacris@%s and @alacris/ui@%s; hashes updated\n", resolved, uiResolved)
+		fmt.Printf("\nvendored @alacris/core@%s and @alacris/ui@%s; hashes updated\n", resolved, uiResolved)
 	}
 }
 
