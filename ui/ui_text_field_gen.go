@@ -64,6 +64,7 @@ var TextFieldVars = alacris.Vars(
 	"--ui-text-field-radius",
 	"--ui-text-field-font",
 	"--ui-text-field-height",
+	"--ui-text-field-stepper-width",
 )
 
 // TextFieldProps are the props of <ui-text-field>.

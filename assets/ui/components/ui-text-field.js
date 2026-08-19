@@ -37,6 +37,11 @@ const t = vars('ui-text-field', {
   radius: sys.radius.xs,
   font: sys.type.bodyLg,
   height: '56px',
+
+  // The lane reserved at the end of a number field for its stepper. It is a
+  // variable because the buttons are the browser's and their width is not the
+  // same on every engine — a consumer with a denser field can shorten it.
+  stepperWidth: '18px',
 });
 
 const styles = css`
@@ -217,6 +222,43 @@ const styles = css`
   .filled.has-label textarea { padding-top: ${sys.space(7)}; }
   .with-leading.multiline .field { padding-inline-start: ${sys.space(4)}; }
   .with-leading.multiline textarea { padding-inline-start: 0; }
+  /* A number field's stepper gets its own lane.
+  
+     The browser draws the spin buttons inside the input's content box, at the
+     inline end, and they are painted over whatever is already there: the
+     floating label, the placeholder, and the value itself once it is long
+     enough. On a narrow field it lands squarely on the label — a chevron
+     sitting on the word it is meant to sit beside.
+  
+     So the end of the field is reserved for it. The input is padded by the
+     stepper's width, and the label and legend are shortened by the same
+     amount so a long label ellipsises before it reaches the buttons rather
+     than sliding underneath them. appearance:none does not help here: it
+     removes the field's own chrome and leaves the ::-webkit-*-spin-button
+     alone, which is why this needs saying explicitly. */
+  .numeric input { padding-inline-end: ${t.stepperWidth}; }
+  .numeric .label {
+    max-inline-size: calc(100% - ${sys.space(4)} - ${t.stepperWidth});
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .numeric legend { max-inline-size: calc(100% - ${t.stepperWidth}); }
+  .numeric input::-webkit-outer-spin-button,
+  .numeric input::-webkit-inner-spin-button {
+    /* Held at the end of the reserved lane rather than tight against the
+       text, and always visible: a stepper that appears on hover is a control
+       nobody knows is there. */
+    margin: 0;
+    margin-inline-start: ${sys.space(2)};
+    opacity: 1;
+  }
+  /* Firefox draws no buttons at all unless asked, so the reserved lane would
+     be an empty gap. Asking for them makes the two engines agree. */
+  @supports (-moz-appearance: number-input) {
+    .numeric input { -moz-appearance: number-input; }
+  }
+
   input::placeholder, textarea::placeholder { color: ${t.labelFg}; opacity: 0; transition: opacity ${sys.duration.short2} linear; }
   .floating input::placeholder, .floating textarea::placeholder { opacity: 1; }
 
@@ -255,7 +297,8 @@ define('ui-text-field', {
     const cls = computed(() =>
       ['root', variant(), floating() && 'floating', focused() && 'focused',
        error() && 'error', disabled() && 'disabled', label() && 'has-label',
-       hasLeading() && 'with-leading', type() === 'textarea' && 'multiline'].filter(Boolean).join(' '));
+       hasLeading() && 'with-leading', type() === 'textarea' && 'multiline',
+       type() === 'number' && 'numeric'].filter(Boolean).join(' '));
 
     const onInput = (e) => {
       value.set(e.target.value);
