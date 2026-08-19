@@ -36,7 +36,7 @@ var IconVars = alacris.Vars(
 // left off the element, so the component keeps its default. To send a zero
 // value deliberately, set it with Prop on the returned element.
 type IconProps struct {
-	// Name is registry name (see util/icons.js); empty renders the slot.
+	// Name is registry name; empty renders the slot.
 	//
 	// The component defaults it to ''.
 	Name string
@@ -55,6 +55,11 @@ type IconProps struct {
 // Icon renders <ui-icon>.
 //
 // <ui-icon> — an icon from the registry, or any slotted SVG.
+//
+// Names are kebab-case (`arrow-forward`). Underscores are accepted
+// (`arrow_forward`). `iconNames()` lists the built-in set; apps add more
+// with `registerIcons({ name: 'M…' })`. An unknown name logs a warning
+// once and renders a placeholder instead of an empty hole.
 func Icon(p IconProps) *alacris.Element {
 	e := alacris.E(IconTag)
 	if p.Name != "" {
