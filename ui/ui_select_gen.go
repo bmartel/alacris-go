@@ -91,6 +91,17 @@ type SelectProps struct {
 	//
 	// The component defaults it to ''.
 	Placeholder string
+
+	// Search is auto | always | never; 'auto' shows the filter once there are searchThreshold options or more.
+	//
+	// The component defaults it to 'auto'.
+	Search string
+
+	// The component defaults it to 8.
+	SearchThreshold float64
+
+	// The component defaults it to 'Search'.
+	SearchPlaceholder string
 }
 
 // Select renders <ui-select>.
@@ -108,6 +119,12 @@ type SelectProps struct {
 // panel only — an enclosing dialog keeps its own Escape for a second press,
 // typing jumps to the next option starting with that letter. The panel closes
 // on outside pointerdown and returns focus to the field.
+//
+// Past a handful of options the panel gets a filter field, because scrolling
+// is not a way to find one entry among several hundred. It takes focus when
+// the panel opens, the arrows and Enter work from it, and the options it
+// hides are hidden from the keyboard too. The query is dropped when the panel
+// closes.
 //
 // Note: the combobox's aria-activedescendant references option ids in the
 // host's light DOM; the options also carry aria-selected for AT that walks
@@ -134,6 +151,15 @@ func Select(p SelectProps) *alacris.Element {
 	}
 	if p.Placeholder != "" {
 		e.Prop("placeholder", p.Placeholder)
+	}
+	if p.Search != "" && p.Search != "auto" {
+		e.Prop("search", p.Search)
+	}
+	if p.SearchThreshold != 0 && p.SearchThreshold != 8 {
+		e.Prop("searchThreshold", p.SearchThreshold)
+	}
+	if p.SearchPlaceholder != "" && p.SearchPlaceholder != "Search" {
+		e.Prop("searchPlaceholder", p.SearchPlaceholder)
 	}
 	return e
 }
@@ -177,3 +203,12 @@ func (h SelectHandle) SetName(v string) { h.handle.Set("name", v) }
 
 // SetPlaceholder writes the placeholder prop.
 func (h SelectHandle) SetPlaceholder(v string) { h.handle.Set("placeholder", v) }
+
+// SetSearch writes the search prop.
+func (h SelectHandle) SetSearch(v string) { h.handle.Set("search", v) }
+
+// SetSearchThreshold writes the searchThreshold prop.
+func (h SelectHandle) SetSearchThreshold(v float64) { h.handle.Set("searchThreshold", v) }
+
+// SetSearchPlaceholder writes the searchPlaceholder prop.
+func (h SelectHandle) SetSearchPlaceholder(v string) { h.handle.Set("searchPlaceholder", v) }
