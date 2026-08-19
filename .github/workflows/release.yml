@@ -19,6 +19,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # The concurrency group above does not cancel in progress, so a hung
+    # release blocks every release behind it for as long as it hangs.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:

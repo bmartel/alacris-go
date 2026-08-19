@@ -15,6 +15,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -44,6 +45,7 @@ jobs:
 
   generated:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -77,6 +79,7 @@ jobs:
   browser:
     name: Browser
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -93,7 +96,10 @@ jobs:
       # cover the claim that justifies the live layer — that an update writes
       # one property and leaves the DOM the user is touching alone — because
       # that is real-DOM behaviour. This job is that claim.
+      # `--with-deps` is apt underneath, so this inherits the hang described
+      # on the desktop job. Worst successful run is 383s.
       - name: Install
+        timeout-minutes: 12
         working-directory: e2e
         run: |
           npm ci
@@ -119,6 +125,7 @@ jobs:
 
   vendored:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -138,6 +145,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -145,7 +153,13 @@ jobs:
           go-version: stable
           check-latest: true
 
+      # Ubuntu's apt mirror is bimodal: this step takes either half a minute
+      # or the better part of ten, and when it goes wrong it does not fail, it
+      # hangs — which the six-hour default turns into a job nobody can tell
+      # from a slow one. The bound is above every run that has ever succeeded
+      # (588s is the worst) and far below a wasted afternoon. Re-run the job.
       - name: Linux webview headers
+        timeout-minutes: 12
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -155,6 +169,7 @@ jobs:
           echo "PKG_CONFIG_PATH=$HOME/.local/pkgconfig" >> "$GITHUB_ENV"
 
       - name: Windows gcc
+        timeout-minutes: 12
         if: runner.os == 'Windows'
         run: choco install mingw -y --no-progress
 

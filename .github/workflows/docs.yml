@@ -25,6 +25,7 @@ jobs:
   build:
     name: Build the site
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
 
@@ -64,6 +65,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write # deploy to Pages
       id-token: write # verify the deployment came from this workflow
