@@ -22,6 +22,7 @@ permissions:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -59,6 +60,7 @@ jobs:
           go test -race ./...
 
       - name: Browser tests
+        timeout-minutes: 20
         if: steps.bump.outputs.changed == 'true'
         run: |
           cd e2e
