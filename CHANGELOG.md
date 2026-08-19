@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.8.1](https://github.com/bmartel/alacris-go/compare/v0.8.0...v0.8.1) (2026-08-19)
+
+### Bug Fixes
+
+* **app:** an inset title bar you can drag by ([7281db8](https://github.com/bmartel/alacris-go/commit/7281db8764a081d946903789a76fe6a4d1fdf500))
+* **app:** double clicking an inset title bar zooms the window ([c257c1b](https://github.com/bmartel/alacris-go/commit/c257c1bf75e48767c2e4f9413040f835ff03e3dd))
+
 ## [0.8.0](https://github.com/bmartel/alacris-go/compare/v0.7.3...v0.8.0) (2026-08-19)
 
 ### Features
