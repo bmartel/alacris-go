@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.11.1](https://github.com/bmartel/alacris-go/compare/v0.11.0...v0.11.1) (2026-08-19)
+
+### Bug Fixes
+
+* bound host shutdown so a live stream cannot hang quit ([2fa7952](https://github.com/bmartel/alacris-go/commit/2fa79522557561b34b83abe72bd43e1573fed3d4))
+
 ## [0.11.0](https://github.com/bmartel/alacris-go/compare/v0.10.0...v0.11.0) (2026-08-19)
 
 ### Features
