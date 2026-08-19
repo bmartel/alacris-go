@@ -222,21 +222,22 @@ const styles = css`
   .filled.has-label textarea { padding-top: ${sys.space(7)}; }
   .with-leading.multiline .field { padding-inline-start: ${sys.space(4)}; }
   .with-leading.multiline textarea { padding-inline-start: 0; }
-  /* A number field's stepper gets its own lane.
-  
-     The browser draws the spin buttons inside the input's content box, at the
-     inline end, and they are painted over whatever is already there: the
-     floating label, the placeholder, and the value itself once it is long
-     enough. On a narrow field it lands squarely on the label — a chevron
-     sitting on the word it is meant to sit beside.
-  
-     So the end of the field is reserved for it. The input is padded by the
-     stepper's width, and the label and legend are shortened by the same
-     amount so a long label ellipsises before it reaches the buttons rather
-     than sliding underneath them. appearance:none does not help here: it
-     removes the field's own chrome and leaves the ::-webkit-*-spin-button
-     alone, which is why this needs saying explicitly. */
-  .numeric input { padding-inline-end: ${t.stepperWidth}; }
+  /* A number field's spin buttons are laid out at the inline end of the
+     input's *content* box rather than at the edge of the field. That is the
+     opposite of what it looks like, and it is why the obvious fix makes
+     things worse: padding the input to reserve a lane for them moves the end
+     of the content box inward and takes the buttons with it, so they land
+     further onto the label than they started. That is what shipped in 0.2.3
+     — a chevron sitting on the "n" of "Min", clipped to a single arrow —
+     and it was a regression, not the original complaint.
+
+     They cannot be moved out of the way either: margin-inline-end on the
+     pseudo-element is ignored. So they are left where the browser puts them,
+     at the end of the field where there is already room, and only the label
+     and the legend are shortened, so a long one ellipsises before it reaches
+     the buttons rather than sliding underneath them. appearance:none does
+     not help here: it removes the field's own chrome and leaves the
+     ::-webkit-*-spin-button alone, which is why this needs saying. */
   .numeric .label {
     max-inline-size: calc(100% - ${sys.space(4)} - ${t.stepperWidth});
     overflow: hidden;
@@ -246,15 +247,15 @@ const styles = css`
   .numeric legend { max-inline-size: calc(100% - ${t.stepperWidth}); }
   .numeric input::-webkit-outer-spin-button,
   .numeric input::-webkit-inner-spin-button {
-    /* Held at the end of the reserved lane rather than tight against the
-       text, and always visible: a stepper that appears on hover is a control
-       nobody knows is there. */
+    /* Nudged off the text rather than sitting tight against it, and always
+       visible: a stepper that only appears on hover is a control nobody
+       knows is there. */
     margin: 0;
     margin-inline-start: ${sys.space(2)};
     opacity: 1;
   }
-  /* Firefox draws no buttons at all unless asked, so the reserved lane would
-     be an empty gap. Asking for them makes the two engines agree. */
+  /* Firefox draws no buttons at all unless asked. Asking for them makes the
+     two engines agree about what a number field looks like. */
   @supports (-moz-appearance: number-input) {
     .numeric input { -moz-appearance: number-input; }
   }

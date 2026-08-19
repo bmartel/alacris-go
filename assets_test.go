@@ -85,7 +85,7 @@ var vendoredHashes = map[string]string{
 	"ui/components/ui-table-toolbar.js":     "d471ed2d3c4bd1718492403a575c82a63b54fe422bace401221966d883d6125f",
 	"ui/components/ui-table.js":             "300188ec33bb2f7cb6d82f9e311d536b057b2e12eea93ba1fb515ec072ac748b",
 	"ui/components/ui-tabs.js":              "c07f37069943e08a22665844efe44c8547e59394bf5934cbe86b9206ee879fb0",
-	"ui/components/ui-text-field.js":        "309465248db2118d761afa35f292ea1f89a2bb4b99e10121864cf5efc4778b7c",
+	"ui/components/ui-text-field.js":        "d68f491ea91f2e5cf57a94db76b36cc1392daa29cc4b7943b8484c9d9bc84874",
 	"ui/components/ui-text.js":              "307bd7f81c6d7af3b8e82f5b82f2e5c45b60f13f7b453a214c712203f6b4d148",
 	"ui/components/ui-time-picker.js":       "1753f1a976e24f2e08cefda81a5c2f0ee3c38d9a9224456b062c7af4185d6a94",
 	"ui/components/ui-toggle-button.js":     "7e141b6ddee57987acfb9909fa2d9c2ce9b8890af42e5e394d496a7c0f3a2423",
