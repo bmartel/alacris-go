@@ -2,6 +2,80 @@
 
 #import <Cocoa/Cocoa.h>
 
+// A strip of window to drag by.
+//
+// A full-size content view puts the webview over the title bar, and the webview
+// takes the mouse events AppKit would otherwise have dragged with — so the
+// window looks like it has a title bar and cannot be moved by it. This view
+// goes above the webview in the window's frame and hands each press straight
+// back to the window.
+//
+// It sits in the title bar's own height and nowhere else, so it covers the
+// traffic lights' row without covering anything the page draws below it.
+static const NSInteger kAlacrisDragStripTag = 0x41445254;
+
+@interface AlacrisDragStrip : NSView
+@end
+
+@implementation AlacrisDragStrip
+- (void)mouseDown:(NSEvent *)event {
+    // A double click on the title bar is not a drag, it is whatever the person
+    // told System Settings it is — zoom by default, minimise for some, nothing
+    // for others. Dragging on every press swallows it and the window will not
+    // fill the screen.
+    if ([event clickCount] == 2) {
+        NSString *action = [[NSUserDefaults standardUserDefaults]
+            stringForKey:@"AppleActionOnDoubleClick"];
+        if (action == nil) {
+            action = @"Maximize"; // what macOS does when nobody has said
+        }
+        if ([action isEqualToString:@"Minimize"]) {
+            [[self window] miniaturize:nil];
+        } else if ([action isEqualToString:@"Maximize"]) {
+            [[self window] zoom:nil];
+        }
+        return;
+    }
+    [[self window] performWindowDragWithEvent:event];
+}
+- (BOOL)mouseDownCanMoveWindow {
+    return YES;
+}
+// NSView's tag is read-only, so identifying the strip on a later call means
+// answering for it rather than setting it.
+- (NSInteger)tag {
+    return kAlacrisDragStripTag;
+}
+@end
+
+static void alacrisSetDragStrip(NSWindow *w, BOOL wanted) {
+    // The strip goes inside the title bar view, as a sibling of the traffic
+    // lights and underneath them.
+    //
+    // Not in the window's frame view: the buttons live in the title bar's own
+    // container, so `relativeTo:` one of them from the frame names a view that
+    // is not a sibling, AppKit reads that as nil, and the strip lands at the
+    // bottom of the stack under the webview — which drags nothing and,
+    // depending on the order, swallows the close button too.
+    NSButton *close = [w standardWindowButton:NSWindowCloseButton];
+    NSView *titlebar = [close superview];
+    if (!titlebar) return;
+
+    NSView *existing = [titlebar viewWithTag:kAlacrisDragStripTag];
+    if (!wanted) {
+        [existing removeFromSuperview];
+        return;
+    }
+    if (existing) {
+        [existing setFrame:[titlebar bounds]];
+        return;
+    }
+
+    AlacrisDragStrip *v = [[AlacrisDragStrip alloc] initWithFrame:[titlebar bounds]];
+    [v setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [titlebar addSubview:v positioned:NSWindowBelow relativeTo:close];
+}
+
 void appWindowMinimize(void *win) {
     if (!win) return;
     [(__bridge NSWindow *)win miniaturize:nil];
@@ -103,6 +177,8 @@ void appWindowSetTitlebar(void *win, int style) {
     [w setTitlebarAppearsTransparent:bare];
     [w setTitleVisibility:bare ? NSWindowTitleHidden
                                : NSWindowTitleVisible];
+
+    alacrisSetDragStrip(w, bare);
 
     // The traffic lights stay for inset — they are the reason to prefer it —
     // and go for hidden, where the page draws its own.
