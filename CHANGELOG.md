@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.8.2](https://github.com/bmartel/alacris-go/compare/v0.8.1...v0.8.2) (2026-08-19)
+
+### Bug Fixes
+
+* Escape in a popup no longer closes the dialog around it ([73b1477](https://github.com/bmartel/alacris-go/commit/73b147716de8027774dfddd6406769cccbe87267))
+* regenerate the UI wrappers for 0.2.2 ([97b9c6d](https://github.com/bmartel/alacris-go/commit/97b9c6d9cea3eac6a02badb5d8352edcb5cbc202))
+
 ## [0.8.1](https://github.com/bmartel/alacris-go/compare/v0.8.0...v0.8.1) (2026-08-19)
 
 ### Bug Fixes
