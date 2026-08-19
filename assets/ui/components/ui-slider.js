@@ -1,6 +1,15 @@
 // <ui-slider> — a Material slider on native <input type="range">s for
 // keyboard and screen-reader behavior.
 //
+//   <ui-slider label="Volume" value=${volume}
+//              @input=${(e) => volume.set(e.detail.value)}></ui-slider>
+//
+// Bind `value` (or `.value`) to a signal like any other control. `input` /
+// `change` report a number in `detail.value` (or `detail.start` / `detail.end`
+// when `range`). The host `.value` is a string, matching a native range
+// input, so composed-path helpers that look for `typeof node.value ===
+// 'string'` work the same as they do for text fields.
+//
 // The active track portion is painted with `--ui-slider-fill` (or start/end
 // when `range`) bound from the template into a gradient; the thumb's
 // hover/focus halo is a box-shadow state layer.
@@ -157,6 +166,23 @@ define('ui-slider', {
     });
     formBind(host, { name, value: submitted, disabled });
 
+    // Native <input type="range">.value is a string. Present the same on the
+    // host so composed-path helpers and attribute-based bindings see it, while
+    // the prop signal stays numeric for math and `detail.value`.
+    const toNum = (v) => {
+      const n = typeof v === 'number' ? v : parseFloat(v);
+      return Number.isFinite(n) ? n : min();
+    };
+    Object.defineProperty(host, 'value', {
+      configurable: true,
+      enumerable: true,
+      get() { return String(value()); },
+      set(v) { value.set(toNum(v)); },
+    });
+    effect(() => {
+      host.setAttribute('value', String(value()));
+    });
+
     const active = signal(false);
     const activeThumb = signal('end');
 
@@ -226,7 +252,8 @@ define('ui-slider', {
         ${() => (range()
           ? html`<div class="dual">
               <input part="input" type="range"
-                     min=${min} max=${max} step=${step} .value=${valueStart}
+                     min=${min} max=${max} step=${step}
+                     value=${valueStart} .value=${valueStart}
                      ?disabled=${disabled}
                      aria-label=${() => (label() ? label() + ' start' : 'Start')}
                      @input=${onStartInput} @change=${onStartChange}
@@ -234,7 +261,8 @@ define('ui-slider', {
                      @focus=${() => { active.set(true); activeThumb.set('start'); }}
                      @blur=${() => active.set(false)}>
               <input part="input" type="range"
-                     min=${min} max=${max} step=${step} .value=${valueEnd}
+                     min=${min} max=${max} step=${step}
+                     value=${valueEnd} .value=${valueEnd}
                      ?disabled=${disabled}
                      aria-label=${() => (label() ? label() + ' end' : 'End')}
                      @input=${onEndInput} @change=${onEndChange}
@@ -243,7 +271,8 @@ define('ui-slider', {
                      @blur=${() => active.set(false)}>
             </div>`
           : html`<input part="input" type="range"
-                     min=${min} max=${max} step=${step} .value=${value}
+                     min=${min} max=${max} step=${step}
+                     value=${value} .value=${value}
                      ?disabled=${disabled}
                      aria-label=${() => label() || 'Slider'}
                      @input=${onInput} @change=${onChange}

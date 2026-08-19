@@ -104,7 +104,8 @@ type SelectProps struct {
 // </ui-select>
 //
 // Keyboard (APG select-only combobox): Enter/Space/ArrowDown/ArrowUp open;
-// arrows move the active option, Enter/Space selects it, Escape closes,
+// arrows move the active option, Enter/Space selects it, Escape closes the
+// panel only — an enclosing dialog keeps its own Escape for a second press,
 // typing jumps to the next option starting with that letter. The panel closes
 // on outside pointerdown and returns focus to the field.
 //

@@ -105,6 +105,13 @@ type SliderProps struct {
 // <ui-slider> — a Material slider on native <input type="range">s for
 // keyboard and screen-reader behavior.
 //
+// <ui-slider label="Volume" value=${volume}
+// Bind `value` (or `.value`) to a signal like any other control. `input` /
+// `change` report a number in `detail.value` (or `detail.start` / `detail.end`
+// when `range`). The host `.value` is a string, matching a native range
+// input, so composed-path helpers that look for `typeof node.value ===
+// 'string'` work the same as they do for text fields.
+//
 // The active track portion is painted with `--ui-slider-fill` (or start/end
 // when `range`) bound from the template into a gradient; the thumb's
 // hover/focus halo is a box-shadow state layer.

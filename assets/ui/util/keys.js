@@ -108,3 +108,34 @@ export function rovingTabindex(container, opts = {}) {
     },
   };
 }
+
+// escapeLayer — claim Escape for the innermost open layer.
+//
+// `ui-dialog` listens for Escape in the capture phase at the document, so that
+// the key works wherever focus happens to be. That is right for a dialog and
+// wrong for anything transient opened inside one: a select's panel, a menu, a
+// date picker. Those handle Escape too, but the dialog has already seen it by
+// then, so one press closes both — and choosing a format in a dialog looks
+// like the dialog is broken rather than like an ordering problem nobody can
+// see.
+//
+// Capture descends window → document → …, so a layer claims the key one step
+// earlier than the dialog and stops it there. Nothing below ever runs.
+
+/**
+ * escapeLayer(onEscape)
+ *
+ * Call while a transient layer is open; call the returned function when it
+ * closes. Only registers a listener while it is held, so a page with nothing
+ * open behaves exactly as before.
+ */
+export function escapeLayer(onEscape) {
+  const onKeydown = (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    onEscape(e);
+  };
+  window.addEventListener('keydown', onKeydown, true);
+  return () => window.removeEventListener('keydown', onKeydown, true);
+}

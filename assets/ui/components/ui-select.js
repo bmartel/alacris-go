@@ -7,7 +7,8 @@
 //   </ui-select>
 //
 // Keyboard (APG select-only combobox): Enter/Space/ArrowDown/ArrowUp open;
-// arrows move the active option, Enter/Space selects it, Escape closes,
+// arrows move the active option, Enter/Space selects it, Escape closes the
+// panel only — an enclosing dialog keeps its own Escape for a second press,
 // typing jumps to the next option starting with that letter. The panel closes
 // on outside pointerdown and returns focus to the field.
 //
@@ -37,6 +38,7 @@ import { formBind } from '../util/form.js';
 import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
+import { escapeLayer } from '../util/keys.js';
 import './ui-icon.js';
 import './ui-option.js';
 
@@ -294,6 +296,18 @@ define('ui-select', {
       fieldEl?.focus();
     };
 
+    // Escape belongs to the panel while it is open, not to whatever encloses
+    // it. A dialog listens for the key in the capture phase at the document,
+    // so without claiming it a step earlier one press closes the panel and the
+    // dialog together.
+    effect(() => {
+      if (!open()) return;
+      return escapeLayer(() => {
+        closePanel();
+        fieldEl?.focus();
+      });
+    });
+
     // Outside pointerdown closes (scrim-less popup).
     effect(() => {
       if (!open()) return;
@@ -362,7 +376,6 @@ define('ui-select', {
         }
         case 'Enter':
         case ' ': e.preventDefault(); commit(opts[activeIndex()]); break;
-        case 'Escape': e.preventDefault(); closePanel(); break;
         case 'Tab': closePanel(); break;
         default:
           if (e.key.length === 1 && e.key !== ' ') typeahead(e.key);

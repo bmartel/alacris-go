@@ -1,28 +1,44 @@
 // Icon registry.
 //
 // A built-in set of Material Design icon paths (24×24 viewBox, from Google's
-// material-design-icons, Apache-2.0). Components take what they need; the rest
-// is the everyday MD3 filled set so an app can start without a custom registry. Apps add their own with `registerIcons` — any 24×24
-// path data works — or slot a whole `<svg>` into `<ui-icon>` for one-offs.
+// material-design-icons, Apache-2.0). Names are kebab-case; underscores are
+// treated as hyphens so Material Symbols names (`arrow_forward`) resolve.
+// Components take what they need; the rest is the everyday MD3 filled set so
+// an app can start without a custom registry. Apps add their own with
+// `registerIcons` — any 24×24 path data works — or slot a whole `<svg>` into
+// `<ui-icon>` for one-offs.
 
 import { signal } from '@alacris/core';
 
 const registry = new Map();
+const warned = new Set();
 
 // Bumped on registration so already-rendered <ui-icon>s pick up late icons.
 export const iconsVersion = signal(0);
 
-/** registerIcons({ name: 'M…' }) — later registrations win. */
+// Material Symbols use underscores; the registry is kebab-case. Treat them
+// as the same name so `arrow_forward` resolves to `arrow-forward`.
+const canon = (name) => String(name).replace(/_/g, '-');
+
+/** registerIcons({ name: 'M…' }) — later registrations win. Names are stored kebab-case. */
 export function registerIcons(icons) {
-  for (const name in icons) registry.set(name, icons[name]);
+  for (const name in icons) registry.set(canon(name), icons[name]);
   iconsVersion.update((n) => n + 1);
 }
 
-/** Path data for a name, or undefined. */
-export const iconPath = (name) => registry.get(name);
+/** Path data for a name, or undefined. Underscores and hyphens are equivalent. */
+export const iconPath = (name) => (name ? registry.get(canon(name)) : undefined);
 
-/** Registered names (built-ins included) — the demo lists these. */
+/** Registered names (built-ins included, kebab-case) — the demo lists these. */
 export const iconNames = () => [...registry.keys()];
+
+/** Warn once per unknown name so a blank icon is grep-able, not a silent hole. */
+export function warnUnknownIcon(name) {
+  const n = canon(name);
+  if (!n || registry.has(n) || warned.has(n)) return;
+  warned.add(n);
+  console.warn(`ui-icon: "${name}" is not registered. Names are kebab-case (arrow-forward); underscores are accepted. iconNames() lists the set; registerIcons() adds more.`);
+}
 
 registerIcons({
   'add': 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
@@ -31,6 +47,7 @@ registerIcons({
   'arrow-drop-down': 'M7 10l5 5 5-5z',
   'arrow-drop-up': 'M7 14l5-5 5 5z',
   'arrow-upward': 'M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z',
+  'arrow-downward': 'M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z',
   'calendar': 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z',
   'cancel': 'M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z',
   'check': 'M8.95 19.1 3.65 13.8 6.45 11 8.95 13.5 17.55 4.9 20.35 7.7z',
