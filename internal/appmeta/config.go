@@ -71,7 +71,19 @@ func Load(path string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Parse(b)
+	c, err := Parse(b)
+	if err != nil {
+		return c, err
+	}
+	// The icon is named relative to the manifest, the way main is, not
+	// relative to wherever the command happened to be run from. `app build`
+	// takes a directory argument and joins it onto main and the output dir
+	// already; leaving the icon out meant building a project from anywhere
+	// but its own root failed on the icon alone.
+	if c.Icon != "" && !filepath.IsAbs(c.Icon) {
+		c.Icon = filepath.Join(filepath.Dir(path), c.Icon)
+	}
+	return c, nil
 }
 
 // Parse decodes a Config, filling defaults.
