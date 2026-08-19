@@ -1,6 +1,8 @@
 package appmeta
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -92,5 +94,34 @@ func TestDesktopFile(t *testing.T) {
 	d := desktopFile(c)
 	if !strings.Contains(d, "Name=Board") || !strings.Contains(d, "Exec=") {
 		t.Fatalf("desktop file:\n%s", d)
+	}
+}
+
+// The icon is named relative to the manifest, not to the working directory:
+// `app build <dir>` from anywhere else has to find it.
+func TestLoadResolvesTheIconAgainstTheManifest(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	icon := filepath.Join(dir, "assets", "icon.png")
+	if err := os.WriteFile(icon, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := filepath.Join(dir, FileName)
+	body := `{"name":"Board","identifier":"com.example.board","icon":"assets/icon.png"}`
+	if err := os.WriteFile(manifest, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Icon != icon {
+		t.Errorf("icon = %q, want %q", c.Icon, icon)
+	}
+	if _, err := os.Stat(c.Icon); err != nil {
+		t.Errorf("resolved icon does not exist: %v", err)
 	}
 }
