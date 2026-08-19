@@ -28,6 +28,7 @@ import { define, html, css, vars, computed, signal, effect, onCleanup, each } fr
 import { sys } from '../tokens/sys.js';
 import { base } from './base.js';
 import { formBind } from '../util/form.js';
+import { escapeLayer } from '../util/keys.js';
 import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
@@ -295,9 +296,15 @@ define('ui-autocomplete', {
           if (showPanel() && activeOpt()) { e.preventDefault(); commit(activeOpt().value); }
           else if (freeSolo()) commit(query().trim());
           break;
-        case 'Escape': open.set(false); break;
       }
     };
+    // The panel owns Escape while it is up, so that closing it inside a
+    // dialog does not close the dialog as well.
+    effect(() => {
+      if (!showPanel()) return;
+      return escapeLayer(() => open.set(false));
+    });
+
     const onFocus = () => { focused.set(true); open.set(true); };
     const onBlur = () => {
       focused.set(false);

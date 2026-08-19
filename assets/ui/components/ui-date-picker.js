@@ -38,6 +38,7 @@ import { formBind } from '../util/form.js';
 import { presence } from '../motion/presence.js';
 import { animate, fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
+import { escapeLayer } from '../util/keys.js';
 import { focusTrap, scrollLock } from '../util/focus.js';
 import './ui-icon-button.js';
 import './ui-button.js';
@@ -607,12 +608,14 @@ define('ui-date-picker', {
         if (e.composedPath().includes(host)) return;
         closePanel();
       };
-      const onEsc = (e) => { if (e.key === 'Escape') closePanel(); };
+      // Capture at the document is not early enough: a dialog registers the
+      // same way when it opens, so it is already listening by the time this
+      // panel does and one Escape closes both.
+      const releaseEsc = escapeLayer(closePanel);
       document.addEventListener('pointerdown', onDoc);
-      document.addEventListener('keydown', onEsc, true);
       return () => {
         document.removeEventListener('pointerdown', onDoc);
-        document.removeEventListener('keydown', onEsc, true);
+        releaseEsc();
       };
     });
     effect(() => {
