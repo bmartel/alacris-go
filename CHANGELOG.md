@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.8.3](https://github.com/bmartel/alacris-go/compare/v0.8.2...v0.8.3) (2026-08-19)
+
+### Bug Fixes
+
+* an app icon is a ladder of sizes, and each rung says which it is ([70a4989](https://github.com/bmartel/alacris-go/commit/70a4989b5d4d977c7d5fba7d9aa1afd4951bcb86))
+
 ## [0.8.2](https://github.com/bmartel/alacris-go/compare/v0.8.1...v0.8.2) (2026-08-19)
 
 ### Bug Fixes
