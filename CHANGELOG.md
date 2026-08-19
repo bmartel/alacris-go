@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.8.0](https://github.com/bmartel/alacris-go/compare/v0.7.3...v0.8.0) (2026-08-19)
+
+### Features
+
+* **app:** a title bar the page can draw behind ([92faaa2](https://github.com/bmartel/alacris-go/commit/92faaa2804539ca51f427cc60f8562de502ce75a))
+
 ## [0.7.3](https://github.com/bmartel/alacris-go/compare/v0.7.2...v0.7.3) (2026-08-18)
 
 ### Bug Fixes
