@@ -30,6 +30,11 @@ let uid = 0;
 
 const styles = css`
   :host { display: block; cursor: pointer; user-select: none; }
+  /* A select that filters its options marks the ones that do not match. The
+     option hides itself rather than being hidden by a ::slotted() rule in the
+     select's shadow tree, which the option's own :host display would win
+     against. */
+  :host([data-ui-filtered]) { display: none; }
   .control {
     position: relative;
     isolation: isolate;

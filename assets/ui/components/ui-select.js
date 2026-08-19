@@ -12,6 +12,12 @@
 // typing jumps to the next option starting with that letter. The panel closes
 // on outside pointerdown and returns focus to the field.
 //
+// Past a handful of options the panel gets a filter field, because scrolling
+// is not a way to find one entry among several hundred. It takes focus when
+// the panel opens, the arrows and Enter work from it, and the options it
+// hides are hidden from the keyboard too. The query is dropped when the panel
+// closes.
+//
 // @prop  {string}  label=''
 // @prop  {string}  value=''         — the selected option's value
 // @prop  {string}  variant='filled' — filled | outlined
@@ -19,6 +25,11 @@
 // @prop  {boolean} required=false
 // @prop  {string}  name=''          — form participation
 // @prop  {string}  placeholder=''   — shown while nothing is selected
+// @prop  {string}  search='auto'    — auto | always | never; 'auto' shows the
+//                                     filter once there are searchThreshold
+//                                     options or more
+// @prop  {number}  searchThreshold=8
+// @prop  {string}  searchPlaceholder='Search'
 // @event change — an option was chosen; detail: { value }
 // @event open   — panel enter animation finished
 // @event close  — panel exit animation finished
@@ -202,12 +213,45 @@ const styles = css`
     z-index: ${sys.z.modal};
     min-inline-size: 112px;
     max-block-size: 40vh;
-    overflow: auto;
-    padding-block: ${sys.space(2)};
+    /* The filter field stays put while the options scroll under it, so the
+       panel is a column and the list is what overflows. Without this the box
+       you are typing into scrolls off the top of the list it is filtering. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: ${t.panelBg};
     border-radius: ${sys.radius.xs};
     box-shadow: ${sys.elevation[2]};
     transform-origin: top center;
+  }
+  .options { overflow: auto; padding-block: ${sys.space(2)}; }
+
+  .search {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: ${sys.space(2)};
+    padding: ${sys.space(2)} ${sys.space(3)};
+    border-block-end: 1px solid ${t.outlineColor};
+    color: ${t.labelFg};
+  }
+  .search input {
+    /* A flex item will not shrink below its content, and a text input's
+       intrinsic width is wider than a narrow select. */
+    min-inline-size: 0;
+    flex: 1 1 auto;
+    background: transparent;
+    border: 0;
+    outline: none;
+    color: ${t.fg};
+    font: ${t.font};
+    padding: 0;
+  }
+  .search input::placeholder { color: ${t.labelFg}; }
+  .empty {
+    padding: ${sys.space(3)};
+    color: ${t.labelFg};
+    font: ${t.font};
   }
 
   .disabled { opacity: ${sys.state.disabledContent}; pointer-events: none; }
@@ -218,15 +262,20 @@ define('ui-select', {
   props: {
     label: '', value: '', variant: 'filled', disabled: false, required: false,
     name: '', placeholder: '',
+    // 'auto' shows the filter once there are more options than a person will
+    // read down; 'always' and 'never' say so outright.
+    search: 'auto', searchThreshold: 8, searchPlaceholder: 'Search',
   },
   styles: [base, styles],
   setup(p, host) {
-    const { label, value, variant, disabled, required, name, placeholder } = p;
+    const { label, value, variant, disabled, required, name, placeholder,
+      search, searchThreshold, searchPlaceholder } = p;
     formBind(host, { name, value, disabled });
 
     const open = signal(false);
     const activeIndex = signal(-1);
     let fieldEl = null;
+    let searchEl = null;
     let stopAuto = null;
 
     // ---- option tracking: light-DOM children, live through a version signal
@@ -253,6 +302,40 @@ define('ui-select', {
     const isDisabled = (o) => !!o.disabled || o.hasAttribute('disabled');
     const optLabel = (o) => (o.textContent || '').trim();
 
+    // ---- filtering
+    //
+    // Scrolling is not a way to find one set among nine hundred, so past a
+    // handful of options the panel gets a filter. Matching folds case and
+    // accents, the same way the rest of a search box is expected to.
+    const query = signal('');
+    const fold = (v) => String(v).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    const searching = computed(() => {
+      const mode = String(search() || 'auto');
+      if (mode === 'never' || mode === 'false') return false;
+      if (mode === 'always' || mode === 'true') return true;
+      return optionEls().length >= Number(searchThreshold() || 8);
+    });
+    // Every list the keyboard walks and the panel shows is this one, not
+    // optionEls: an arrow key that steps onto a hidden option looks broken.
+    const shownEls = computed(() => {
+      const opts = optionEls();
+      const q = fold(query()).trim();
+      if (!q || !searching()) return opts;
+      return opts.filter((o) => fold(optLabel(o)).includes(q));
+    });
+    effect(() => {
+      const shown = new Set(shownEls());
+      for (const o of optionEls()) o.toggleAttribute('data-ui-filtered', !shown.has(o));
+    });
+    // A narrowed list has a new first row, and the active option has to be on
+    // it — otherwise Enter commits something no longer on screen.
+    effect(() => {
+      const shown = shownEls();
+      if (!open()) return;
+      const cur = shown[activeIndex()];
+      if (!cur || isDisabled(cur)) activeIndex.set(shown.findIndex((o) => !isDisabled(o)));
+    });
+
     const display = computed(() => {
       const match = optionEls().find((o) => optValue(o) === value());
       return match ? optLabel(match) : value();
@@ -269,23 +352,29 @@ define('ui-select', {
       const v = value();
       const isOpen = open();
       const ai = activeIndex();
-      opts.forEach((o, i) => {
+      const activeEl = isOpen ? shownEls()[ai] : null;
+      opts.forEach((o) => {
         o.toggleAttribute('selected', optValue(o) === v);
-        o.toggleAttribute('active', isOpen && i === ai);
+        o.toggleAttribute('active', o === activeEl);
       });
     });
-    const activeId = computed(() => (open() ? optionEls()[activeIndex()]?.id ?? null : null));
+    const activeId = computed(() => (open() ? shownEls()[activeIndex()]?.id ?? null : null));
 
     // ---- open/close
     const openPanel = () => {
       if (disabled() || open()) return;
-      const opts = optionEls();
+      const opts = shownEls();
       let i = opts.findIndex((o) => optValue(o) === value() && !isDisabled(o));
       if (i < 0) i = opts.findIndex((o) => !isDisabled(o));
       activeIndex.set(i);
       open.set(true);
     };
-    const closePanel = () => open.set(false);
+    // The query does not survive the panel: reopening to a list still narrowed
+    // by what was typed last time reads as a select that has lost its options.
+    const closePanel = () => {
+      open.set(false);
+      query.set('');
+    };
 
     const commit = (o) => {
       if (!o || isDisabled(o)) return;
@@ -331,7 +420,7 @@ define('ui-select', {
 
     // ---- keyboard
     const move = (delta) => {
-      const opts = optionEls();
+      const opts = shownEls();
       if (!opts.length) return;
       let i = activeIndex();
       for (let n = 0; n < opts.length; n++) {
@@ -340,7 +429,7 @@ define('ui-select', {
       }
     };
     const typeahead = (ch) => {
-      const opts = optionEls();
+      const opts = shownEls();
       const lower = ch.toLowerCase();
       const start = activeIndex() + 1;
       for (let n = 0; n < opts.length; n++) {
@@ -353,7 +442,7 @@ define('ui-select', {
     };
     const onKeydown = (e) => {
       if (disabled()) return;
-      const opts = optionEls();
+      const opts = shownEls();
       if (!open()) {
         if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
@@ -386,10 +475,54 @@ define('ui-select', {
       stopAuto?.();
       stopAuto = autoUpdate(el, fieldEl, { placement: 'bottom-start', matchWidth: true, offset: 4 });
     };
+
+    // Typing filters, so the arrows and Enter have to work from the field the
+    // typing goes into. Space is deliberately absent: it is a character here,
+    // not a way to choose.
+    const onSearchKeydown = (e) => {
+      // One press, one action. The panel is rendered through presence(), which
+      // gives the subtree its own delegation root on top of the shadow root's,
+      // so a keydown inside it reaches this handler twice — and the second
+      // call arrives after commit() has already closed the panel and cleared
+      // the query, which is to say against the unfiltered list. Enter then
+      // chose the first option of the full list instead of the one on screen,
+      // and an arrow key moved two rows at a time. Stopping propagation
+      // settles the arrows; the open() guard is what makes it not matter how
+      // many times this runs.
+      if (!open()) return;
+      switch (e.key) {
+        case 'ArrowDown': e.preventDefault(); e.stopPropagation(); move(1); break;
+        case 'ArrowUp': e.preventDefault(); e.stopPropagation(); move(-1); break;
+        case 'Enter': e.preventDefault(); e.stopPropagation(); commit(shownEls()[activeIndex()]); break;
+        case 'Tab': closePanel(); break;
+        default:
+      }
+    };
+    // Focus follows the panel into existence; ref runs once the element is
+    // there, which setup() is far too early for.
+    const searchRef = (el) => {
+      searchEl = el;
+      if (el) queueMicrotask(() => el.focus());
+    };
+    const searchView = () => html`
+      <div class="search">
+        <ui-icon name="search"></ui-icon>
+        <input type="text" part="search" autocomplete="off" spellcheck="false"
+               role="combobox" aria-expanded="true" aria-controls="listbox"
+               aria-autocomplete="list" aria-activedescendant=${activeId}
+               aria-label=${() => searchPlaceholder() || 'Search'}
+               placeholder=${() => searchPlaceholder() || 'Search'}
+               .value=${query}
+               @input=${(e) => query.set(e.composedPath()[0].value)}
+               @keydown=${onSearchKeydown}
+               ref=${searchRef}></div>`;
     const panelView = () => html`
-      <div class="panel" part="panel" role="listbox" id="listbox"
-           aria-label=${() => label() || null} ref=${panelRef}>
-        <slot></slot>
+      <div class="panel" part="panel" ref=${panelRef}>
+        ${() => (searching() ? searchView() : null)}
+        <div class="options" role="listbox" id="listbox" aria-label=${() => label() || null}>
+          <slot></slot>
+        </div>
+        ${() => (shownEls().length ? null : html`<div class="empty">No matches</div>`)}
       </div>`;
 
     return html`

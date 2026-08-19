@@ -24,10 +24,10 @@ var assetFS embed.FS
 
 // RuntimeVersion is the version of the alacris npm package vendored in
 // assets/. Regenerate with `go generate ./...` after bumping it.
-const RuntimeVersion = "0.10.0"
+const RuntimeVersion = "0.11.2"
 
 // UIVersion is the version of the @alacris/ui package vendored in assets/ui/.
-const UIVersion = "0.2.4"
+const UIVersion = "0.3.0"
 
 // TrustedTypesPolicy is the Trusted Types policy name alacris registers for
 // template parsing. Under a trusted-types CSP directive it has to be allowed.
