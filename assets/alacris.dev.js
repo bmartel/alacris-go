@@ -1162,13 +1162,15 @@ var coerce = (v, d) => {
 };
 function define(name, opts) {
   if (typeof opts === "function") opts = { setup: opts };
-  const { props = {}, setup, styles, shadow = "open" } = opts;
+  const { props = {}, setup, styles, shadow = "open", formAssociated } = opts;
   const keys = Object.keys(props);
   const attrs = keys.map(kebab2);
   class AlacrisElement extends HTMLElement {
     static observedAttributes = attrs;
+    static formAssociated = !!formAssociated;
     constructor() {
       super();
+      if (formAssociated) this.internals = this.attachInternals?.();
       const p = this.props = {};
       for (let i = 0; i < keys.length; i++) p[keys[i]] = signal(props[keys[i]]);
       for (let i = 0; i < keys.length; i++) {
@@ -1214,6 +1216,20 @@ function define(name, opts) {
       return this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, ...o }));
     }
   }
+  if (formAssociated) Object.assign(AlacrisElement.prototype, {
+    formAssociatedCallback(form) {
+      this.onFormAssociated?.(form);
+    },
+    formDisabledCallback(disabled) {
+      this.onFormDisabled?.(disabled);
+    },
+    formResetCallback() {
+      this.onFormReset?.();
+    },
+    formStateRestoreCallback(state, mode) {
+      this.onFormStateRestore?.(state, mode);
+    }
+  });
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i];
     Object.defineProperty(AlacrisElement.prototype, k, {
