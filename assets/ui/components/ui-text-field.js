@@ -12,7 +12,16 @@
 // @prop  {boolean} clearable=false  — trailing ✕ while there is content
 // @prop  {string}  name=''          — form participation
 // @prop  {number}  maxlength=0      — >0 shows a character counter and enforces it
-// @prop  {number}  rows=3           — textarea rows
+// @prop  {number}  rows=3
+// @prop  {string}  autocomplete=''   — absent unless set; 'off' keeps the
+//                                      browser's saved-value list out of a
+//                                      field whose contents are not a name,
+//                                      an address or a password
+// @prop  {string}  autocapitalize='' — 'off' for anything case-sensitive
+// @prop  {string}  autocorrect=''    — 'off' to stop substitutions
+// @prop  {string}  spellcheck=''     — 'false' for code and query syntax
+// @prop  {string}  inputmode=''
+// @prop  {string}  enterkeyhint=''           — textarea rows
 // @event input  — every keystroke;   detail: { value }
 // @event change — committed (blur/Enter); detail: { value }
 // @event clear  — the clear affordance was used
@@ -284,10 +293,20 @@ define('ui-text-field', {
     variant: 'filled', label: '', value: '', type: 'text', placeholder: '',
     helper: '', error: '', disabled: false, required: false, clearable: false,
     name: '', maxlength: 0, rows: 3,
+    // A field the platform must keep its hands off has to be able to say so.
+    // These are absent unless set, so nothing changes for an ordinary field.
+    autocomplete: '', autocapitalize: '', autocorrect: '', spellcheck: '',
+    inputmode: '', enterkeyhint: '',
   },
   styles: [base, styles],
   setup(p, host) {
-    const { variant, label, value, type, placeholder, helper, error, disabled, required, clearable, name, maxlength, rows } = p;
+    const { variant, label, value, type, placeholder, helper, error, disabled, required, clearable, name, maxlength, rows,
+      autocomplete, autocapitalize, autocorrect, spellcheck, inputmode, enterkeyhint } = p;
+
+    // An empty prop means "say nothing", so the browser keeps its default.
+    // Writing the attribute as an empty string would not: autocomplete="" is
+    // a value, and spellcheck="" reads as spellcheck="true".
+    const attr = (sig) => () => (sig() === '' ? null : sig());
     formBind(host, { name, value, disabled });
 
     const focused = signal(false);
@@ -325,6 +344,12 @@ define('ui-text-field', {
               maxlength=${() => (maxlength() > 0 ? maxlength() : null)}
               ?required=${required} ?disabled=${disabled}
               aria-invalid=${() => (error() ? 'true' : null)}
+              autocomplete=${attr(autocomplete)}
+              autocapitalize=${attr(autocapitalize)}
+              autocorrect=${attr(autocorrect)}
+              spellcheck=${attr(spellcheck)}
+              inputmode=${attr(inputmode)}
+              enterkeyhint=${attr(enterkeyhint)}
               @input=${onInput} @change=${commit}
               @focus=${() => focused.set(true)} @blur=${() => focused.set(false)}></textarea></span>`
         : html`<input part="input" ref=${(el) => (input = el)}
@@ -333,6 +358,12 @@ define('ui-text-field', {
               maxlength=${() => (maxlength() > 0 ? maxlength() : null)}
               ?required=${required} ?disabled=${disabled}
               aria-invalid=${() => (error() ? 'true' : null)}
+              autocomplete=${attr(autocomplete)}
+              autocapitalize=${attr(autocapitalize)}
+              autocorrect=${attr(autocorrect)}
+              spellcheck=${attr(spellcheck)}
+              inputmode=${attr(inputmode)}
+              enterkeyhint=${attr(enterkeyhint)}
               @input=${onInput} @change=${commit}
               @focus=${() => focused.set(true)} @blur=${() => focused.set(false)}>`)}
       ${() => (clearable() && value() !== '' && !disabled()

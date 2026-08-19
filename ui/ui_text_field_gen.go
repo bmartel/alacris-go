@@ -123,10 +123,36 @@ type TextFieldProps struct {
 	// The component defaults it to 0.
 	Maxlength float64
 
-	// Rows is textarea rows.
-	//
 	// The component defaults it to 3.
 	Rows float64
+
+	// Autocomplete is absent unless set; 'off' keeps the browser's saved-value list out of a field whose contents are not a name, an address or a password.
+	//
+	// The component defaults it to ''.
+	Autocomplete string
+
+	// Autocapitalize is 'off' for anything case-sensitive.
+	//
+	// The component defaults it to ''.
+	Autocapitalize string
+
+	// Autocorrect is 'off' to stop substitutions.
+	//
+	// The component defaults it to ''.
+	Autocorrect string
+
+	// Spellcheck is 'false' for code and query syntax.
+	//
+	// The component defaults it to ''.
+	Spellcheck string
+
+	// The component defaults it to ''.
+	Inputmode string
+
+	// Enterkeyhint is textarea rows.
+	//
+	// The component defaults it to ''.
+	Enterkeyhint string
 }
 
 // TextField renders <ui-text-field>.
@@ -172,6 +198,24 @@ func TextField(p TextFieldProps) *alacris.Element {
 	}
 	if p.Rows != 0 && p.Rows != 3 {
 		e.Prop("rows", p.Rows)
+	}
+	if p.Autocomplete != "" {
+		e.Prop("autocomplete", p.Autocomplete)
+	}
+	if p.Autocapitalize != "" {
+		e.Prop("autocapitalize", p.Autocapitalize)
+	}
+	if p.Autocorrect != "" {
+		e.Prop("autocorrect", p.Autocorrect)
+	}
+	if p.Spellcheck != "" {
+		e.Prop("spellcheck", p.Spellcheck)
+	}
+	if p.Inputmode != "" {
+		e.Prop("inputmode", p.Inputmode)
+	}
+	if p.Enterkeyhint != "" {
+		e.Prop("enterkeyhint", p.Enterkeyhint)
 	}
 	return e
 }
@@ -233,3 +277,21 @@ func (h TextFieldHandle) SetMaxlength(v float64) { h.handle.Set("maxlength", v) 
 
 // SetRows writes the rows prop.
 func (h TextFieldHandle) SetRows(v float64) { h.handle.Set("rows", v) }
+
+// SetAutocomplete writes the autocomplete prop.
+func (h TextFieldHandle) SetAutocomplete(v string) { h.handle.Set("autocomplete", v) }
+
+// SetAutocapitalize writes the autocapitalize prop.
+func (h TextFieldHandle) SetAutocapitalize(v string) { h.handle.Set("autocapitalize", v) }
+
+// SetAutocorrect writes the autocorrect prop.
+func (h TextFieldHandle) SetAutocorrect(v string) { h.handle.Set("autocorrect", v) }
+
+// SetSpellcheck writes the spellcheck prop.
+func (h TextFieldHandle) SetSpellcheck(v string) { h.handle.Set("spellcheck", v) }
+
+// SetInputmode writes the inputmode prop.
+func (h TextFieldHandle) SetInputmode(v string) { h.handle.Set("inputmode", v) }
+
+// SetEnterkeyhint writes the enterkeyhint prop.
+func (h TextFieldHandle) SetEnterkeyhint(v string) { h.handle.Set("enterkeyhint", v) }
