@@ -75,6 +75,57 @@ void appWindowSetDecorations(void *win, int on) {
     [w setStyleMask:mask];
 }
 
+// The style values match the Titlebar constants in app.go: 0 native,
+// 1 inset, 2 hidden.
+void appWindowSetTitlebar(void *win, int style) {
+    if (!win) return;
+    NSWindow *w = (__bridge NSWindow *)win;
+    NSWindowStyleMask mask = [w styleMask];
+
+    // Titled stays set for every style, including hidden. A borderless
+    // NSWindow answers NO to canBecomeKeyWindow unless it is subclassed, and
+    // this one is the webview's — so dropping Titled to hide the bar takes the
+    // keyboard with it, and the window comes up looking right and refusing to
+    // let anyone type. Hiding is done by making the bar transparent and taking
+    // the buttons out instead.
+    mask |= NSWindowStyleMaskTitled;
+
+    BOOL hidden = (style == 2);
+    BOOL bare = (style != 0);
+
+    if (bare) {
+        mask |= NSWindowStyleMaskFullSizeContentView;
+    } else {
+        mask &= ~NSWindowStyleMaskFullSizeContentView;
+    }
+    [w setStyleMask:mask];
+
+    [w setTitlebarAppearsTransparent:bare];
+    [w setTitleVisibility:bare ? NSWindowTitleHidden
+                               : NSWindowTitleVisible];
+
+    // The traffic lights stay for inset — they are the reason to prefer it —
+    // and go for hidden, where the page draws its own.
+    NSWindowButton buttons[3] = {NSWindowCloseButton,
+                                 NSWindowMiniaturizeButton,
+                                 NSWindowZoomButton};
+    for (int i = 0; i < 3; i++) {
+        NSButton *b = [w standardWindowButton:buttons[i]];
+        if (b) [b setHidden:hidden];
+    }
+}
+
+void appWindowBeginDrag(void *win) {
+    if (!win) return;
+    NSWindow *w = (__bridge NSWindow *)win;
+    NSEvent *e = [NSApp currentEvent];
+    // Only a real mouse-down can start a drag; anything else would either be
+    // ignored or leave the window stuck to the pointer.
+    if (e && [e type] == NSEventTypeLeftMouseDown) {
+        [w performWindowDragWithEvent:e];
+    }
+}
+
 void appWindowSetPosition(void *win, int x, int y) {
     if (!win) return;
     NSWindow *w = (__bridge NSWindow *)win;
