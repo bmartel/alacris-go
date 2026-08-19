@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // ErrNoDesktop is returned by Run when the binary was not built with
@@ -163,8 +164,11 @@ type Options struct {
 	// Tray, if set, installs a status-item / notification-area icon.
 	Tray *Tray
 
-	// OnClose is asked before the last window goes away. Returning false
-	// cancels the close (the window stays). Nil means allow.
+	// OnClose runs as the loopback host is coming down, after the last
+	// window has already gone. Use it to drop long-lived connections
+	// (a live EventSource, a second listener) so Shutdown does not wait
+	// on them. The return is kept for the documented cancel, but by this
+	// point the event loop has ended and a false cannot keep the window.
 	OnClose func() bool
 }
 
@@ -366,6 +370,11 @@ func (a *App) closeHost() {
 	if a.host == nil {
 		return
 	}
-	_ = a.host.Shutdown(context.Background())
+	if a.opts.OnClose != nil {
+		_ = a.opts.OnClose()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	_ = a.host.Shutdown(ctx)
+	cancel()
 	a.host = nil
 }

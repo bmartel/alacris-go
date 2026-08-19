@@ -179,3 +179,55 @@ func TestShutdownStopsServing(t *testing.T) {
 		t.Fatal("GET after Shutdown succeeded")
 	}
 }
+
+func TestShutdownDoesNotWaitOnAStream(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{})
+	h, err := Listen(Options{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "no flush", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			flusher.Flush()
+			close(started)
+			<-r.Context().Done()
+		}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		res, err := http.Get(h.URL() + "/")
+		if err != nil {
+			return
+		}
+		defer res.Body.Close()
+		io.Copy(io.Discard, res.Body)
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream never started")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_ = h.Shutdown(ctx)
+	if took := time.Since(start); took > time.Second {
+		t.Fatalf("Shutdown took %s waiting on a stream that never ends", took)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream handler did not return after Shutdown")
+	}
+}

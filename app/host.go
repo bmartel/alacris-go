@@ -107,12 +107,18 @@ func (h *Host) BootstrapURL(path string) string {
 func (h *Host) Hostport() string { return h.hostport }
 
 // Shutdown closes the listener and waits for in-flight requests, the same
-// contract as http.Server.Shutdown. An SSE stream will be cut.
+// contract as http.Server.Shutdown.
+//
+// A live EventSource is a request that never ends on its own, so Shutdown
+// with a background context would wait forever and the process would sit in
+// the dock until it was force-quit. The caller must bound ctx; leftover
+// streams are then forced closed so their handlers return.
 func (h *Host) Shutdown(ctx context.Context) error {
 	if h == nil || h.srv == nil {
 		return nil
 	}
 	err := h.srv.Shutdown(ctx)
+	_ = h.srv.Close()
 	_ = h.ln.Close()
 	return err
 }
