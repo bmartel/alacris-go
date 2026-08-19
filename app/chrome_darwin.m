@@ -19,6 +19,23 @@ static const NSInteger kAlacrisDragStripTag = 0x41445254;
 
 @implementation AlacrisDragStrip
 - (void)mouseDown:(NSEvent *)event {
+    // A double click on the title bar is not a drag, it is whatever the person
+    // told System Settings it is — zoom by default, minimise for some, nothing
+    // for others. Dragging on every press swallows it and the window will not
+    // fill the screen.
+    if ([event clickCount] == 2) {
+        NSString *action = [[NSUserDefaults standardUserDefaults]
+            stringForKey:@"AppleActionOnDoubleClick"];
+        if (action == nil) {
+            action = @"Maximize"; // what macOS does when nobody has said
+        }
+        if ([action isEqualToString:@"Minimize"]) {
+            [[self window] miniaturize:nil];
+        } else if ([action isEqualToString:@"Maximize"]) {
+            [[self window] zoom:nil];
+        }
+        return;
+    }
     [[self window] performWindowDragWithEvent:event];
 }
 - (BOOL)mouseDownCanMoveWindow {
