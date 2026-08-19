@@ -19,10 +19,10 @@ import (
 // bumping, which is exactly the moment to check the changelog.
 var vendoredHashes = map[string]string{
 	"alacris.dev.js":                        "e6b6dd7fadb8ad6bf35e7bf47924104e3b450298ab27dff2450324a2f4ad5586",
-	"alacris.js":                            "4bfd289b8f7cb17eb93d1593964ad098032082c3d17fbad29ad2281faf912d47",
-	"context.js":                            "9f6faf8a48d5153b1caf83aacf0f0264c82108622cf9d09b7bcfb7547a3c0927",
-	"signal.js":                             "4c37780e666a0b3d4397b961c2f69fa7fd6c8632f3094c3bd60e65545e3b0f65",
-	"store.js":                              "0416469dadd5e849649e741c6300115e25691f1512f4f674aa253cdfa3a2f855",
+	"alacris.js":                            "0f51ed355721f4e25ee8817e6ae52d878d8fe1b7044ef594e2956260edf256c6",
+	"context.js":                            "1a9d97b55427b146de4edcb9f41505ad23589119bc69e59241379b2c631d8a27",
+	"signal.js":                             "db9ffdf86e4377a81bd8522ffc1fba4dd28b6678cd2f21a28125e2ea824b225a",
+	"store.js":                              "62259e7752747c7dd156e12e07b47b8c946e20a59370346ca64d3961546fd7f0",
 	"ui/components/base.js":                 "d50b0de6c32d2249e0f3646249546806283e254385ae9c719ede9eb5b9d0042a",
 	"ui/components/ui-accordion-item.js":    "3dd4b27507c2c99873710f8992b203b0d4884ca7b25defc119eda1a925ab599b",
 	"ui/components/ui-accordion.js":         "030b507720c34e5b10e65a86983834af938b9d92e5e834c22926b4f98399e634",
@@ -85,7 +85,7 @@ var vendoredHashes = map[string]string{
 	"ui/components/ui-table-toolbar.js":     "d471ed2d3c4bd1718492403a575c82a63b54fe422bace401221966d883d6125f",
 	"ui/components/ui-table.js":             "300188ec33bb2f7cb6d82f9e311d536b057b2e12eea93ba1fb515ec072ac748b",
 	"ui/components/ui-tabs.js":              "c07f37069943e08a22665844efe44c8547e59394bf5934cbe86b9206ee879fb0",
-	"ui/components/ui-text-field.js":        "d68f491ea91f2e5cf57a94db76b36cc1392daa29cc4b7943b8484c9d9bc84874",
+	"ui/components/ui-text-field.js":        "6faee8669869e7750cb1cb3d68be22ee362b2c363c2ba30bdd00f0e18a3dc050",
 	"ui/components/ui-text.js":              "307bd7f81c6d7af3b8e82f5b82f2e5c45b60f13f7b453a214c712203f6b4d148",
 	"ui/components/ui-time-picker.js":       "1753f1a976e24f2e08cefda81a5c2f0ee3c38d9a9224456b062c7af4185d6a94",
 	"ui/components/ui-toggle-button.js":     "7e141b6ddee57987acfb9909fa2d9c2ce9b8890af42e5e394d496a7c0f3a2423",
