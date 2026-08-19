@@ -304,6 +304,21 @@ live.On(srv, "export", func(c *live.Ctx, d struct{}) error {
 })
 ```
 
+A window whose page runs to the top edge wants `Titlebar`:
+
+```go
+app.Run(app.Options{Titlebar: app.TitlebarInset, /* ... */})
+```
+
+`TitlebarInset` keeps the OS window buttons and lets the page draw behind
+them — on macOS the traffic lights float over your header, and dragging and
+the buttons stay native. Leave room for them: about 78px at the top left.
+Windows and Linux have no transparent caption to draw behind, so they fall
+back to `TitlebarHidden`, where the page draws its own bar and buttons and
+`Window.BeginDrag` moves the window from a pointerdown in whatever region
+should act like a title bar. `Undecorated` is the older spelling of
+`TitlebarHidden`.
+
 Also on `app`: `Notify`, `OpenURL`, `WriteClipboard`, `DataDir`,
 `RegisterShortcut`, `Options.SingleInstance`, `Options.DeepLinkScheme`,
 `Options.Tray`, `Updater.ApplyAndRelaunch`.

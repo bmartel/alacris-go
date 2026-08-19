@@ -14,6 +14,8 @@ void appWindowHide(void *win);
 void appWindowFocus(void *win);
 void appWindowSetAlwaysOnTop(void *win, int on);
 void appWindowSetDecorations(void *win, int on);
+void appWindowSetTitlebar(void *win, int style);
+void appWindowBeginDrag(void *win);
 void appWindowSetPosition(void *win, int x, int y);
 void appWindowPosition(void *win, int *x, int *y);
 void appWindowCenter(void *win);
@@ -45,6 +47,11 @@ func windowSetDecorations(p unsafe.Pointer, on bool) {
 	}
 	C.appWindowSetDecorations(p, v)
 }
+func windowSetTitlebar(p unsafe.Pointer, style int) {
+	C.appWindowSetTitlebar(p, C.int(style))
+}
+func windowBeginDrag(p unsafe.Pointer) { C.appWindowBeginDrag(p) }
+
 func windowSetPosition(p unsafe.Pointer, x, y int) {
 	C.appWindowSetPosition(p, C.int(x), C.int(y))
 }

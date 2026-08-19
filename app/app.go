@@ -15,6 +15,46 @@ var ErrNoDesktop = errors.New("app: this binary was built without desktop suppor
 // ErrCanceled is returned by a dialog when the user dismissed it.
 var ErrCanceled = errors.New("app: canceled")
 
+// Titlebar is how the window's title bar is drawn.
+//
+// The default is the OS one. The other two exist because an application whose
+// own surface runs to the top edge looks wrong underneath a bar the OS painted
+// a different colour, and there is no way to tint that bar: on macOS it is
+// AppKit's, in whatever grey the current appearance says.
+type Titlebar int
+
+const (
+	// TitlebarNative is the OS title bar, drawn by the OS. The default.
+	TitlebarNative Titlebar = iota
+
+	// TitlebarInset keeps the window buttons and lets the page draw behind
+	// them. Content runs to the top edge and the bar is whatever the page
+	// paints there; dragging and the buttons stay native.
+	//
+	// This is what a modern desktop application usually wants. On macOS it is
+	// a transparent title bar over a full-size content view, so the traffic
+	// lights float above the page. Windows and Linux have no equivalent of
+	// that arrangement, so they fall back to TitlebarHidden and the page is
+	// expected to draw its own buttons.
+	TitlebarInset
+
+	// TitlebarHidden removes the title bar altogether. The page draws its own,
+	// and BeginDrag moves the window.
+	TitlebarHidden
+)
+
+// titlebarFor reconciles the two ways of asking for the same thing.
+//
+// Undecorated came first and means TitlebarHidden. An explicit Titlebar wins,
+// so setting both is not a contradiction to resolve at runtime — the newer,
+// more specific field simply says more.
+func titlebarFor(opts Options) Titlebar {
+	if opts.Titlebar == TitlebarNative && opts.Undecorated {
+		return TitlebarHidden
+	}
+	return opts.Titlebar
+}
+
 // Appearance is the window chrome colour scheme. The page still follows
 // whatever Config.Theme (or the OS) says; this only hints the title bar.
 type Appearance int
@@ -85,8 +125,13 @@ type Options struct {
 	// Fullscreen opens the window in the OS full-screen space.
 	Fullscreen bool
 
-	// Undecorated hides the native title bar.
+	// Undecorated hides the native title bar. Equivalent to
+	// Titlebar: TitlebarHidden, which is the clearer spelling.
 	Undecorated bool
+
+	// Titlebar chooses how the title bar is drawn. The zero value is the OS
+	// one, so this is opt-in.
+	Titlebar Titlebar
 
 	// AlwaysOnTop keeps the window above others.
 	AlwaysOnTop bool
@@ -253,8 +298,8 @@ func (a *App) createWindow() (*Window, error) {
 	if a.opts.FixedSize {
 		w.setFixedSize(true)
 	}
-	if a.opts.Undecorated {
-		w.SetDecorations(false)
+	if style := titlebarFor(a.opts); style != TitlebarNative {
+		w.SetTitlebar(style)
 	}
 	if a.opts.AlwaysOnTop {
 		w.SetAlwaysOnTop(true)

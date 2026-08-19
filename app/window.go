@@ -27,6 +27,8 @@ type windowImpl interface {
 	focus()
 	setAlwaysOnTop(bool)
 	setDecorations(bool)
+	setTitlebar(Titlebar)
+	beginDrag()
 	setBadge(string)
 	close()
 	navigate(url string)
@@ -170,6 +172,32 @@ func (w *Window) SetDecorations(on bool) {
 
 // SetBadge sets the dock / taskbar badge. Empty clears it. No-op where
 // the OS has no badge.
+// SetTitlebar chooses how the title bar is drawn.
+func (w *Window) SetTitlebar(style Titlebar) {
+	if w == nil || w.impl == nil {
+		return
+	}
+	w.impl.setTitlebar(style)
+}
+
+// BeginDrag starts moving the window, as though the pointer had grabbed a
+// title bar.
+//
+// It is for a page that draws its own title bar: call it from a pointerdown in
+// the region that should behave like one, over the live layer. The OS then
+// runs the drag, so the window keeps up with the pointer rather than chasing
+// it through a round trip per frame.
+//
+// It only does anything while a mouse button is actually down, because every
+// platform implements it by handing the current event back to the window
+// manager.
+func (w *Window) BeginDrag() {
+	if w == nil || w.impl == nil {
+		return
+	}
+	w.impl.beginDrag()
+}
+
 func (w *Window) SetBadge(s string) {
 	if w != nil && w.impl != nil {
 		w.impl.setBadge(s)

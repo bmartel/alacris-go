@@ -81,6 +81,10 @@ func (n *nativeWindow) setAlwaysOnTop(on bool) {
 func (n *nativeWindow) setDecorations(on bool) {
 	windowSetDecorations(n.hwnd, on)
 }
+func (n *nativeWindow) setTitlebar(style Titlebar) {
+	windowSetTitlebar(n.hwnd, int(style))
+}
+func (n *nativeWindow) beginDrag()        { windowBeginDrag(n.hwnd) }
 func (n *nativeWindow) setBadge(s string) { windowSetBadge(s) }
 
 func (n *nativeWindow) close()            { n.w.Terminate() }
