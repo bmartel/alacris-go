@@ -24,9 +24,9 @@ const (
 //
 //	FabMenu(props).On(FabMenuEventOpen, "handler-name")
 const (
-	// menu visible (after the enter animation)
+	// menu visible (after the enter animation); does not bubble
 	FabMenuEventOpen = "open"
-	// menu removed (after the exit animation)
+	// menu removed (after the exit animation); does not bubble
 	FabMenuEventClose = "close"
 )
 

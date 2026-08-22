@@ -24,9 +24,9 @@ const (
 const (
 	// an option was chosen; detail: { value }
 	SelectEventChange = "change"
-	// panel enter animation finished
+	// panel enter animation finished; does not bubble
 	SelectEventOpen = "open"
-	// panel exit animation finished
+	// panel exit animation finished; does not bubble
 	SelectEventClose = "close"
 )
 
@@ -118,7 +118,9 @@ type SelectProps struct {
 // arrows move the active option, Enter/Space selects it, Escape closes the
 // panel only — an enclosing dialog keeps its own Escape for a second press,
 // typing jumps to the next option starting with that letter. The panel closes
-// on outside pointerdown and returns focus to the field.
+// on outside pointerdown and returns focus to the field. `open`/`close` do
+// not bubble: they share those names with dialogs and sheets, and a bubbling
+// select-close looks like the sheet dismissed itself.
 //
 // Past a handful of options the panel gets a filter field, because scrolling
 // is not a way to find one entry among several hundred. It takes focus when

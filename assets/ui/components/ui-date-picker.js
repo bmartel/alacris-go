@@ -26,8 +26,8 @@
 // @prop  {string}  placeholder=''
 // @event change — committed; detail: { value } or { start, end, value } when range
 // @event input  — field keystroke; detail: { value } (the raw text)
-// @event open   — calendar visible (after the enter animation)
-// @event close  — calendar removed (after the exit animation)
+// @event open   — calendar visible (after the enter animation); does not bubble
+// @event close  — calendar removed (after the exit animation); does not bubble
 // @part  field, input, label, panel, day
 // @vars  see `t` below (`themeVars.names`)
 
@@ -39,6 +39,7 @@ import { presence } from '../motion/presence.js';
 import { animate, fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
 import { escapeLayer } from '../util/keys.js';
+import { popupEvent } from '../util/popup.js';
 import { focusTrap, scrollLock } from '../util/focus.js';
 import './ui-icon-button.js';
 import './ui-button.js';
@@ -262,7 +263,7 @@ const styles = css`
 
   .panel {
     position: fixed;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     padding: ${sys.space(3)} ${sys.space(3)} ${sys.space(4)};
     background: ${t.panelBg};
     border-radius: ${t.panelRadius};
@@ -273,7 +274,7 @@ const styles = css`
   .overlay {
     position: fixed;
     inset: 0;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     display: grid;
     place-items: center;
   }
@@ -758,16 +759,16 @@ define('ui-date-picker', {
           exit: fx.scaleOut,
           enterDuration: 'short4',
           exitDuration: 'short4',
-          onEntered: () => host.emit('open'),
-          onExited: () => host.emit('close'),
+          onEntered: () => host.emit('open', null, popupEvent),
+          onExited: () => host.emit('close', null, popupEvent),
         })}
         ${presence(() => open() && presentation() === 'modal', modalView, {
           enter: fx.fadeIn,
           exit: fx.fadeOut,
           enterDuration: 'medium2',
           exitDuration: 'short4',
-          onEntered: () => host.emit('open'),
-          onExited: () => host.emit('close'),
+          onEntered: () => host.emit('open', null, popupEvent),
+          onExited: () => host.emit('close', null, popupEvent),
         })}
       </div>`;
   },

@@ -16,8 +16,8 @@
 // @prop  {boolean} open=false
 // @prop  {string}  placement='bottom-start' — side[-alignment] (see util/position.js)
 // @event select — an item was chosen; detail: { value }
-// @event open   — panel visible (after the enter animation)
-// @event close  — panel removed (after the exit animation)
+// @event open   — panel visible (after the enter animation); does not bubble
+// @event close  — panel removed (after the exit animation); does not bubble
 // @slot  anchor    — the trigger element
 // @slot  (default) — <ui-menu-item> children
 // @part  panel — the floating menu surface
@@ -30,6 +30,7 @@ import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
 import { rovingTabindex } from '../util/keys.js';
+import { popupEvent } from '../util/popup.js';
 import './ui-menu-item.js';
 
 const t = vars('ui-menu', {
@@ -47,7 +48,7 @@ const styles = css`
     position: fixed;
     inset-inline-start: 0;
     inset-block-start: 0;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     min-inline-size: ${t.minWidth};
     max-inline-size: ${t.maxWidth};
     padding-block: ${sys.space(2)};
@@ -182,8 +183,8 @@ define('ui-menu', {
         exitDuration: 'short2',
         enterEasing: 'emphasizedDecelerate',
         exitEasing: 'emphasizedAccelerate',
-        onEntered: () => host.emit('open'),
-        onExited: () => host.emit('close'),
+        onEntered: () => host.emit('open', null, popupEvent),
+        onExited: () => host.emit('close', null, popupEvent),
       })}`;
   },
 });

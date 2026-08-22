@@ -26,7 +26,7 @@ import { define, html, css, vars, effect, onCleanup } from '@alacris/core';
 import { sys } from '../tokens/sys.js';
 import { base } from './base.js';
 import { presence } from '../motion/presence.js';
-import { animate, fx } from '../motion/animate.js';
+import { animate, fx, releaseFill } from '../motion/animate.js';
 import { focusTrap, scrollLock } from '../util/focus.js';
 
 const t = vars('ui-drawer', {
@@ -135,7 +135,7 @@ define('ui-drawer', {
 
     const surfaceRef = (el) => {
       surfaceEl = el;
-      animate(el, slideIn(), { duration: 'medium2', easing: 'emphasizedDecelerate' });
+      releaseFill(animate(el, slideIn(), { duration: 'medium2', easing: 'emphasizedDecelerate' }));
     };
 
     const overlay = () => html`

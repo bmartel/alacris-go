@@ -34,9 +34,9 @@ const (
 	SearchEventSubmit = "submit"
 	// the clear affordance was used
 	SearchEventClear = "clear"
-	// suggestions visible (after the enter animation)
+	// suggestions visible (after the enter animation); does not bubble
 	SearchEventOpen = "open"
-	// suggestions removed (after the exit animation)
+	// suggestions removed (after the exit animation); does not bubble
 	SearchEventClose = "close"
 )
 

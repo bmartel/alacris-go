@@ -185,7 +185,7 @@ const styles = css`
 
   .panel {
     position: fixed;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     min-inline-size: 112px;
     max-block-size: 40vh;
     overflow: auto;

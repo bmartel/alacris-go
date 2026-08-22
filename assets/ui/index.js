@@ -20,7 +20,7 @@ export {
 } from './tokens/typography.js';
 
 // Motion
-export { animate, settled, duration, easing, fx, prefersReducedMotion } from './motion/animate.js';
+export { animate, releaseFill, settled, duration, easing, fx, prefersReducedMotion } from './motion/animate.js';
 export { presence } from './motion/presence.js';
 export { withFlip } from './motion/flip.js';
 export { ripple } from './motion/ripple.js';
