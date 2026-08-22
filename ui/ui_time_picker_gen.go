@@ -18,9 +18,9 @@ const (
 	TimePickerEventChange = "change"
 	// field keystroke; detail: { value } (the raw text)
 	TimePickerEventInput = "input"
-	// panel visible (after the enter animation)
+	// panel visible (after the enter animation); does not bubble
 	TimePickerEventOpen = "open"
-	// panel removed (after the exit animation)
+	// panel removed (after the exit animation); does not bubble
 	TimePickerEventClose = "close"
 )
 

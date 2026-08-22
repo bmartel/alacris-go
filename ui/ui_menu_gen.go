@@ -26,9 +26,9 @@ const (
 const (
 	// an item was chosen; detail: { value }
 	MenuEventSelect = "select"
-	// panel visible (after the enter animation)
+	// panel visible (after the enter animation); does not bubble
 	MenuEventOpen = "open"
-	// panel removed (after the exit animation)
+	// panel removed (after the exit animation); does not bubble
 	MenuEventClose = "close"
 )
 

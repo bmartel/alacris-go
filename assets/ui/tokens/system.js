@@ -103,6 +103,7 @@ export function zTokens() {
     'z-app-bar': '1100',
     'z-drawer': '1200',
     'z-modal': '1300',
+    'z-popup': '1350',
     'z-snackbar': '1400',
     'z-tooltip': '1500',
   };

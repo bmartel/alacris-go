@@ -104,6 +104,20 @@ export function animate(el, keyframes, opts = {}) {
 /** Await an animation without throwing when it is cancelled mid-flight. */
 export const settled = (anim) => anim.finished.catch(() => {});
 
+/**
+ * Drop fill:both once an enter animation has settled.
+ *
+ * A leftover transform is a containing block for `position:fixed`
+ * descendants — a select inside a side sheet is then placed in viewport
+ * pixels against the surface, so the list sits beside the sheet, under
+ * it, or clipped by the body's overflow. presence() already releases
+ * the overlay fade; surfaces animated directly need the same.
+ */
+export function releaseFill(anim) {
+  anim.finished.then(() => { try { anim.cancel(); } catch { /* already cancelled */ } });
+  return anim;
+}
+
 // ------------------------------------------------------------------ presets
 //
 // Keyframe presets tuned to the Material motion spec. Enter presets pair with

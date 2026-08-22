@@ -65,6 +65,7 @@ export const sys = {
     appBar: v('z-app-bar'),
     drawer: v('z-drawer'),
     modal: v('z-modal'),
+    popup: v('z-popup'),
     snackbar: v('z-snackbar'),
     tooltip: v('z-tooltip'),
   },

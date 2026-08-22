@@ -28,8 +28,8 @@
 // @event change — committed (blur/Enter); detail: { value }
 // @event submit — Enter pressed; detail: { value }
 // @event clear  — the clear affordance was used
-// @event open   — suggestions visible (after the enter animation)
-// @event close  — suggestions removed (after the exit animation)
+// @event open   — suggestions visible (after the enter animation); does not bubble
+// @event close  — suggestions removed (after the exit animation); does not bubble
 // @slot  leading  — replaces the search icon
 // @slot  trailing — after the clear button (avatar, extra actions)
 // @slot  (default) — suggestion rows (ui-list-item, …). The panel is a list
@@ -43,6 +43,7 @@ import { base } from './base.js';
 import { formBind } from '../util/form.js';
 import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
+import { popupEvent } from '../util/popup.js';
 import './ui-icon.js';
 import './ui-icon-button.js';
 
@@ -75,7 +76,7 @@ const styles = css`
   }
   .shell.open {
     overflow: visible;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     background: ${t.panelBg};
     border-start-start-radius: ${t.panelRadius};
     border-start-end-radius: ${t.panelRadius};
@@ -307,8 +308,8 @@ define('ui-search', {
           enterEasing: 'emphasizedDecelerate',
           exitDuration: 'short4',
           exitEasing: 'emphasizedAccelerate',
-          onEntered: () => host.emit('open'),
-          onExited: () => host.emit('close'),
+          onEntered: () => host.emit('open', null, popupEvent),
+          onExited: () => host.emit('close', null, popupEvent),
         })}
       </div>`;
   },

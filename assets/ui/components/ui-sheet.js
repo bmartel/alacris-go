@@ -29,7 +29,7 @@ import { define, html, css, vars, effect, onCleanup, signal } from '@alacris/cor
 import { sys } from '../tokens/sys.js';
 import { base } from './base.js';
 import { presence } from '../motion/presence.js';
-import { animate, fx } from '../motion/animate.js';
+import { animate, fx, releaseFill } from '../motion/animate.js';
 import { focusTrap, scrollLock } from '../util/focus.js';
 
 const t = vars('ui-sheet', {
@@ -163,7 +163,7 @@ define('ui-sheet', {
              aria-labelledby=${() => (hasHeadline() ? 'headline' : null)}
              aria-label=${() => (hasHeadline() ? null : (label() || 'Sheet'))}
              tabindex="-1"
-             ref=${(el) => { surfaceEl = el; animate(el, fx.sheetIn, { duration: 'medium2', easing: 'emphasizedDecelerate' }); }}>
+             ref=${(el) => { surfaceEl = el; releaseFill(animate(el, fx.sheetIn, { duration: 'medium2', easing: 'emphasizedDecelerate' })); }}>
           <div class="handle" part="handle" aria-hidden="true"></div>
           <div class="headline" part="headline" id="headline"
                ref=${(el) => hasSlot(el.querySelector('slot'), (has) => {

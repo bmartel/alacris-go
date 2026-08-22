@@ -21,8 +21,8 @@
 // @prop  {string}  placeholder=''
 // @event change — committed; detail: { value }
 // @event input  — field keystroke; detail: { value } (the raw text)
-// @event open   — panel visible (after the enter animation)
-// @event close  — panel removed (after the exit animation)
+// @event open   — panel visible (after the enter animation); does not bubble
+// @event close  — panel removed (after the exit animation); does not bubble
 // @part  field, input, label, panel, dial
 // @vars  see `t` below (`themeVars.names`)
 
@@ -34,6 +34,7 @@ import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
 import { rovingTabindex } from '../util/keys.js';
+import { popupEvent } from '../util/popup.js';
 import './ui-icon-button.js';
 
 const TIME = /^(\d{1,2}):(\d{2})$/;
@@ -215,7 +216,7 @@ const styles = css`
 
   .panel {
     position: fixed;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     display: flex;
     flex-direction: column;
     gap: ${sys.space(3)};
@@ -742,8 +743,8 @@ define('ui-time-picker', {
           exit: fx.scaleOut,
           enterDuration: 'short4',
           exitDuration: 'short4',
-          onEntered: () => host.emit('open'),
-          onExited: () => host.emit('close'),
+          onEntered: () => host.emit('open', null, popupEvent),
+          onExited: () => host.emit('close', null, popupEvent),
         })}
       </div>`;
   },

@@ -10,7 +10,9 @@
 // arrows move the active option, Enter/Space selects it, Escape closes the
 // panel only — an enclosing dialog keeps its own Escape for a second press,
 // typing jumps to the next option starting with that letter. The panel closes
-// on outside pointerdown and returns focus to the field.
+// on outside pointerdown and returns focus to the field. `open`/`close` do
+// not bubble: they share those names with dialogs and sheets, and a bubbling
+// select-close looks like the sheet dismissed itself.
 //
 // Past a handful of options the panel gets a filter field, because scrolling
 // is not a way to find one entry among several hundred. It takes focus when
@@ -31,8 +33,8 @@
 // @prop  {number}  searchThreshold=8
 // @prop  {string}  searchPlaceholder='Search'
 // @event change — an option was chosen; detail: { value }
-// @event open   — panel enter animation finished
-// @event close  — panel exit animation finished
+// @event open   — panel enter animation finished; does not bubble
+// @event close  — panel exit animation finished; does not bubble
 // @slot  (default) — <ui-option> children (projected into the panel)
 // @part  control — the field button (role="combobox")
 // @part  label, panel
@@ -50,6 +52,7 @@ import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
 import { escapeLayer } from '../util/keys.js';
+import { popupEvent } from '../util/popup.js';
 import './ui-icon.js';
 import './ui-option.js';
 
@@ -210,7 +213,7 @@ const styles = css`
 
   .panel {
     position: fixed;
-    z-index: ${sys.z.modal};
+    z-index: ${sys.z.popup};
     min-inline-size: 112px;
     max-block-size: 40vh;
     /* The filter field stays put while the options scroll under it, so the
@@ -553,8 +556,8 @@ define('ui-select', {
           exitDuration: 'short2',
           enterEasing: 'emphasizedDecelerate',
           exitEasing: 'emphasizedAccelerate',
-          onEntered: () => host.emit('open'),
-          onExited: () => host.emit('close'),
+          onEntered: () => host.emit('open', null, popupEvent),
+          onExited: () => host.emit('close', null, popupEvent),
         })}
       </div>`;
   },

@@ -27,7 +27,7 @@ var assetFS embed.FS
 const RuntimeVersion = "0.11.3"
 
 // UIVersion is the version of the @alacris/ui package vendored in assets/ui/.
-const UIVersion = "0.4.0"
+const UIVersion = "0.4.1"
 
 // TrustedTypesPolicy is the Trusted Types policy name alacris registers for
 // template parsing. Under a trusted-types CSP directive it has to be allowed.

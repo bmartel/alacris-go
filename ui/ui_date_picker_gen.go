@@ -18,9 +18,9 @@ const (
 	DatePickerEventChange = "change"
 	// field keystroke; detail: { value } (the raw text)
 	DatePickerEventInput = "input"
-	// calendar visible (after the enter animation)
+	// calendar visible (after the enter animation); does not bubble
 	DatePickerEventOpen = "open"
-	// calendar removed (after the exit animation)
+	// calendar removed (after the exit animation); does not bubble
 	DatePickerEventClose = "close"
 )
 

@@ -14,8 +14,8 @@
 //
 // @prop  {boolean} open=false
 // @prop  {string}  label='' — accessible name for the action list
-// @event open  — menu visible (after the enter animation)
-// @event close — menu removed (after the exit animation)
+// @event open  — menu visible (after the enter animation); does not bubble
+// @event close — menu removed (after the exit animation); does not bubble
 // @slot  trigger  — the <ui-fab> that toggles the menu
 // @slot  (default) — related <ui-fab> actions
 // @part  actions, trigger
@@ -26,6 +26,7 @@ import { sys } from '../tokens/sys.js';
 import { base } from './base.js';
 import { presence } from '../motion/presence.js';
 import { fx } from '../motion/animate.js';
+import { popupEvent } from '../util/popup.js';
 import './ui-fab.js';
 
 const t = vars('ui-fab-menu', {
@@ -112,8 +113,8 @@ define('ui-fab-menu', {
         exit: fx.scaleOut,
         enterDuration: 'short4',
         exitDuration: 'short2',
-        onEntered: () => host.emit('open'),
-        onExited: () => host.emit('close'),
+        onEntered: () => host.emit('open', null, popupEvent),
+        onExited: () => host.emit('close', null, popupEvent),
       })}`;
   },
 });
