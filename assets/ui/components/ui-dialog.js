@@ -111,19 +111,22 @@ define('ui-dialog', {
     };
 
     // Trap focus + lock scroll exactly while open; presence handles the DOM.
+    let prevActive = null;
     effect(() => {
       if (open()) {
+        prevActive = document.activeElement;
         document.addEventListener('keydown', onDocKeydown, true);
         unlock = scrollLock();
         // The surface renders synchronously with the signal write, but wait a
         // microtask so slotted content is distributed before we look for it.
         queueMicrotask(() => {
-          if (open() && !releaseTrap) releaseTrap = focusTrap(host);
+          if (open() && !releaseTrap) releaseTrap = focusTrap(host, { restore: prevActive });
         });
       } else {
         document.removeEventListener('keydown', onDocKeydown, true);
         releaseTrap?.();
         releaseTrap = null;
+        prevActive = null;
         unlock?.();
         unlock = null;
         if (surfaceEl?.isConnected) {

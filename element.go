@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/a-h/templ"
 )
@@ -264,6 +266,15 @@ func (e *Element) On(event, action string) *Element {
 		return e
 	}
 	e.events = append(e.events, event+":"+action)
+	return e
+}
+
+// Debounce sets a client-side debounce delay in milliseconds before forwarding
+// events on this element to server actions.
+func (e *Element) Debounce(d time.Duration) *Element {
+	if d > 0 {
+		return e.Attr("data-ala-debounce", strconv.FormatInt(d.Milliseconds(), 10))
+	}
 	return e
 }
 

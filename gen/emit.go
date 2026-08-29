@@ -617,7 +617,10 @@ func propCondition(p Prop, opts Options) (cond, arg string) {
 	case strings.HasPrefix(t, "*"), t == "any", t == "interface{}":
 		return field + " != nil", field
 	case strings.HasPrefix(t, "[]"), strings.HasPrefix(t, "map["):
-		return "len(" + field + ") > 0", field
+		if p.GoDefault == "" {
+			return "len(" + field + ") > 0", field
+		}
+		return field + " != nil", field
 	}
 
 	if !isScalarGoType(t) {

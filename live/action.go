@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"reflect"
 )
 
 // A Ctx carries one action from the browser to its handler.
@@ -43,6 +44,11 @@ func (c *Ctx) Context() context.Context { return c.Request.Context() }
 func (c *Ctx) Bind(v any) error {
 	if len(c.Detail) == 0 || string(c.Detail) == "null" {
 		return nil
+	}
+	if rt := reflect.TypeOf(v); rt != nil && rt.Kind() == reflect.Pointer {
+		if elem := rt.Elem(); elem.Kind() == reflect.Struct && elem.NumField() == 0 {
+			return nil
+		}
 	}
 	dec := json.NewDecoder(bytes.NewReader(c.Detail))
 	dec.DisallowUnknownFields()

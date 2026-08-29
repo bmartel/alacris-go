@@ -61,6 +61,16 @@ define('user-card', {
 		`if len(p.Tags) > 0 {`,
 		`if len(p.Config) > 0 {`,
 	)
+
+	gotNonEmpty := generate(t, `
+define('role-card', {
+  props: { roles: ['user'] },
+  setup,
+});`, Options{})
+	mustContain(t, gotNonEmpty,
+		`if p.Roles != nil {`,
+		`e.Prop("roles", p.Roles)`,
+	)
 }
 
 func TestGenerateBoolWithTrueDefaultIsAPointer(t *testing.T) {

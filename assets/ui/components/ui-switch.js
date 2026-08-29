@@ -144,7 +144,7 @@ define('ui-switch', {
             ${() => (icons() ? html`<ui-icon name=${() => (checked() ? 'check' : 'close')}></ui-icon>` : null)}
           </span>
         </button>
-        ${() => (label() ? html`<span id="label">${label}</span>` : null)}
+        ${() => (label() ? html`<span id="label" part="label">${label}</span>` : html`<slot></slot>`)}
       </label>`;
   },
 });

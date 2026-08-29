@@ -606,3 +606,32 @@ func waitFor(t *testing.T, cond func() bool, msg string) {
 	}
 	t.Fatal(msg)
 }
+
+func TestBindEmptyStructHandlesPrimitiveDetail(t *testing.T) {
+	c := &Ctx{
+		Action: "click",
+		Detail: json.RawMessage("1"), // MouseEvent numeric detail
+	}
+	var empty struct{}
+	if err := c.Bind(&empty); err != nil {
+		t.Fatalf("Bind to empty struct failed with numeric detail: %v", err)
+	}
+
+	cString := &Ctx{
+		Action: "custom",
+		Detail: json.RawMessage(`"hello"`),
+	}
+	if err := cString.Bind(&empty); err != nil {
+		t.Fatalf("Bind to empty struct failed with string detail: %v", err)
+	}
+
+	// Strictly checks non-empty struct
+	type TypedDetail struct {
+		Count int `json:"count"`
+	}
+	var typed TypedDetail
+	if err := c.Bind(&typed); err == nil {
+		t.Fatalf("Bind to typed struct should have failed on invalid number literal")
+	}
+}
+

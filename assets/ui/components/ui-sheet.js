@@ -126,17 +126,20 @@ define('ui-sheet', {
       if (e.key === 'Escape') requestClose('esc');
     };
 
+    let prevActive = null;
     effect(() => {
       if (open() && variant() !== 'standard') {
+        prevActive = document.activeElement;
         document.addEventListener('keydown', onDocKeydown, true);
         unlock = scrollLock();
         queueMicrotask(() => {
-          if (open() && !releaseTrap) releaseTrap = focusTrap(host);
+          if (open() && !releaseTrap) releaseTrap = focusTrap(host, { restore: prevActive });
         });
       } else {
         document.removeEventListener('keydown', onDocKeydown, true);
         releaseTrap?.();
         releaseTrap = null;
+        prevActive = null;
         unlock?.();
         unlock = null;
         if (surfaceEl?.isConnected) {

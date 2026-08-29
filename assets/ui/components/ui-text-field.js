@@ -320,7 +320,15 @@ define('ui-text-field', {
        hasLeading() && 'with-leading', type() === 'textarea' && 'multiline',
        type() === 'number' && 'numeric'].filter(Boolean).join(' '));
 
+    let isComposing = false;
+    const onCompositionStart = () => { isComposing = true; };
+    const onCompositionEnd = (e) => {
+      isComposing = false;
+      onInput(e);
+    };
+
     const onInput = (e) => {
+      if (isComposing) return;
       value.set(e.target.value);
       host.emit('input', { value: value() });
     };
@@ -350,6 +358,8 @@ define('ui-text-field', {
               spellcheck=${attr(spellcheck)}
               inputmode=${attr(inputmode)}
               enterkeyhint=${attr(enterkeyhint)}
+              @compositionstart=${onCompositionStart}
+              @compositionend=${onCompositionEnd}
               @input=${onInput} @change=${commit}
               @focus=${() => focused.set(true)} @blur=${() => focused.set(false)}></textarea></span>`
         : html`<input part="input" ref=${(el) => (input = el)}
@@ -364,6 +374,8 @@ define('ui-text-field', {
               spellcheck=${attr(spellcheck)}
               inputmode=${attr(inputmode)}
               enterkeyhint=${attr(enterkeyhint)}
+              @compositionstart=${onCompositionStart}
+              @compositionend=${onCompositionEnd}
               @input=${onInput} @change=${commit}
               @focus=${() => focused.set(true)} @blur=${() => focused.set(false)}>`)}
       ${() => (clearable() && value() !== '' && !disabled()

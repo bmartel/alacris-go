@@ -105,17 +105,20 @@ define('ui-drawer', {
     };
 
     // Trap focus + lock scroll exactly while the modal drawer is open.
+    let prevActive = null;
     effect(() => {
       if (open() && variant() === 'modal') {
+        prevActive = document.activeElement;
         document.addEventListener('keydown', onDocKeydown, true);
         if (!unlock) unlock = scrollLock();
         queueMicrotask(() => {
-          if (open.peek() && !releaseTrap) releaseTrap = focusTrap(host);
+          if (open.peek() && !releaseTrap) releaseTrap = focusTrap(host, { restore: prevActive });
         });
       } else {
         document.removeEventListener('keydown', onDocKeydown, true);
         releaseTrap?.();
         releaseTrap = null;
+        prevActive = null;
         unlock?.();
         unlock = null;
       }

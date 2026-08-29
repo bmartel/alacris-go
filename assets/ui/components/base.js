@@ -13,7 +13,7 @@ export const base = css`
     font-synthesis: none;
     -webkit-tap-highlight-color: transparent;
   }
-  :host([hidden]) { display: none; }
+  :host([hidden]) { display: none !important; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       transition-duration: 0.01ms;

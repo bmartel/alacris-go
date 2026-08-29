@@ -409,11 +409,16 @@ function delegate(root2, type) {
     if (ri < 0) return;
     let lo = 0;
     for (let i = 0; i < ri; i++) if (path[i].nodeType === 11) lo = i + 1;
+    const d = e.$$h || (e.$$h = /* @__PURE__ */ new Set());
     for (let i = lo; i < ri; i++) {
-      const h = path[i][key];
-      if (h) {
-        h.call(path[i], e);
-        if (e.cancelBubble) return;
+      const node2 = path[i];
+      if (!d.has(node2)) {
+        const h = node2[key];
+        if (h) {
+          d.add(node2);
+          h.call(node2, e);
+          if (e.cancelBubble) return;
+        }
       }
     }
   });
@@ -642,7 +647,7 @@ function prepare(p) {
   if (n === "class") {
     p.set = (el, v) => {
       const t = classText(v);
-      t ? el.className = t : el.removeAttribute("class");
+      t ? typeof el.className === "string" ? el.className = t : el.setAttribute("class", t) : el.removeAttribute("class");
     };
     return p;
   }

@@ -32,8 +32,8 @@ export function focusables(host) {
  *
  *   const release = focusTrap(host, { initial: shadowCloseButton });
  */
-export function focusTrap(host, { initial } = {}) {
-  const previous = document.activeElement;
+export function focusTrap(host, { initial, restore } = {}) {
+  const previous = restore || document.activeElement;
 
   const first = initial || focusables(host)[0] || host;
   first.focus?.();

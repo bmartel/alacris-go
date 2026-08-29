@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 )
@@ -66,6 +67,11 @@ func TestElementRender(t *testing.T) {
 			"events render as one delegated declaration",
 			E("x-y").On("greet", "say-hi").On("reset", "clear"),
 			`<x-y data-ala-on="greet:say-hi reset:clear"></x-y>`,
+		},
+		{
+			"debounce sets data-ala-debounce in milliseconds",
+			E("x-y").On("input", "search").Debounce(150 * time.Millisecond),
+			`<x-y data-ala-debounce="150" data-ala-on="input:search"></x-y>`,
 		},
 		{
 			"slots wrap their content",

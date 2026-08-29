@@ -275,6 +275,7 @@ function reloadOnce() {
 }
 
 const wired = new Set();
+const debounceTimers = new WeakMap();
 
 /** Listen for one event type, once, for the whole document. */
 function wire(type) {
@@ -289,7 +290,16 @@ function wire(type) {
       for (const pair of spec.split(/\s+/)) {
         const split = pair.indexOf(':');
         if (split > 0 && pair.slice(0, split) === type) {
-          send(pair.slice(split + 1), node.id || '', e.detail);
+          const action = pair.slice(split + 1);
+          const wait = Number(node.dataset?.alaDebounce);
+          if (wait > 0) {
+            clearTimeout(debounceTimers.get(node));
+            debounceTimers.set(node, setTimeout(() => {
+              send(action, node.id || '', e.detail);
+            }, wait));
+          } else {
+            send(action, node.id || '', e.detail);
+          }
           return;
         }
       }

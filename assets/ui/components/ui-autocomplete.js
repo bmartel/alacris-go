@@ -276,8 +276,16 @@ define('ui-autocomplete', {
       open.set(false);
     };
 
+    let isComposing = false;
+    const onCompositionStart = () => { isComposing = true; };
+    const onCompositionEnd = (e) => {
+      isComposing = false;
+      onInput(e);
+    };
+
     const onInput = (e) => {
       e.stopPropagation();
+      if (isComposing) return;
       query.set(e.target.value);
       open.set(true);
       host.emit('input', { value: e.target.value });
@@ -358,6 +366,8 @@ define('ui-autocomplete', {
                  .value=${query}
                  placeholder=${() => placeholder() || null}
                  ?disabled=${disabled} ?required=${required}
+                 @compositionstart=${onCompositionStart}
+                 @compositionend=${onCompositionEnd}
                  @input=${onInput} @change=${(e) => e.stopPropagation()} @keydown=${onKeydown}
                  @focus=${onFocus} @blur=${onBlur}>
           <ui-icon class="arrow" name="arrow-drop-down"></ui-icon>

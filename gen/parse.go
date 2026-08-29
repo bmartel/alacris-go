@@ -539,10 +539,16 @@ func describe(v jsValue) (kind Kind, goT, goDefault string, err error) {
 		return KindNumber, "float64", strconv.FormatFloat(v.num, 'g', -1, 64), nil
 
 	case jsArray:
-		return KindJSON, sliceType(v.arr), "", nil
+		if len(v.arr) == 0 {
+			return KindJSON, sliceType(v.arr), "", nil
+		}
+		return KindJSON, sliceType(v.arr), "nonempty", nil
 
 	case jsObject:
-		return KindJSON, "map[string]any", "", nil
+		if len(v.obj) == 0 {
+			return KindJSON, "map[string]any", "", nil
+		}
+		return KindJSON, "map[string]any", "nonempty", nil
 
 	case jsNull:
 		return KindJSON, "any", "", nil
