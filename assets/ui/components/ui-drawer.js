@@ -153,7 +153,7 @@ define('ui-drawer', {
     return html`
       ${() =>
         variant() === 'standard'
-          ? html`<aside class=${() => `std ${anchor()}${open() ? ' open' : ''}`} part="surface"
+          ? html`<aside class=${() => `std ${anchor()}${open() ? ' open' : ''}`} ?inert=${() => !open()} part="surface"
                         aria-label=${() => label() || 'Navigation'}>
               <div class="inner"><slot></slot></div>
             </aside>`

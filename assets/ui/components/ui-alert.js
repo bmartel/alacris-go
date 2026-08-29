@@ -132,6 +132,7 @@ define('ui-alert', {
     const onDismiss = () => {
       if (dismissing) return;
       dismissing = true;
+      host.inert = true;
       const height = host.scrollHeight || 0;
       // Simulated DOMs (and display:none hosts) measure 0 — skip straight out.
       if (!height) { host.emit('dismiss'); return; }

@@ -183,6 +183,7 @@ define('ui-chip', {
     const dismiss = (e) => {
       e.stopPropagation();
       if (disabled()) return;
+      host.inert = true;
       const w = host.getBoundingClientRect().width;
       const anim = animate(host, [
         { inlineSize: `${w}px`, opacity: 1 },

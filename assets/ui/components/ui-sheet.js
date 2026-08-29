@@ -186,7 +186,7 @@ define('ui-sheet', {
     return html`
       ${() =>
         variant() === 'standard'
-          ? html`<div class=${() => `std${open() ? ' open' : ''}`} part="surface" role="region"
+          ? html`<div class=${() => `std${open() ? ' open' : ''}`} ?inert=${() => !open()} part="surface" role="region"
                       aria-label=${() => label() || 'Sheet'}>
               <div class="std-inner">
                 <div class="handle" part="handle" aria-hidden="true"></div>

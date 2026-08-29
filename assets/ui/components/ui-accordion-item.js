@@ -146,7 +146,7 @@ define('ui-accordion-item', {
           <ui-icon class=${() => `chevron${expanded() ? ' open' : ''}`} name="expand-more"></ui-icon>
         </button>
       </h3>
-      <div part="content" class="content" id="content" role="region" aria-labelledby="header"
+      <div part="content" class="content" id="content" role="region" aria-labelledby="header" ?inert=${() => !expanded()}
            ref=${(el) => { contentEl = el; el.hidden = !expanded.peek(); }}>
         <div class="body" part="body"><slot></slot></div>
       </div>`;

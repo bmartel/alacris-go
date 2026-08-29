@@ -195,7 +195,7 @@ define('ui-side-sheet', {
     return html`
       ${() =>
         variant() === 'standard'
-          ? html`<aside class=${() => `std ${anchor()}${open() ? ' open' : ''}`} part="surface"
+          ? html`<aside class=${() => `std ${anchor()}${open() ? ' open' : ''}`} ?inert=${() => !open()} part="surface"
                         role="region"
                         aria-labelledby=${() => (hasHeadline() ? 'headline' : null)}
                         aria-label=${() => (hasHeadline() ? null : (label() || 'Side sheet'))}>
