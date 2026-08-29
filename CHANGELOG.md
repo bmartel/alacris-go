@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.12.0](https://github.com/bmartel/alacris-go/compare/v0.11.2...v0.12.0) (2026-08-29)
+
+### Features
+
+* vendor alacris 0.11.4 / ui 0.4.2, add element debounce, and fix live struct bindings ([f4229ea](https://github.com/bmartel/alacris-go/commit/f4229eaa73e6060b897a096f8d8e721d4f3185ed))
+
 ## [0.11.2](https://github.com/bmartel/alacris-go/compare/v0.11.1...v0.11.2) (2026-08-22)
 
 ### Bug Fixes
