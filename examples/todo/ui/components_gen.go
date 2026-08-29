@@ -146,7 +146,7 @@ func Board(p BoardProps) *alacris.Element {
 	if len(p.Items) > 0 {
 		e.Prop("items", p.Items)
 	}
-	if len(p.Columns) > 0 {
+	if p.Columns != nil {
 		e.Prop("columns", p.Columns)
 	}
 	if p.Busy {
@@ -239,7 +239,7 @@ func MemberSelect(p MemberSelectProps) *alacris.Element {
 	if len(p.Value) > 0 {
 		e.Prop("value", p.Value)
 	}
-	if len(p.Options) > 0 {
+	if p.Options != nil {
 		e.Prop("options", p.Options)
 	}
 	if p.Label != "" && p.Label != "Members" {
