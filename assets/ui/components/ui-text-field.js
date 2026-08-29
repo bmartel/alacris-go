@@ -193,14 +193,14 @@ const styles = css`
                 color ${sys.duration.short2} ${sys.easing.standard};
   }
   .with-leading .label { inset-inline-start: calc(${sys.space(4)} + 1.5rem + ${sys.space(2)}); }
-  /* Multi-line fields anchor the label to the top, not the vertical center. */
-  .multiline .label { inset-block-start: 24px; z-index: 2; }
+  /* Multi-line fields anchor the unfloated label near the top line. */
+  .multiline:not(.floating) .label { inset-block-start: 24px; z-index: 2; }
   .filled.floating .label { translate: 0 calc(-50% - 16px); scale: 0.75; }
-  .filled.multiline.floating .label { translate: 0 -85%; scale: 0.75; }
-  .outlined.multiline.floating .label { inset-block-start: 8px; }
+  .filled.multiline.floating .label { inset-block-start: 24px; translate: 0 -85%; scale: 0.75; }
   .outlined.floating .label {
     inset-inline-start: ${sys.space(4)};
-    translate: 0 calc(-50% - (${t.height} + var(--ui-density, 0) * 4px) / 2);
+    inset-block-start: 0;
+    translate: 0 -50%;
     scale: 0.75;
   }
   .focused .label { color: ${t.accent}; }

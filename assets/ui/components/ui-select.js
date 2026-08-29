@@ -189,7 +189,8 @@ const styles = css`
   }
   .filled.floating .label { translate: 0 calc(-50% - 16px); scale: 0.75; }
   .outlined.floating .label {
-    translate: 0 calc(-50% - (${t.height} + var(--ui-density, 0) * 4px) / 2);
+    inset-block-start: 0;
+    translate: 0 -50%;
     scale: 0.75;
   }
   .open .label, :focus-within .label { color: ${t.accent}; }
