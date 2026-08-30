@@ -149,7 +149,9 @@ const styles = css`
     color: ${t.labelFg};
     pointer-events: none;
     transform-origin: 0 50%;
-    transition: translate ${sys.duration.short3} ${sys.easing.standard},
+    transition: inset-block-start ${sys.duration.short3} ${sys.easing.standard},
+                inset-inline-start ${sys.duration.short3} ${sys.easing.standard},
+                translate ${sys.duration.short3} ${sys.easing.standard},
                 scale ${sys.duration.short3} ${sys.easing.standard},
                 color ${sys.duration.short2} ${sys.easing.standard};
   }

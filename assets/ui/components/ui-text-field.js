@@ -188,15 +188,17 @@ const styles = css`
     color: ${t.labelFg};
     pointer-events: none;
     transform-origin: 0 50%;
-    transition: translate ${sys.duration.short3} ${sys.easing.standard},
+    transition: inset-block-start ${sys.duration.short3} ${sys.easing.standard},
+                inset-inline-start ${sys.duration.short3} ${sys.easing.standard},
+                translate ${sys.duration.short3} ${sys.easing.standard},
                 scale ${sys.duration.short3} ${sys.easing.standard},
                 color ${sys.duration.short2} ${sys.easing.standard};
   }
   .with-leading .label { inset-inline-start: calc(${sys.space(4)} + 1.5rem + ${sys.space(2)}); }
-  /* Multi-line fields anchor the unfloated label near the top line. */
-  .multiline:not(.floating) .label { inset-block-start: 24px; z-index: 2; }
+  /* Multi-line fields anchor the unfloated label centered on the first text line. */
+  .multiline:not(.floating) .label { inset-block-start: 28px; z-index: 2; }
   .filled.floating .label { translate: 0 calc(-50% - 16px); scale: 0.75; }
-  .filled.multiline.floating .label { inset-block-start: 24px; translate: 0 -85%; scale: 0.75; }
+  .filled.multiline.floating .label { inset-block-start: 16px; translate: 0 -50%; scale: 0.75; }
   .outlined.floating .label {
     inset-inline-start: ${sys.space(4)};
     inset-block-start: 0;
