@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.15.0](https://github.com/bmartel/alacris-go/compare/v0.14.0...v0.15.0) (2026-08-30)
+
+### Features
+
+* **vendor:** bump @alacris/ui to 0.4.5 with smooth textarea floating label transitions ([72eb1cb](https://github.com/bmartel/alacris-go/commit/72eb1cb2e2814a08791689e5ad5ac09ef7ddd348))
+
 ## [0.14.0](https://github.com/bmartel/alacris-go/compare/v0.13.0...v0.14.0) (2026-08-29)
 
 ### Features
