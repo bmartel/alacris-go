@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.16.0](https://github.com/bmartel/alacris-go/compare/v0.15.0...v0.16.0) (2026-08-30)
+
+### Features
+
+* **vendor:** bump @alacris/ui to 0.4.6 with filled label visibility and calibrated legend notch scaling ([a96a572](https://github.com/bmartel/alacris-go/commit/a96a572b3bb8375985d3d1eda308de30c7ab5e47))
+
 ## [0.15.0](https://github.com/bmartel/alacris-go/compare/v0.14.0...v0.15.0) (2026-08-30)
 
 ### Features
