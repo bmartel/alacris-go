@@ -153,10 +153,8 @@ const styles = css`
     white-space: nowrap;
     overflow: hidden;
     font: inherit;
-    font-size: inherit;
+    font-size: 0.75rem;
     letter-spacing: inherit;
-    scale: 0.75;
-    transform-origin: 0 50%;
     visibility: hidden;
     max-inline-size: 0.01px;
     height: 12px;
@@ -164,8 +162,7 @@ const styles = css`
     transition: max-inline-size ${sys.duration.short2} ${sys.easing.standard};
   }
   legend span {
-    padding-inline-start: 0;
-    padding-inline-end: 12px;
+    padding-inline: 4px 5px;
     display: inline-block;
     opacity: 0;
     visibility: visible;
@@ -189,14 +186,14 @@ const styles = css`
     transition: inset-block-start ${sys.duration.short3} ${sys.easing.standard},
                 inset-inline-start ${sys.duration.short3} ${sys.easing.standard},
                 translate ${sys.duration.short3} ${sys.easing.standard},
-                scale ${sys.duration.short3} ${sys.easing.standard},
+                font-size ${sys.duration.short3} ${sys.easing.standard},
                 color ${sys.duration.short2} ${sys.easing.standard};
   }
-  .filled.floating .label { translate: 0 calc(-50% - 16px); scale: 0.75; }
+  .filled.floating .label { translate: 0 calc(-50% - 16px); font-size: 0.75rem; }
   .outlined.floating .label {
     inset-block-start: 0;
     translate: 0 -50%;
-    scale: 0.75;
+    font-size: 0.75rem;
   }
   .open .label, :focus-within .label { color: ${t.accent}; }
 
