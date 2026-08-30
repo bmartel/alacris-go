@@ -119,9 +119,11 @@ const styles = css`
     margin-inline-start: 0;
     white-space: nowrap;
     overflow: hidden;
-    font: ${t.font};
-    font-size: 0.75em;
-    letter-spacing: calc(${sys.tracking.bodyLg} * 0.75);
+    font: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+    scale: 0.75;
+    transform-origin: 0 50%;
     visibility: hidden;
     max-inline-size: 0.01px;
     height: 12px;
@@ -129,7 +131,8 @@ const styles = css`
     transition: max-inline-size ${sys.duration.short2} ${sys.easing.standard};
   }
   legend span {
-    padding-inline: ${sys.space(1)} calc(${sys.space(1)} - 0.5px);
+    padding-inline-start: 0;
+    padding-inline-end: 12px;
     display: inline-block;
     opacity: 0;
     visibility: visible;

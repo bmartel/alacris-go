@@ -144,9 +144,11 @@ const styles = css`
     margin-inline-start: 0;
     white-space: nowrap;
     overflow: hidden;
-    font: ${t.font};
-    font-size: 0.75em;
-    letter-spacing: calc(${sys.tracking.bodyLg} * 0.75);
+    font: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+    scale: 0.75;
+    transform-origin: 0 50%;
     visibility: hidden;
     max-inline-size: 0.01px;
     height: 12px;
@@ -154,7 +156,8 @@ const styles = css`
     transition: max-inline-size ${sys.duration.short2} ${sys.easing.standard};
   }
   legend span {
-    padding-inline: ${sys.space(1)} calc(${sys.space(1)} - 3px);
+    padding-inline-start: 0;
+    padding-inline-end: 12px;
     display: inline-block;
     opacity: 0;
     visibility: visible;
@@ -188,6 +191,7 @@ const styles = css`
     color: ${t.labelFg};
     pointer-events: none;
     transform-origin: 0 50%;
+    z-index: 2;
     transition: inset-block-start ${sys.duration.short3} ${sys.easing.standard},
                 inset-inline-start ${sys.duration.short3} ${sys.easing.standard},
                 translate ${sys.duration.short3} ${sys.easing.standard},
@@ -196,7 +200,7 @@ const styles = css`
   }
   .with-leading .label { inset-inline-start: calc(${sys.space(4)} + 1.5rem + ${sys.space(2)}); }
   /* Multi-line fields anchor the unfloated label centered on the first text line. */
-  .multiline:not(.floating) .label { inset-block-start: 28px; z-index: 2; }
+  .multiline:not(.floating) .label { inset-block-start: 28px; }
   .filled.floating .label { translate: 0 calc(-50% - 16px); scale: 0.75; }
   .filled.multiline.floating .label { inset-block-start: 16px; translate: 0 -50%; scale: 0.75; }
   .outlined.floating .label {
