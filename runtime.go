@@ -24,7 +24,7 @@ var assetFS embed.FS
 
 // RuntimeVersion is the version of the alacris npm package vendored in
 // assets/. Regenerate with `go generate ./...` after bumping it.
-const RuntimeVersion = "0.11.4"
+const RuntimeVersion = "0.11.5"
 
 // UIVersion is the version of the @alacris/ui package vendored in assets/ui/.
 const UIVersion = "0.5.0"

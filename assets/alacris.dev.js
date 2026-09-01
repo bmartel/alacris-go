@@ -407,12 +407,11 @@ function delegate(root2, type) {
     const path = e.composedPath();
     const ri = path.indexOf(root2);
     if (ri < 0) return;
-    let lo = 0;
-    for (let i = 0; i < ri; i++) if (path[i].nodeType === 11) lo = i + 1;
     const d = e.$$h || (e.$$h = /* @__PURE__ */ new Set());
-    for (let i = lo; i < ri; i++) {
+    const r = root2.getRootNode();
+    for (let i = 0; i < ri; i++) {
       const node2 = path[i];
-      if (!d.has(node2)) {
+      if (node2.getRootNode() === r && !d.has(node2)) {
         const h = node2[key];
         if (h) {
           d.add(node2);

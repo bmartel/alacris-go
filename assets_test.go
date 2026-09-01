@@ -18,11 +18,11 @@ import (
 // means `go run ./internal/vendorjs` needs running and RuntimeVersion needs
 // bumping, which is exactly the moment to check the changelog.
 var vendoredHashes = map[string]string{
-	"alacris.dev.js":                        "5c4f2fcd09fcea011885512eb63447bd8da6a933f3fa6a7d60bb349abfd29d7a",
-	"alacris.js":                            "ac091f21ea6823c05fa1993444092b60e707aefe194d0640a1b89e891d8fcef6",
-	"context.js":                            "c571d617572b608b4e2c3f2d0b0e36221e9afee76e966bd1c2bc7614515f1e91",
-	"signal.js":                             "a37194243c8fcaae18ca5a204f87bd5bfec5aabe9dd701b4d40f06e4ca8bdcac",
-	"store.js":                              "d9cc52ee9f6f9ac251f2c94e54fee65de5695b9656eff1c48fa864f4710fb27d",
+	"alacris.dev.js":                        "c2b76f4432b5c5e9a17c587680ffc69fdba7bf7f746811f6bcbace8462c4567f",
+	"alacris.js":                            "348aecdcc94c5e222354d4257b19a27d8a260d48b0fe87c154f8a07a3c9e3a1c",
+	"context.js":                            "f75a84cd760354d6f97219acab51f7286050181fd3de7d3c1fef441dd1761aa4",
+	"signal.js":                             "8363bae10eaf9daa3b87b7812f9fc9ab8b25e50539c95eda98844ec212f441e9",
+	"store.js":                              "f6273ae1da3e6a9932867401b599dd66107b3001280bd050b359c2ff087865af",
 	"ui/components/base.js":                 "f884d7bd7368828529c9df4aefa7d5d739f2e37257d048bf8897c34409758eb0",
 	"ui/components/ui-accordion-item.js":    "aec6dc3c3d059ba4690c0bcd6fee7d357ea68d6d58f2b29252cb4b1bf7d894fc",
 	"ui/components/ui-accordion.js":         "030b507720c34e5b10e65a86983834af938b9d92e5e834c22926b4f98399e634",
