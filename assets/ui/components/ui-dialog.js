@@ -46,9 +46,24 @@ const styles = css`
   .overlay {
     position: fixed;
     inset: 0;
+    inline-size: 100vw;
+    block-size: 100vh;
+    max-inline-size: 100vw;
+    max-block-size: 100vh;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    overflow: visible;
     z-index: ${sys.z.modal};
     display: grid;
     place-items: center;
+  }
+  .overlay:popover-open {
+    display: grid;
+  }
+  .overlay::backdrop {
+    display: none;
   }
   .scrim { position: absolute; inset: 0; background: ${t.scrim}; }
   .surface {
@@ -146,8 +161,16 @@ define('ui-dialog', {
       releaseFill(animate(el, fx.scaleIn, { duration: 'medium2', easing: 'emphasizedDecelerate' }));
     };
 
+    const overlayRef = (el) => {
+      queueMicrotask(() => {
+        try {
+          if (el.isConnected) el.showPopover?.();
+        } catch {}
+      });
+    };
+
     const view = () => html`
-      <div class="overlay">
+      <div class="overlay" popover="manual" ref=${overlayRef}>
         <div class="scrim" part="scrim" aria-hidden="true" @click=${() => requestClose('scrim')}></div>
         <div class="surface" part="surface" role="dialog" aria-modal="true"
              aria-labelledby=${() => (hasHeadline() ? 'headline' : null)}

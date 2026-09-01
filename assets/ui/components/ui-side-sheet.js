@@ -48,7 +48,23 @@ const styles = css`
   .overlay {
     position: fixed;
     inset: 0;
+    inline-size: 100vw;
+    block-size: 100vh;
+    max-inline-size: 100vw;
+    max-block-size: 100vh;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    overflow: visible;
     z-index: ${sys.z.modal};
+    display: block;
+  }
+  .overlay:popover-open {
+    display: block;
+  }
+  .overlay::backdrop {
+    display: none;
   }
   .scrim { position: absolute; inset: 0; background: ${t.scrim}; }
   .surface {
@@ -245,8 +261,16 @@ define('ui-side-sheet', {
       sync();
     };
 
+    const overlayRef = (el) => {
+      queueMicrotask(() => {
+        try {
+          if (el.isConnected) el.showPopover?.();
+        } catch {}
+      });
+    };
+
     const modalView = () => html`
-      <div class="overlay">
+      <div class="overlay" popover="manual" ref=${overlayRef}>
         <div class="scrim" part="scrim" aria-hidden="true"
              ref=${(el) => { scrimEl = el; }}
              @click=${() => requestClose('scrim')}></div>

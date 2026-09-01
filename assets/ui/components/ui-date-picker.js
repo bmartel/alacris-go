@@ -274,9 +274,24 @@ const styles = css`
   .overlay {
     position: fixed;
     inset: 0;
+    inline-size: 100vw;
+    block-size: 100vh;
+    max-inline-size: 100vw;
+    max-block-size: 100vh;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    overflow: visible;
     z-index: ${sys.z.popup};
     display: grid;
     place-items: center;
+  }
+  .overlay:popover-open {
+    display: grid;
+  }
+  .overlay::backdrop {
+    display: none;
   }
   .scrim { position: absolute; inset: 0; background: ${t.scrim}; }
   .modal-surface {
@@ -714,8 +729,16 @@ define('ui-date-picker', {
       releaseFill(animate(el, fx.scaleIn, { duration: 'medium2', easing: 'emphasizedDecelerate' }));
     };
 
+    const modalOverlayRef = (el) => {
+      queueMicrotask(() => {
+        try {
+          if (el.isConnected) el.showPopover?.();
+        } catch {}
+      });
+    };
+
     const modalView = () => html`
-      <div class="overlay">
+      <div class="overlay" popover="manual" ref=${modalOverlayRef}>
         <div class="scrim" aria-hidden="true" @click=${closePanel}></div>
         <div class="modal-surface" part="panel" role="dialog" aria-modal="true"
              aria-label=${() => label() || 'Choose date'}
