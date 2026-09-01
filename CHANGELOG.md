@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.20.0](https://github.com/bmartel/alacris-go/compare/v0.19.0...v0.20.0) (2026-09-01)
+
+### Features
+
+* vendor @alacris/ui@0.5.1 runtime update ([368559c](https://github.com/bmartel/alacris-go/commit/368559ccb696e76154a5296e6d0cd87b5b99eddf))
+
 ## [0.19.0](https://github.com/bmartel/alacris-go/compare/v0.18.0...v0.19.0) (2026-09-01)
 
 ### Features
