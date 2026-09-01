@@ -634,4 +634,3 @@ func TestBindEmptyStructHandlesPrimitiveDetail(t *testing.T) {
 		t.Fatalf("Bind to typed struct should have failed on invalid number literal")
 	}
 }
-
