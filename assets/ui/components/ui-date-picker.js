@@ -36,7 +36,7 @@ import { sys } from '../tokens/sys.js';
 import { base } from './base.js';
 import { formBind } from '../util/form.js';
 import { presence } from '../motion/presence.js';
-import { animate, fx } from '../motion/animate.js';
+import { animate, fx, releaseFill } from '../motion/animate.js';
 import { autoUpdate } from '../util/position.js';
 import { escapeLayer } from '../util/keys.js';
 import { popupEvent } from '../util/popup.js';
@@ -279,12 +279,7 @@ const styles = css`
     place-items: center;
   }
   .scrim { position: absolute; inset: 0; background: ${t.scrim}; }
-  @keyframes ui-date-picker-in {
-    from { transform: scale(0.8); }
-    to { transform: none; }
-  }
   .modal-surface {
-    animation: ui-date-picker-in ${sys.duration.medium2} ${sys.easing.emphasizedDecelerate};
     position: relative;
     display: flex;
     flex-direction: column;
@@ -714,12 +709,17 @@ define('ui-date-picker', {
         ${calGrid}
       </div>`;
 
+    const modalSurfaceRef = (el) => {
+      modalSurfaceEl = el;
+      releaseFill(animate(el, fx.scaleIn, { duration: 'medium2', easing: 'emphasizedDecelerate' }));
+    };
+
     const modalView = () => html`
       <div class="overlay">
         <div class="scrim" aria-hidden="true" @click=${closePanel}></div>
         <div class="modal-surface" part="panel" role="dialog" aria-modal="true"
              aria-label=${() => label() || 'Choose date'}
-             ref=${(el) => (modalSurfaceEl = el)}>
+             ref=${modalSurfaceRef}>
           <div class="headline">${() => (range() ? 'Select dates' : 'Select date')}</div>
           <div class="picked">${pickedLabel}</div>
           <div class="cal-header">

@@ -29,7 +29,7 @@ import { define, html, css, vars, effect, onCleanup, signal } from '@alacris/cor
 import { sys } from '../tokens/sys.js';
 import { base } from './base.js';
 import { presence } from '../motion/presence.js';
-import { animate, fx } from '../motion/animate.js';
+import { animate, fx, releaseFill } from '../motion/animate.js';
 import { focusTrap, scrollLock } from '../util/focus.js';
 
 const t = vars('ui-dialog', {
@@ -51,12 +51,7 @@ const styles = css`
     place-items: center;
   }
   .scrim { position: absolute; inset: 0; background: ${t.scrim}; }
-  @keyframes ui-dialog-in {
-    from { transform: scale(0.8); }
-    to { transform: none; }
-  }
   .surface {
-    animation: ui-dialog-in ${sys.duration.medium2} ${sys.easing.emphasizedDecelerate};
     position: relative;
     display: flex;
     flex-direction: column;
@@ -146,13 +141,18 @@ define('ui-dialog', {
       sync();
     };
 
+    const surfaceRef = (el) => {
+      surfaceEl = el;
+      releaseFill(animate(el, fx.scaleIn, { duration: 'medium2', easing: 'emphasizedDecelerate' }));
+    };
+
     const view = () => html`
       <div class="overlay">
         <div class="scrim" part="scrim" aria-hidden="true" @click=${() => requestClose('scrim')}></div>
         <div class="surface" part="surface" role="dialog" aria-modal="true"
              aria-labelledby=${() => (hasHeadline() ? 'headline' : null)}
              aria-label=${() => (hasHeadline() ? null : (label() || 'Dialog'))}
-             tabindex="-1" ref=${(el) => (surfaceEl = el)}>
+             tabindex="-1" ref=${surfaceRef}>
           <div class="headline" part="headline" id="headline"
                ref=${(el) => hasSlot(el.querySelector('slot'), (has) => {
                  hasHeadline.set(has);

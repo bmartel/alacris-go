@@ -97,6 +97,7 @@ define('ui-swipe-row', {
         { transform: targetTransform },
       ], { duration: ms, easing });
       return anim.finished.then(() => {
+        try { anim.cancel(); } catch {}
         if (contentEl) contentEl.style.transform = targetTransform;
       });
     };
@@ -163,6 +164,7 @@ define('ui-swipe-row', {
           return true;
         },
         onStart() {
+          el.getAnimations?.()?.forEach((a) => a.cancel());
           if (currentOpen === 'end') startOffset = -getEndWidth();
           else if (currentOpen === 'start') startOffset = getStartWidth();
           else startOffset = 0;

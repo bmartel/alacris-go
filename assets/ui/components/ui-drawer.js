@@ -116,9 +116,11 @@ define('ui-drawer', {
     };
 
     // Trap focus + lock scroll exactly while the modal drawer is open.
+    let closingViaSwipe = false;
     let prevActive = null;
     effect(() => {
       if (open() && variant() === 'modal') {
+        closingViaSwipe = false;
         prevActive = document.activeElement;
         document.addEventListener('keydown', onDocKeydown, true);
         if (!unlock) unlock = scrollLock();
@@ -143,7 +145,7 @@ define('ui-drawer', {
 
     // The panel slides out while the presence overlay (scrim included) fades.
     effect(() => {
-      if (!open() && surfaceEl?.isConnected) {
+      if (!open() && surfaceEl?.isConnected && !closingViaSwipe) {
         animate(surfaceEl, slideOut(), { duration: 'short4', easing: 'emphasizedAccelerate' });
       }
     });
@@ -161,6 +163,7 @@ define('ui-drawer', {
           return true;
         },
         onStart() {
+          el.getAnimations?.()?.forEach((a) => a.cancel());
           el.style.transition = 'none';
         },
         onMove({ dx }) {
@@ -183,29 +186,34 @@ define('ui-drawer', {
           const shouldDismiss = !cancelled && dismissDirection;
 
           if (shouldDismiss) {
+            closingViaSwipe = true;
             const targetTransform = isEnd ? 'translateX(100%)' : 'translateX(-100%)';
             const remaining = Math.max(0, w - Math.abs(dx));
             const ms = Math.min(300, Math.max(120, Math.round(remaining / (Math.max(Math.abs(vx), 0.8)))));
             if (scrimEl) {
               animate(scrimEl, fx.fadeOut, { duration: ms, easing: 'emphasizedAccelerate' });
             }
-            const anim = animate(el, [
-              { transform: el.style.transform || `translateX(${dx}px)` },
-              { transform: targetTransform },
-            ], { duration: ms, easing: 'emphasizedAccelerate' });
-            anim.finished.then(() => {
-              requestClose('swipe');
-            });
-          } else {
-            if (scrimEl) {
-              animate(scrimEl, [{ opacity: scrimEl.style.opacity || '0.5' }, { opacity: 1 }], {
-                duration: 'short4', easing: 'emphasizedDecelerate',
-              }).finished.then(() => { if (scrimEl) scrimEl.style.opacity = ''; });
-            }
             animate(el, [
               { transform: el.style.transform || `translateX(${dx}px)` },
+              { transform: targetTransform },
+            ], { duration: ms, easing: 'emphasizedAccelerate', fill: 'forwards' });
+            requestClose('swipe');
+          } else {
+            if (scrimEl) {
+              const scrimSnap = animate(scrimEl, [{ opacity: scrimEl.style.opacity || '0.5' }, { opacity: 1 }], {
+                duration: 'short4', easing: 'emphasizedDecelerate',
+              });
+              scrimSnap.finished.then(() => {
+                try { scrimSnap.cancel(); } catch {}
+                if (scrimEl) scrimEl.style.opacity = '';
+              });
+            }
+            const snapAnim = animate(el, [
+              { transform: el.style.transform || `translateX(${dx}px)` },
               { transform: 'translateX(0)' },
-            ], { duration: 'short4', easing: 'emphasizedDecelerate' }).finished.then(() => {
+            ], { duration: 'short4', easing: 'emphasizedDecelerate' });
+            snapAnim.finished.then(() => {
+              try { snapAnim.cancel(); } catch {}
               if (el) el.style.transform = '';
             });
           }

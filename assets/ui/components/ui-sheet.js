@@ -134,9 +134,11 @@ define('ui-sheet', {
       if (e.key === 'Escape') requestClose('esc');
     };
 
+    let closingViaSwipe = false;
     let prevActive = null;
     effect(() => {
       if (open() && variant() !== 'standard') {
+        closingViaSwipe = false;
         prevActive = document.activeElement;
         document.addEventListener('keydown', onDocKeydown, true);
         unlock = scrollLock();
@@ -150,7 +152,7 @@ define('ui-sheet', {
         prevActive = null;
         unlock?.();
         unlock = null;
-        if (surfaceEl?.isConnected) {
+        if (surfaceEl?.isConnected && !closingViaSwipe) {
           animate(surfaceEl, fx.sheetOut, { duration: 'short4', easing: 'emphasizedAccelerate' });
         }
       }
@@ -185,6 +187,7 @@ define('ui-sheet', {
           return true;
         },
         onStart() {
+          el.getAnimations?.()?.forEach((a) => a.cancel());
           el.style.transition = 'none';
         },
         onMove({ dy }) {
@@ -204,28 +207,33 @@ define('ui-sheet', {
           const shouldDismiss = !cancelled && (vy > 0.4 || dy > h * 0.35);
 
           if (shouldDismiss) {
+            closingViaSwipe = true;
             const remaining = Math.max(0, h - dy);
             const ms = Math.min(300, Math.max(120, Math.round(remaining / (Math.max(vy, 0.8)))));
             if (scrimEl) {
               animate(scrimEl, fx.fadeOut, { duration: ms, easing: 'emphasizedAccelerate' });
             }
-            const anim = animate(el, [
-              { transform: el.style.transform || `translateY(${dy}px)` },
-              { transform: 'translateY(100%)' },
-            ], { duration: ms, easing: 'emphasizedAccelerate' });
-            anim.finished.then(() => {
-              requestClose('swipe');
-            });
-          } else {
-            if (scrimEl) {
-              animate(scrimEl, [{ opacity: scrimEl.style.opacity || '0.5' }, { opacity: 1 }], {
-                duration: 'short4', easing: 'emphasizedDecelerate',
-              }).finished.then(() => { if (scrimEl) scrimEl.style.opacity = ''; });
-            }
             animate(el, [
               { transform: el.style.transform || `translateY(${dy}px)` },
+              { transform: 'translateY(100%)' },
+            ], { duration: ms, easing: 'emphasizedAccelerate', fill: 'forwards' });
+            requestClose('swipe');
+          } else {
+            if (scrimEl) {
+              const scrimSnap = animate(scrimEl, [{ opacity: scrimEl.style.opacity || '0.5' }, { opacity: 1 }], {
+                duration: 'short4', easing: 'emphasizedDecelerate',
+              });
+              scrimSnap.finished.then(() => {
+                try { scrimSnap.cancel(); } catch {}
+                if (scrimEl) scrimEl.style.opacity = '';
+              });
+            }
+            const snapAnim = animate(el, [
+              { transform: el.style.transform || `translateY(${dy}px)` },
               { transform: 'translateY(0)' },
-            ], { duration: 'short4', easing: 'emphasizedDecelerate' }).finished.then(() => {
+            ], { duration: 'short4', easing: 'emphasizedDecelerate' });
+            snapAnim.finished.then(() => {
+              try { snapAnim.cancel(); } catch {}
               if (el) el.style.transform = '';
             });
           }
