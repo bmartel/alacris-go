@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.19.0](https://github.com/bmartel/alacris-go/compare/v0.18.0...v0.19.0) (2026-09-01)
+
+### Features
+
+* vendor @alacris/core@0.11.5 runtime with slotted delegation fix ([13f50a8](https://github.com/bmartel/alacris-go/commit/13f50a8bce2e8733518f1f51bddca6af54f81073))
+
 ## [0.18.0](https://github.com/bmartel/alacris-go/compare/v0.17.0...v0.18.0) (2026-09-01)
 
 ### Features
