@@ -21,8 +21,8 @@ func TestButtonRenders(t *testing.T) {
 
 func TestPendingListsEveryTag(t *testing.T) {
 	p := ui.Pending()
-	if len(p.Tags) != 68 {
-		t.Errorf("Pending has %d tags, want 68", len(p.Tags))
+	if len(p.Tags) != 69 {
+		t.Errorf("Pending has %d tags, want 69", len(p.Tags))
 	}
 	got := render(t, p)
 	if !strings.Contains(got, "ui-button:not(:defined)") {

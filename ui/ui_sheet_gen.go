@@ -24,7 +24,7 @@ const (
 //
 //	Sheet(props).On(SheetEventClose, "handler-name")
 const (
-	// detail: { reason: 'esc' | 'scrim' | 'method' }
+	// detail: { reason: 'esc' | 'scrim' | 'swipe' | 'method' }
 	SheetEventClose = "close"
 	// enter animation finished
 	SheetEventOpened = "opened"
@@ -34,7 +34,7 @@ const (
 
 // SheetCloseDetail is the detail of the "close" event of <ui-sheet>.
 //
-// detail: { reason: 'esc' | 'scrim' | 'method' }
+// detail: { reason: 'esc' | 'scrim' | 'swipe' | 'method' }
 type SheetCloseDetail struct {
 	Reason any `json:"reason"`
 }
@@ -70,10 +70,15 @@ type SheetProps struct {
 	// The component defaults it to 'modal'.
 	Variant string
 
-	// Persistent is escape/scrim do not request closing.
+	// Persistent is escape/scrim/swipe do not request closing.
 	//
 	// The component defaults it to false.
 	Persistent bool
+
+	// Swipable is swipe down to dismiss.
+	//
+	// The component defaults it to true.
+	Swipable *bool
 
 	// Label is accessible name if no headline slot.
 	//
@@ -106,6 +111,9 @@ func Sheet(p SheetProps) *alacris.Element {
 	}
 	if p.Persistent {
 		e.Prop("persistent", p.Persistent)
+	}
+	if p.Swipable != nil {
+		e.Prop("swipable", *p.Swipable)
 	}
 	if p.Label != "" {
 		e.Prop("label", p.Label)
@@ -140,6 +148,9 @@ func (h SheetHandle) SetVariant(v string) { h.handle.Set("variant", v) }
 
 // SetPersistent writes the persistent prop.
 func (h SheetHandle) SetPersistent(v bool) { h.handle.Set("persistent", v) }
+
+// SetSwipable writes the swipable prop.
+func (h SheetHandle) SetSwipable(v bool) { h.handle.Set("swipable", v) }
 
 // SetLabel writes the label prop.
 func (h SheetHandle) SetLabel(v string) { h.handle.Set("label", v) }

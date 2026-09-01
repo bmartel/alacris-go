@@ -24,6 +24,7 @@ export { animate, releaseFill, settled, duration, easing, fx, prefersReducedMoti
 export { presence } from './motion/presence.js';
 export { withFlip } from './motion/flip.js';
 export { ripple } from './motion/ripple.js';
+export { createSwipeTracker, calculateVelocity, rubberBand } from './motion/gesture.js';
 
 // Utilities
 export { position, autoUpdate } from './util/position.js';
@@ -73,6 +74,7 @@ import './components/ui-badge.js';
 import './components/ui-divider.js';
 import './components/ui-list.js';
 import './components/ui-list-item.js';
+import './components/ui-swipe-row.js';
 import './components/ui-table.js';
 import './components/ui-table-toolbar.js';
 import './components/ui-table-footer.js';

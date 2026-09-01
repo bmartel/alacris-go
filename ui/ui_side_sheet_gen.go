@@ -24,7 +24,7 @@ const (
 //
 //	SideSheet(props).On(SideSheetEventClose, "handler-name")
 const (
-	// detail: { reason: 'esc' | 'scrim' | 'method' }
+	// detail: { reason: 'esc' | 'scrim' | 'swipe' | 'method' }
 	SideSheetEventClose = "close"
 	// enter animation finished
 	SideSheetEventOpened = "opened"
@@ -34,7 +34,7 @@ const (
 
 // SideSheetCloseDetail is the detail of the "close" event of <ui-side-sheet>.
 //
-// detail: { reason: 'esc' | 'scrim' | 'method' }
+// detail: { reason: 'esc' | 'scrim' | 'swipe' | 'method' }
 type SideSheetCloseDetail struct {
 	Reason any `json:"reason"`
 }
@@ -74,10 +74,15 @@ type SideSheetProps struct {
 	// The component defaults it to 'end'.
 	Anchor string
 
-	// Persistent is escape/scrim do not request closing.
+	// Persistent is escape/scrim/swipe do not request closing.
 	//
 	// The component defaults it to false.
 	Persistent bool
+
+	// Swipable is swipe in anchor direction to dismiss.
+	//
+	// The component defaults it to true.
+	Swipable *bool
 
 	// Label is accessible name if no headline slot.
 	//
@@ -112,6 +117,9 @@ func SideSheet(p SideSheetProps) *alacris.Element {
 	}
 	if p.Persistent {
 		e.Prop("persistent", p.Persistent)
+	}
+	if p.Swipable != nil {
+		e.Prop("swipable", *p.Swipable)
 	}
 	if p.Label != "" {
 		e.Prop("label", p.Label)
@@ -149,6 +157,9 @@ func (h SideSheetHandle) SetAnchor(v string) { h.handle.Set("anchor", v) }
 
 // SetPersistent writes the persistent prop.
 func (h SideSheetHandle) SetPersistent(v bool) { h.handle.Set("persistent", v) }
+
+// SetSwipable writes the swipable prop.
+func (h SideSheetHandle) SetSwipable(v bool) { h.handle.Set("swipable", v) }
 
 // SetLabel writes the label prop.
 func (h SideSheetHandle) SetLabel(v string) { h.handle.Set("label", v) }

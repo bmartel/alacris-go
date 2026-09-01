@@ -22,7 +22,7 @@ const (
 //
 //	Drawer(props).On(DrawerEventClose, "handler-name")
 const (
-	// modal dismissed; detail: { reason: 'esc' | 'scrim' }
+	// modal dismissed; detail: { reason: 'esc' | 'scrim' | 'swipe' }
 	DrawerEventClose = "close"
 	// modal enter animation finished
 	DrawerEventOpened = "opened"
@@ -32,7 +32,7 @@ const (
 
 // DrawerCloseDetail is the detail of the "close" event of <ui-drawer>.
 //
-// modal dismissed; detail: { reason: 'esc' | 'scrim' }
+// modal dismissed; detail: { reason: 'esc' | 'scrim' | 'swipe' }
 type DrawerCloseDetail struct {
 	Reason any `json:"reason"`
 }
@@ -74,6 +74,16 @@ type DrawerProps struct {
 	// The component defaults it to 'start'.
 	Anchor string
 
+	// Persistent is escape/scrim/swipe do not request closing.
+	//
+	// The component defaults it to false.
+	Persistent bool
+
+	// Swipable is swipe in anchor direction to dismiss.
+	//
+	// The component defaults it to true.
+	Swipable *bool
+
 	// Label is accessible name; falls back to "Navigation".
 	//
 	// The component defaults it to ''.
@@ -104,6 +114,12 @@ func Drawer(p DrawerProps) *alacris.Element {
 	}
 	if p.Anchor != "" && p.Anchor != "start" {
 		e.Prop("anchor", p.Anchor)
+	}
+	if p.Persistent {
+		e.Prop("persistent", p.Persistent)
+	}
+	if p.Swipable != nil {
+		e.Prop("swipable", *p.Swipable)
 	}
 	if p.Label != "" {
 		e.Prop("label", p.Label)
@@ -138,6 +154,12 @@ func (h DrawerHandle) SetVariant(v string) { h.handle.Set("variant", v) }
 
 // SetAnchor writes the anchor prop.
 func (h DrawerHandle) SetAnchor(v string) { h.handle.Set("anchor", v) }
+
+// SetPersistent writes the persistent prop.
+func (h DrawerHandle) SetPersistent(v bool) { h.handle.Set("persistent", v) }
+
+// SetSwipable writes the swipable prop.
+func (h DrawerHandle) SetSwipable(v bool) { h.handle.Set("swipable", v) }
 
 // SetLabel writes the label prop.
 func (h DrawerHandle) SetLabel(v string) { h.handle.Set("label", v) }

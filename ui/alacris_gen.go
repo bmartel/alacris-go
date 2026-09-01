@@ -1,4 +1,4 @@
-// Package ui is the typed Go surface of Alacris UI — sixty-eight Material
+// Package ui is the typed Go surface of Alacris UI — sixty-nine Material
 // Design 3 components, a three-tier token system, and a theme engine.
 //
 // Enable it on a page with alacris.Config{UI: true}. That loads every component
@@ -76,6 +76,7 @@ var Tags = []string{
 	"ui-step",
 	"ui-stepper",
 	"ui-surface",
+	"ui-swipe-row",
 	"ui-switch",
 	"ui-tab",
 	"ui-tab-panel",

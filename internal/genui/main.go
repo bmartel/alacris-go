@@ -15,7 +15,7 @@ import (
 	"github.com/bmartel/alacris-go/gen"
 )
 
-const packageDoc = `Package ui is the typed Go surface of Alacris UI — sixty-eight Material
+const packageDoc = `Package ui is the typed Go surface of Alacris UI — sixty-nine Material
 Design 3 components, a three-tier token system, and a theme engine.
 
 Enable it on a page with alacris.Config{UI: true}. That loads every component
