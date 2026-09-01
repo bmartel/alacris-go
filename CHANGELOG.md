@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.21.0](https://github.com/bmartel/alacris-go/compare/v0.20.0...v0.21.0) (2026-09-01)
+
+### Features
+
+* vendor @alacris/ui@0.5.2 runtime update (top layer popover promotion) ([413db4d](https://github.com/bmartel/alacris-go/commit/413db4db6ff94663d88864aede0fe8b2559e091e))
+
 ## [0.20.0](https://github.com/bmartel/alacris-go/compare/v0.19.0...v0.20.0) (2026-09-01)
 
 ### Features
