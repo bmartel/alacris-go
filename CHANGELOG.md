@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Releases are cut
 automatically by [semantic-release](https://semantic-release.gitbook.io/) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.18.0](https://github.com/bmartel/alacris-go/compare/v0.17.0...v0.18.0) (2026-09-01)
+
+### Features
+
+* vendor @alacris/ui@0.5.0 and add SwipeRow Go wrapper ([49aa2e6](https://github.com/bmartel/alacris-go/commit/49aa2e67185409d4cda1ea7ed7779ca5eea1bfd3))
+* vendor @alacris/ui@0.5.0 runtime with SwipeRow ([f38d450](https://github.com/bmartel/alacris-go/commit/f38d450440f944ea8eacae76ec48a9197b4748ea))
+
 ## [0.17.0](https://github.com/bmartel/alacris-go/compare/v0.16.0...v0.17.0) (2026-08-30)
 
 ### Features
