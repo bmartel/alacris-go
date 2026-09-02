@@ -69,6 +69,14 @@ export const sys = {
     snackbar: v('z-snackbar'),
     tooltip: v('z-tooltip'),
   },
+  scrollbar: {
+    thumb: v('scrollbar-thumb'),
+    thumbHover: v('scrollbar-thumb-hover'),
+    thumbActive: v('scrollbar-thumb-active'),
+    track: v('scrollbar-track'),
+    size: v('scrollbar-size'),
+    radius: v('scrollbar-radius'),
+  },
   density: 'var(--ui-density, 0)',
 };
 

@@ -9,6 +9,7 @@ export {
 } from './typography.js';
 export {
   shapeTokens, elevationTokens, motionTokens, spacingTokens, stateTokens,
-  focusTokens, zTokens, densityTokens, RADIUS_KEYS, ELEVATION_LEVELS,
+  focusTokens, zTokens, densityTokens, scrollbarTokens, RADIUS_KEYS, ELEVATION_LEVELS,
   DURATIONS, EASINGS, SPACE_STEPS,
 } from './system.js';
+

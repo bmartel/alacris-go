@@ -36,6 +36,7 @@ export {
   processTable, filterRows, sortRows, groupRows, paginate,
   aggregateRow, toCsv, downloadText, inferColumns, visibleColumns,
 } from './util/table.js';
+export { base, scrollbarOn, focusRingOn, stateLayerOn } from './components/base.js';
 
 // Components — importing registers the custom element.
 import './components/ui-icon.js';

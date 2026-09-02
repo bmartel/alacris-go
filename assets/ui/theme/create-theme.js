@@ -11,7 +11,7 @@ import { makePalettes, makeScheme, COLOR_ROLES } from '../tokens/color.js';
 import { typographyTokens, resolveTypography } from '../tokens/typography.js';
 import {
   shapeTokens, elevationTokens, motionTokens, spacingTokens,
-  stateTokens, focusTokens, zTokens, densityTokens,
+  stateTokens, focusTokens, zTokens, densityTokens, scrollbarTokens,
 } from '../tokens/system.js';
 
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
@@ -47,6 +47,7 @@ export function createTheme(config = {}) {
     ...focusTokens(),
     ...zTokens(),
     ...densityTokens(config),
+    ...scrollbarTokens(),
     ...(config.overrides?.common || {}),
   };
 

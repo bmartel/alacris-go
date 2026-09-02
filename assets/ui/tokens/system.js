@@ -113,3 +113,17 @@ export function zTokens() {
 export function densityTokens({ density = 0 } = {}) {
   return { density: String(Math.max(-2, Math.min(0, density))) };
 }
+
+// ---------------------------------------------------------------- scrollbar
+
+export function scrollbarTokens() {
+  return {
+    'scrollbar-size': '8px',
+    'scrollbar-radius': 'var(--ui-radius-full)',
+    'scrollbar-track': 'transparent',
+    'scrollbar-thumb': 'var(--ui-color-outline-variant)',
+    'scrollbar-thumb-hover': 'var(--ui-color-outline)',
+    'scrollbar-thumb-active': 'var(--ui-color-on-surface-variant)',
+  };
+}
+

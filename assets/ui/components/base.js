@@ -21,6 +21,79 @@ export const base = css`
       animation-iteration-count: 1;
     }
   }
+  @media (hover: hover) and (pointer: fine) {
+    :host, *, *::before, *::after {
+      scrollbar-width: thin;
+      scrollbar-color: ${sys.scrollbar.thumb} ${sys.scrollbar.track};
+    }
+    ::-webkit-scrollbar {
+      inline-size: ${sys.scrollbar.size};
+      block-size: ${sys.scrollbar.size};
+    }
+    ::-webkit-scrollbar-track {
+      background: ${sys.scrollbar.track};
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: ${sys.scrollbar.thumb};
+      border-radius: ${sys.scrollbar.radius};
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: ${sys.scrollbar.thumbHover};
+    }
+    ::-webkit-scrollbar-thumb:active {
+      background-color: ${sys.scrollbar.thumbActive};
+    }
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-button {
+      display: none;
+      inline-size: 0;
+      block-size: 0;
+    }
+  }
+`;
+
+/**
+ * Custom scrollbar rules for a specific selector.
+ * Interpolate into a component's css template.
+ */
+export const scrollbarOn = (selector) => `
+  @media (hover: hover) and (pointer: fine) {
+    ${selector} {
+      scrollbar-width: thin;
+      scrollbar-color: var(--ui-scrollbar-thumb) var(--ui-scrollbar-track);
+    }
+    ${selector}::-webkit-scrollbar {
+      inline-size: var(--ui-scrollbar-size);
+      block-size: var(--ui-scrollbar-size);
+    }
+    ${selector}::-webkit-scrollbar-track {
+      background: var(--ui-scrollbar-track);
+    }
+    ${selector}::-webkit-scrollbar-thumb {
+      background-color: var(--ui-scrollbar-thumb);
+      border-radius: var(--ui-scrollbar-radius);
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    ${selector}::-webkit-scrollbar-thumb:hover {
+      background-color: var(--ui-scrollbar-thumb-hover);
+    }
+    ${selector}::-webkit-scrollbar-thumb:active {
+      background-color: var(--ui-scrollbar-thumb-active);
+    }
+    ${selector}::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    ${selector}::-webkit-scrollbar-button {
+      display: none;
+      inline-size: 0;
+      block-size: 0;
+    }
+  }
 `;
 
 /**
@@ -44,3 +117,4 @@ export const stateLayerOn = (host, { focus = host } = {}) => `
   ${focus}:focus-visible .layer { opacity: var(--ui-state-focus); }
   ${host}:active .layer { opacity: var(--ui-state-pressed); }
 `;
+

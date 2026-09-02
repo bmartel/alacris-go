@@ -27,12 +27,49 @@ const block = (tokens) => {
 // plain typeface. Components then set a type-role shorthand on top.
 const FACE = 'font-family:var(--ui-font-plain);font-optical-sizing:auto;font-synthesis:none;';
 
+const SCROLLBAR = [
+  '@media (hover: hover) and (pointer: fine) {',
+  '  :root, html, body {',
+  '    scrollbar-width: thin;',
+  '    scrollbar-color: var(--ui-scrollbar-thumb) var(--ui-scrollbar-track);',
+  '  }',
+  '  ::-webkit-scrollbar {',
+  '    inline-size: var(--ui-scrollbar-size);',
+  '    block-size: var(--ui-scrollbar-size);',
+  '  }',
+  '  ::-webkit-scrollbar-track {',
+  '    background: var(--ui-scrollbar-track);',
+  '  }',
+  '  ::-webkit-scrollbar-thumb {',
+  '    background-color: var(--ui-scrollbar-thumb);',
+  '    border-radius: var(--ui-scrollbar-radius);',
+  '    border: 2px solid transparent;',
+  '    background-clip: content-box;',
+  '  }',
+  '  ::-webkit-scrollbar-thumb:hover {',
+  '    background-color: var(--ui-scrollbar-thumb-hover);',
+  '  }',
+  '  ::-webkit-scrollbar-thumb:active {',
+  '    background-color: var(--ui-scrollbar-thumb-active);',
+  '  }',
+  '  ::-webkit-scrollbar-corner {',
+  '    background: transparent;',
+  '  }',
+  '  ::-webkit-scrollbar-button {',
+  '    display: none;',
+  '    inline-size: 0;',
+  '    block-size: 0;',
+  '  }',
+  '}',
+].join('\n');
+
 export function themeCss(theme) {
   const { common, schemes } = theme;
   return [
     `:root{${FACE}${block(common)}${block(schemes.light)}}`,
     `:root[data-ui-scheme="dark"]{${block(schemes.dark)}}`,
     `@media (prefers-color-scheme: dark){:root:not([data-ui-scheme="light"]){${block(schemes.dark)}}}`,
+    SCROLLBAR,
   ].join('\n');
 }
 
